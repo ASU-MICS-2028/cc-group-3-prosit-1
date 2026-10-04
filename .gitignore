@@ -1,0 +1,30 @@
+team_credentials/
+*_credentials.csv
+
+# course materials — don't publish
+week*.docx
+week*.pptx
+CC-GROUP-*.pdf
+K8s/
+*.drawio.png
+
+# terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/tfplan
+infra/.terraform.lock.hcl
+infra/*.tfvars
+!infra/example.tfvars
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# node (future frontend)
+node_modules/
+
+# misc
+.DS_Store
+.env
