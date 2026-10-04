@@ -340,10 +340,16 @@ data "aws_iam_policy_document" "gha_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # ASU-MICS-2028 org uses OIDC subject customization that appends numeric IDs
+    # (e.g. `repo:ASU-MICS-2028@326597623/cc-group-3-prosit-1@1363910903:ref:...`),
+    # so match both the standard and the ID-suffixed form.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values = [
+        "repo:${var.github_repo}:*",
+        "repo:${split("/", var.github_repo)[0]}@*/${split("/", var.github_repo)[1]}@*:*",
+      ]
     }
   }
 }

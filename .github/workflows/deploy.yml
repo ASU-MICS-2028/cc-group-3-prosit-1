@@ -23,16 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug OIDC claims
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
-          echo "::add-mask::$TOKEN"
-          echo "$TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq '{sub, aud, iss, repository, ref, event_name}'
-
       - name: Configure AWS creds (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
