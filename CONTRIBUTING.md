@@ -27,12 +27,10 @@ Summary of [`CODEOWNERS`](./.github/CODEOWNERS):
 
 | Path | Owner |
 | --- | --- |
-| `backend/` | backend owner |
-| `frontend/` | Perfect Avugla |
-| `infra/`, `.github/`, `scripts/` | Eugene Sewor |
-
-> The `@handles` in `CODEOWNERS` are placeholders — replace them with real GitHub
-> usernames (an unresolvable handle is ignored and requires no review).
+| `backend/` | Elise Kennedy-Angbo (`@Elise-Oyi`) |
+| `frontend/` | Perfect Avugla (`@PeaElorm`) |
+| `infra/`, `.github/`, `scripts/` | Eugene Sewor (`@eugene-sew`) |
+| everything else | Joseph Etse (`@josetseph`) |
 
 ## Branch protection for `main`
 
