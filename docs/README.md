@@ -1,0 +1,80 @@
+# AgroConnect Ghana — Documentation Hub
+
+Welcome to the comprehensive system documentation for **AgroConnect Ghana**, developed by **Group 3 (Highlanders)** for **ICS 534 Cloud Computing (PROSIT 1)** at Ashesi University.
+
+This documentation dossier covers the entire system lifecycle—from empirical cloud research and architectural decision records (ADRs) to individual subsystem implementations, infrastructure code, offline client synchronization, and CI/CD operations.
+
+---
+
+## Documentation Navigation
+
+```
+docs/
+├── README.md                     # Documentation Index & Hub (this page)
+├── system-overview.md            # High-level architecture, business context & Well-Architected alignment
+├── architecture-decisions.md     # Architectural Decision Records (ADR-001 through ADR-005)
+├── empirical-research.md         # Network latency benchmarks & cloud provider comparison
+├── client-tier.md                # Offline-first PWA, IndexedDB (Dexie), sync queue & hardware resilience
+├── api-tier.md                   # Containerized FastAPI farmer-profile-service & API contracts
+├── data-tier.md                  # Relational schema (PostgreSQL), data models & S3 media offloading
+├── cloud-infrastructure.md       # Terraform AWS af-south-1 IaC, VPC topology, fck-nat & ALB TLS
+├── ci-cd-and-operations.md       # GitOps CI/CD (OIDC), ASG rolling refresh & team IAM governance
+└── assets/                       # Architecture diagrams & application UI screenshots
+    ├── architecture-v2.png       # Complete runtime & CI/CD architecture diagram
+    ├── architecture-simple.png   # Foundation MVP architecture diagram
+    ├── pwa-offline-screen.jpeg   # Mobile UI in offline field mode
+    └── pwa-online-screen.jpeg    # Mobile UI in online synchronization mode
+```
+
+---
+
+## Quick Reference Links
+
+| Document | Focus Area | Key Highlights |
+|---|---|---|
+| [**1. System Overview**](./system-overview.md) | Architectural Vision | Context in Ghana rural agriculture, high-level topology, Well-Architected Framework 6-pillar analysis |
+| [**2. Architecture Decisions (ADRs)**](./architecture-decisions.md) | Formal Decisions | ADR-001 (Region selection) to ADR-005 (Zero-trust GitOps CI/CD) |
+| [**3. Empirical Research**](./empirical-research.md) | Cloud Benchmarks | Network latency testing from Ghana (AWS vs Azure vs GCP) & provider service comparison |
+| [**4. Client Tier (PWA)**](./client-tier.md) | Frontend & Edge | Offline-first design, Dexie IndexedDB, client UUIDs, GPS polling, photo compression |
+| [**5. API Tier**](./api-tier.md) | Application Backend | FastAPI service, Docker containerization, health probes, OpenAPI specifications |
+| [**6. Data Tier**](./data-tier.md) | Persistence Layer | PostgreSQL schema (`db/schema.sql`), cascading relationships, S3 object pointers |
+| [**7. Cloud Infrastructure**](./cloud-infrastructure.md) | AWS & Terraform | Dual-AZ VPC in `af-south-1`, ARM64 `fck-nat` cost optimization, ALB HTTPS, ASG, SSM |
+| [**8. CI/CD & Operations**](./ci-cd-and-operations.md) | Automation & Security | GitHub Actions OIDC deployment, ECR push, ASG instance refresh, IAM team onboarding |
+
+---
+
+## High-Level Topology Snapshot
+
+![AgroConnect Architecture v2](./assets/architecture-v2.png)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 PWA Client (Offline-First)                  │
+│  IndexedDB (Dexie) • Client UUIDs • Photo Compression • GPS │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTPS (api.agroconnect.space)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 AWS af-south-1 (Cape Town)                  │
+│  [Public Subnets]   ALB (ACM TLS) + fck-nat (t4g.nano)      │
+│  [Private App]      ASG (t3.micro EC2s running Docker)      │
+│  [Private Data]     Isolated Subnets (Week 4 RDS Ready)     │
+└──────────────────────────────▲──────────────────────────────┘
+                               │
+┌──────────────────────────────┴──────────────────────────────┐
+│                   GitOps CI/CD Deployment                   │
+│   PR: Smoke Test + Terraform Validate                       │
+│   Push main: GitHub Actions (OIDC) → ECR → ASG Rolling Roll │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Team & Responsibilities
+
+| Name | Role | GitHub Handle | Core Scope |
+|---|---|---|---|
+| **Joseph Etse** | Project Manager | [@josetseph](https://github.com/josetseph) | Overall architecture, technical coordination, repository maintenance |
+| **Eugene Sewor** | Cloud / DevOps Lead | [@eugene-sew](https://github.com/eugene-sew) | Terraform IaC, AWS networking, CI/CD pipelines, security |
+| **Elise Kennedy-Angbo** | Data Lead | [@Elise-Oyi](https://github.com/Elise-Oyi) | Backend API development, database modeling, schema migrations |
+| **Perfect Avugla** | Frontend Lead | [@PeaElorm](https://github.com/PeaElorm) | Progressive Web App, offline persistence, sync engine, field UI |
