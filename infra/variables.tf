@@ -33,9 +33,19 @@ variable "private_subnet_cidrs" {
   default = ["10.20.11.0/24", "10.20.12.0/24"]
 }
 
+variable "data_subnet_cidrs" {
+  type    = list(string)
+  default = ["10.20.21.0/24", "10.20.22.0/24"]
+}
+
 variable "instance_type" {
   type    = string
   default = "t3.micro"
+}
+
+variable "nat_instance_type" {
+  type    = string
+  default = "t4g.nano"
 }
 
 variable "app_port" {

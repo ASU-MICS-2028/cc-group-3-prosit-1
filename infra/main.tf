@@ -54,20 +54,96 @@ resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = var.azs[count.index]
-  tags              = { Name = "${local.name}-private-${var.azs[count.index]}" }
+  tags = {
+    Name = "${local.name}-private-${var.azs[count.index]}"
+    Tier = "app"
+  }
 }
 
-# ponytail: single NAT gateway shared across AZs; one-per-AZ when traffic justifies cost.
+# Data tier subnets — isolated. No default route. Week 4 RDS lands here.
+resource "aws_subnet" "data" {
+  count             = length(var.data_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.data_subnet_cidrs[count.index]
+  availability_zone = var.azs[count.index]
+  tags = {
+    Name = "${local.name}-data-${var.azs[count.index]}"
+    Tier = "data"
+  }
+}
+
+# ponytail: single fck-nat instance in af-south-1a; no HA.
+# If this host or its AZ fails, egress breaks until recovery.
+# Upgrade path: per-AZ fck-nat (~$6/mo) or back to Managed NAT GW (~$32/mo).
+data "aws_ami" "fck_nat" {
+  most_recent = true
+  owners      = ["568608671756"] # fck-nat publisher
+
+  filter {
+    name   = "name"
+    values = ["fck-nat-al2023-hvm-1.4.0-*-arm64-ebs"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
+resource "aws_security_group" "nat" {
+  name        = "${local.name}-nat-sg"
+  description = "fck-nat: all egress; ingress only from VPC CIDR"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${local.name}-nat-sg" }
+}
+
+resource "aws_network_interface" "nat" {
+  subnet_id         = aws_subnet.public[0].id
+  security_groups   = [aws_security_group.nat.id]
+  source_dest_check = false
+  tags              = { Name = "${local.name}-nat-eni" }
+}
+
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags   = { Name = "${local.name}-nat-eip" }
 }
 
-resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-  tags          = { Name = "${local.name}-nat" }
-  depends_on    = [aws_internet_gateway.igw]
+resource "aws_eip_association" "nat" {
+  allocation_id        = aws_eip.nat.id
+  network_interface_id = aws_network_interface.nat.id
+}
+
+resource "aws_instance" "nat" {
+  ami                  = data.aws_ami.fck_nat.id
+  instance_type        = var.nat_instance_type
+  iam_instance_profile = aws_iam_instance_profile.ec2.name
+
+  network_interface {
+    network_interface_id = aws_network_interface.nat.id
+    device_index         = 0
+  }
+
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  tags = { Name = "${local.name}-fck-nat" }
 }
 
 resource "aws_route_table" "public" {
@@ -82,8 +158,8 @@ resource "aws_route_table" "public" {
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
   route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
+    cidr_block           = "0.0.0.0/0"
+    network_interface_id = aws_network_interface.nat.id
   }
   tags = { Name = "${local.name}-rt-private" }
 }
@@ -98,6 +174,18 @@ resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
+}
+
+# Data route table — no 0.0.0.0/0 entry. Only the implicit VPC-local route.
+resource "aws_route_table" "data" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "${local.name}-rt-data" }
+}
+
+resource "aws_route_table_association" "data" {
+  count          = length(aws_subnet.data)
+  subnet_id      = aws_subnet.data[count.index].id
+  route_table_id = aws_route_table.data.id
 }
 
 # ---------- Security Groups ----------

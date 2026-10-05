@@ -5,7 +5,10 @@ Terraform-managed infra in `af-south-1`.
 ## Shape
 
 - VPC `10.20.0.0/16`, two AZs (`af-south-1a`, `af-south-1b`)
-- 2 public subnets (ALB, NAT, IGW) + 2 private subnets (EC2 app tier)
+- 2 public subnets (ALB + fck-nat + IGW)
+- 2 private-app subnets (EC2 app tier, routes to fck-nat for egress)
+- 2 private-data subnets (Week 4 RDS, no default route, fully isolated)
+- fck-nat on `t4g.nano` in `af-south-1a` for private-tier egress
 - ALB → target group `/health` on port 8000
 - Launch Template: Ubuntu 24.04, `t3.micro`, IMDSv2, SSM-managed (no SSH keys)
 - ASG: min 1, max 2, desired 2, rolling instance refresh
@@ -21,8 +24,9 @@ terraform plan
 terraform apply       # ~29 resources
 ```
 
-Costs: NAT gateway (~\$32/mo), ALB (~\$18/mo), 2x `t3.micro` (free tier eligible),
-1 EIP, ECR storage pennies.
+Costs (af-south-1 list): fck-nat `t4g.nano` (~\$3/mo), ALB (~\$19/mo), 2x
+`t3.micro` (free tier covers one), 1 EIP (attached, free), ECR storage pennies.
+Total ~\$32/mo before Week 4 RDS.
 
 ## After apply
 
@@ -43,8 +47,13 @@ terraform destroy
 
 ## Known shortcuts (ponytail debt)
 
-- Single NAT gateway shared across AZs — one AZ down takes outbound egress with
-  it. Add a second when the architecture needs it.
+- Single `fck-nat` instance in `af-south-1a`, no HA. If it or its AZ fails,
+  egress breaks until recovery. Mitigation path: wrap it in a 1-instance ASG for
+  ~2-min MTTR, upgrade to per-AZ fck-nat (~\$6/mo), or revert to Managed NAT
+  Gateway (~\$32/mo) when traffic justifies.
+- Data subnets are provisioned but empty — RDS lands in Week 4. The data route
+  table has no default route, so the DB tier is internet-isolated by
+  construction.
 - `:latest` image tag + instance refresh — no fast rollback. Switch to immutable
   SHA tags + an SSM parameter pointing at the current one when needed.
 - HTTP-only listener. Add ACM cert + HTTPS listener before any production use.
