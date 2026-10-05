@@ -1,0 +1,50 @@
+name: ci
+
+# Gate every PR into main. Deploy happens only after merge (see deploy.yml).
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Import the app
+        working-directory: backend
+        run: python -c "from app.main import app; print('ok:', app.title, app.version)"
+
+  terraform:
+    name: terraform fmt + validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Format check
+        working-directory: infra
+        run: terraform fmt -check -recursive
+
+      - name: Init (no backend)
+        working-directory: infra
+        run: terraform init -backend=false
+
+      - name: Validate
+        working-directory: infra
+        run: terraform validate

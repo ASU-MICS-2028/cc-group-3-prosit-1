@@ -19,6 +19,26 @@ class FarmerIn(BaseModel):
     farm_size: float | None = None
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "farmer-profile-service",
+        "version": app.version,
+        "description": "AgroConnect Ghana — farmer profile API (ICS 534, Group 3)",
+        "docs": {"swagger": "/docs", "openapi": "/openapi.json"},
+        "endpoints": [
+            {"method": "GET", "path": "/", "description": "service metadata"},
+            {"method": "GET", "path": "/health", "description": "liveness probe"},
+            {"method": "POST", "path": "/farmers", "description": "create a farmer"},
+            {
+                "method": "GET",
+                "path": "/farmers/{farmer_id}",
+                "description": "fetch a farmer",
+            },
+        ],
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "farmer-profile-service"}

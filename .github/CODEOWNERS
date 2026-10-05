@@ -1,0 +1,22 @@
+# CODEOWNERS — who reviews what.
+#
+# GitHub uses this file for the "Require review from Code Owners" branch-protection
+# rule on `main`. A PR touching a path below cannot merge until its owner approves.
+# Flow and branch-protection setup: see CONTRIBUTING.md.
+#
+# Syntax:  <path-pattern>   <@user | @org/team | email>
+# Docs:    https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner — the project overall.
+*                       @josetseph
+
+# Infrastructure, CI/CD, and repo plumbing.
+/infra/                 @eugene-sew
+/.github/               @eugene-sew
+/scripts/               @eugene-sew
+
+# Backend service.
+/backend/               @Elise-Oyi
+
+# Frontend app.
+/frontend/              @PeaElorm
