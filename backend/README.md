@@ -4,6 +4,7 @@ FastAPI backend. In-memory store until Week 4.
 
 ## Endpoints
 
+- `GET  /` — service metadata (name, version, endpoint list)
 - `GET  /health`
 - `POST /farmers` → `{name, phone, region?, language?, farm_size?}`
 - `GET  /farmers/{id}`
