@@ -16,7 +16,7 @@ CREATE TABLE farms (
   farmer_id     INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
   soil_type     TEXT,
   size_hectares NUMERIC,
-  in_use        BOOLEAN DEFAULT true,            -- your addition: is the plot active
+  in_use        BOOLEAN DEFAULT true,            -- is the plot active
   created_at    TIMESTAMP DEFAULT now()
 );
 
