@@ -6,25 +6,17 @@
 #
 # Syntax:  <path-pattern>   <@user | @org/team | email>
 # Docs:    https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
-#
-# IMPORTANT: the @handles below are PLACEHOLDERS — swap in each teammate's real
-# GitHub username. A handle GitHub can't resolve is silently ignored, and that
-# path will then require no code-owner review.
 
-# Default owner for anything not matched below.
-*                       @eugenedev
+# Default owner — the project overall.
+*                       @josetseph
 
 # Infrastructure, CI/CD, and repo plumbing.
-/infra/                 @eugenedev
-/.github/               @eugenedev
-/scripts/               @eugenedev
+/infra/                 @eugene-sew
+/.github/               @eugene-sew
+/scripts/               @eugene-sew
 
 # Backend service.
-/backend/               @eugenedev
+/backend/               @Elise-Oyi
 
 # Frontend app.
-/frontend/              @perfect-avugla
-
-# Docs and top-level config.
-/README.md              @eugenedev
-/CONTRIBUTING.md        @eugenedev
+/frontend/              @PeaElorm

@@ -15,7 +15,7 @@ See each folder's README for details. Contributions land via PR — see
 
 ## Team
 
-- Joseph Etse — project manager
-- Eugene Sewor — infra / cloud
-- Elise Kennedy-Angbo — data lead
-- Perfect Avugla — frontend lead
+- Joseph Etse — project manager (`@josetseph`)
+- Eugene Sewor — infra / cloud (`@eugene-sew`)
+- Elise Kennedy-Angbo — data lead (`@Elise-Oyi`)
+- Perfect Avugla — frontend lead (`@PeaElorm`)
