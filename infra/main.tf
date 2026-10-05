@@ -119,16 +119,6 @@ resource "aws_network_interface" "nat" {
   tags              = { Name = "${local.name}-nat-eni" }
 }
 
-resource "aws_eip" "nat" {
-  domain = "vpc"
-  tags   = { Name = "${local.name}-nat-eip" }
-}
-
-resource "aws_eip_association" "nat" {
-  allocation_id        = aws_eip.nat.id
-  network_interface_id = aws_network_interface.nat.id
-}
-
 resource "aws_instance" "nat" {
   ami                  = data.aws_ami.fck_nat.id
   instance_type        = var.nat_instance_type
@@ -190,13 +180,22 @@ resource "aws_route_table_association" "data" {
 
 # ---------- Security Groups ----------
 resource "aws_security_group" "alb" {
-  name        = "${local.name}-alb-sg"
+  name = "${local.name}-alb-sg"
+  # NOTE: SG description is ForceNew — editing it replaces the SG (and the ALB
+  # that depends on it). Leave as-is; 443 ingress is added via the rule below.
   description = "ALB: public 80 in"
   vpc_id      = aws_vpc.main.id
 
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -370,6 +369,47 @@ resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"
+
+  # Redirect only once the HTTPS listener exists, so there is never a window
+  # where :80 points at a :443 that isn't listening yet.
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+
+  depends_on = [aws_lb_listener.https]
+}
+
+# ---------- ACM cert for api.agroconnect.space ----------
+resource "aws_acm_certificate" "api" {
+  domain_name       = var.api_hostname
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Blocks until the DNS validation CNAME (published at Hostinger) is visible and
+# ACM flips the cert to ISSUED.
+resource "aws_acm_certificate_validation" "api" {
+  certificate_arn = aws_acm_certificate.api.arn
+  validation_record_fqdns = [
+    for record in aws_acm_certificate.api.domain_validation_options : record.resource_record_name
+  ]
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn

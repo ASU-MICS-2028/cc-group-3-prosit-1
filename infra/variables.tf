@@ -58,3 +58,8 @@ variable "github_repo" {
   type        = string
   default     = "ASU-MICS-2028/cc-group-3-prosit-1"
 }
+
+variable "api_hostname" {
+  type    = string
+  default = "api.agroconnect.space"
+}
