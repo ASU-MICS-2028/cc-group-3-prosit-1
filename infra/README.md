@@ -9,7 +9,7 @@ Terraform-managed infra in `af-south-1`.
 - 2 private-app subnets (EC2 app tier, routes to fck-nat for egress)
 - 2 private-data subnets (Week 4 RDS, no default route, fully isolated)
 - fck-nat on `t4g.nano` in `af-south-1a` for private-tier egress
-- ALB → target group `/health` on port 8000
+- ALB: `:80` → 301 → HTTPS `:443` (ACM cert for `api.agroconnect.space`) → target group `/health` on port 8000
 - Launch Template: Ubuntu 24.04, `t3.micro`, IMDSv2, SSM-managed (no SSH keys)
 - ASG: min 1, max 2, desired 2, rolling instance refresh
 - ECR repo `agroconnect-dev-backend`
@@ -25,8 +25,9 @@ terraform apply       # ~29 resources
 ```
 
 Costs (af-south-1 list): fck-nat `t4g.nano` (~\$3/mo), ALB (~\$19/mo), 2x
-`t3.micro` (free tier covers one), 1 EIP (attached, free), ECR storage pennies.
-Total ~\$32/mo before Week 4 RDS.
+`t3.micro` (free tier covers one), ECR storage pennies. Total ~\$32/mo before
+Week 4 RDS. Public IPv4s bill at \$0.005/hr each — the fck-nat ENI carries one
+auto-assigned address (no Elastic IP).
 
 ## After apply
 
@@ -56,5 +57,6 @@ terraform destroy
   construction.
 - `:latest` image tag + instance refresh — no fast rollback. Switch to immutable
   SHA tags + an SSM parameter pointing at the current one when needed.
-- HTTP-only listener. Add ACM cert + HTTPS listener before any production use.
+- HTTPS terminates at the ALB (ACM cert for `api.agroconnect.space`); the `api`
+  record and the cert's DNS validation CNAME live at Hostinger, outside Terraform.
 - Instance role has broad ECR read; narrow to the specific repo ARN later.
