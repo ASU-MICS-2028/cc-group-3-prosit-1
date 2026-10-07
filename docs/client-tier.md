@@ -165,7 +165,7 @@ AgroConnect is tailored to Ghanaian operational realities:
 * **Special Orthography Support:** Embedded web fonts (**Onest** and **Unbounded**) include custom subsets supporting Ghanaian national language alphabets (Ewe, Twi, Dagbani):
   * Characters: `Ɛ / ɛ` (open E), `Ɔ / ɔ` (open O), `Ŋ / ŋ` (eng), `Đ / ɖ` (African D), `Ƒ / ƒ` (F with hook), `Ɣ / ɣ` (gamma), `Ʋ / ʋ` (V with hook), `Ʒ / ʒ` (ezh).
 * **Currency Formatting:** Native Ghana Cedi symbol (`₵`) formatting for plot financial profiling.
-* **Dialect Toggles:** Application language selector supporting English (`en`), Twi (`tw`), Ewe (`ee`), and Dagbani (`dag`).
+* **Dialect Toggles:** Application language selector supporting English (`en`), Twi (`tw`) and Ewe (`ee`). Dagbani (`dag`) is still recorded as a farmer's preferred language at registration, but is not an app language yet (see [ADR-010](./architecture-decisions.md#adr-010-app-languages-limited-to-english-twi-and-ewe)).
 
 ---
 
