@@ -50,8 +50,18 @@ variable "desired_capacity" {
   default = 1
 }
 
-variable "cpu_target_value" {
+variable "alb_arn_suffix" {
+  type        = string
+  description = "ALB arn_suffix (e.g. app/<name>/<id>) — used to build the policy's resource_label"
+}
+
+variable "target_group_arn_suffix" {
+  type        = string
+  description = "Target group arn_suffix (e.g. targetgroup/<name>/<id>)"
+}
+
+variable "requests_per_target_target_value" {
   type        = number
-  default     = 60
-  description = "Target average CPU % for the scaling policy"
+  default     = 500
+  description = "Target requests per target per minute. ~8 req/s per instance; keeps a t3.micro comfortable."
 }

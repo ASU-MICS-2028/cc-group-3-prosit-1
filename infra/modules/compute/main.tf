@@ -126,7 +126,11 @@ resource "aws_autoscaling_group" "app" {
   }
 }
 
-# Target-tracking: keep average CPU across the group near cpu_target_value.
+# Target-tracking on ALBRequestCountPerTarget — scales out when sustained
+# request volume per instance exceeds target_value (requests per target per
+# minute). Better fit than CPU for an IO-bound API: a slow DB call blocks the
+# worker without ever burning CPU.
+#
 # AWS auto-manages the two CloudWatch alarms backing this policy — don't try
 # to own them in Terraform.
 resource "aws_autoscaling_policy" "cpu_target" {
@@ -136,8 +140,9 @@ resource "aws_autoscaling_policy" "cpu_target" {
 
   target_tracking_configuration {
     predefined_metric_specification {
-      predefined_metric_type = "ASGAverageCPUUtilization"
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${var.alb_arn_suffix}/${var.target_group_arn_suffix}"
     }
-    target_value = var.cpu_target_value
+    target_value = var.requests_per_target_target_value
   }
 }
