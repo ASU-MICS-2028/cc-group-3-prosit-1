@@ -15,17 +15,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         working-directory: backend
-        run: pip install -r requirements.txt
+        run: npm ci
 
-      - name: Import the app
+      - name: Build
         working-directory: backend
-        run: python -c "from app.main import app; print('ok:', app.title, app.version)"
+        run: npm run build
+
+      - name: Smoke test (start and probe /health)
+        working-directory: backend
+        env:
+          PORT: "8000"
+        run: |
+          set -euo pipefail
+          node dist/server.js &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          for _ in $(seq 1 20); do
+            if curl -sf http://localhost:8000/health; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "server did not become healthy" >&2
+          exit 1
 
   terraform:
     name: terraform fmt + validate
