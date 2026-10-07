@@ -17,7 +17,8 @@ infra/
     ├── alb/             # ALB, SGs, target group, listeners, ACM cert
     ├── compute/         # EC2 IAM, launch template, ASG, scaling policy
     ├── ecr/             # container registry
-    └── cicd/            # GitHub Actions OIDC + deploy role
+    ├── cicd/            # GitHub Actions OIDC + deploy role
+    └── frontend/        # AWS Amplify Hosting in eu-west-1 (app.agroconnect.space)
 ```
 
 ## Shape
@@ -33,6 +34,7 @@ infra/
 - Scaling: target-tracking policy on `ALBRequestCountPerTarget` @ 500 req/min/target (scales 1→3 under load, back to 1 when quiet). Request-count fits an IO-bound API better than CPU — a slow DB call blocks a worker without burning CPU.
 - ECR repo `agroconnect-dev-backend`
 - IAM OIDC provider + role for GitHub Actions (no long-lived keys)
+- Frontend: AWS Amplify Hosting in `eu-west-1` via provider alias, custom domain `app.agroconnect.space` with auto-managed TLS (ADR-009)
 
 ## First-time bring-up
 

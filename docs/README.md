@@ -22,6 +22,7 @@ docs/
 ├── ci-cd-and-operations.md       # GitOps CI/CD (OIDC), ASG rolling refresh & team IAM governance
 └── assets/                       # Architecture diagrams & application UI screenshots
     ├── architecture-v2.png       # Complete runtime & CI/CD architecture diagram
+    ├── architecture-v2.drawio    # Editable draw.io source for architecture-v2.png
     ├── architecture-simple.png   # Foundation MVP architecture diagram
     ├── pwa-offline-screen.jpeg   # Mobile UI in offline field mode
     └── pwa-online-screen.jpeg    # Mobile UI in online synchronization mode
@@ -52,21 +53,25 @@ docs/
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 PWA Client (Offline-First)                  │
-│  IndexedDB (Dexie) • Client UUIDs • Photo Compression • GPS │
+│  React 19 • Vite • Dexie • Client UUIDs • GPS • Compression │
+│  Hosted on AWS Amplify (eu-west-1 / Global CloudFront Edge) │
+│  Live URL: https://app.agroconnect.space                    │
 └──────────────────────────────┬──────────────────────────────┘
                                │ HTTPS (api.agroconnect.space)
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 AWS af-south-1 (Cape Town)                  │
 │  [Public Subnets]   ALB (ACM TLS) + fck-nat (t4g.nano)      │
-│  [Private App]      ASG (t3.micro EC2s running Docker)      │
+│  [Private App]      ASG (min 1, des 1, max 3; req-count)    │
+│                     EC2 (t3.micro) running FastAPI :8000    │
 │  [Private Data]     Isolated Subnets (Week 4 RDS Ready)     │
 └──────────────────────────────▲──────────────────────────────┘
                                │
 ┌──────────────────────────────┴──────────────────────────────┐
 │                   GitOps CI/CD Deployment                   │
 │   PR: Smoke Test + Terraform Validate                       │
-│   Push main: GitHub Actions (OIDC) → ECR → ASG Rolling Roll │
+│   Push main (backend): GitHub Actions (OIDC) → ECR → ASG    │
+│   Push main (frontend): AWS Amplify Git-Connected Deploy    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
