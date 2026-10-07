@@ -1,0 +1,14 @@
+/* Every colour and size lives here so the visual rules are enforced in one place. */
+:root {
+  --green: #1F3D2B;   /* headers */
+  --cream: #F4F1E6;   /* cards, page background */
+  --ink: #142018;     /* text */
+  --lime: #C6F432;    /* ONLY the single main action button on each screen */
+
+  /* Onest for all UI text; Unbounded only for the large stat numbers on Home. */
+  --font-ui: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-stat: 'Unbounded', 'Onest', system-ui, sans-serif;
+
+  --radius-card: 24px;
+  --text-body: 1rem;  /* 16px minimum */
+}
