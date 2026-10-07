@@ -35,15 +35,17 @@ data "aws_caller_identity" "current" {}
 module "compute" {
   source = "./modules/compute"
 
-  name_prefix           = local.name
-  region                = var.region
-  instance_type         = var.instance_type
-  app_port              = var.app_port
-  ami_id                = data.aws_ssm_parameter.ubuntu.value
-  app_security_group_id = module.alb.app_security_group_id
-  private_subnet_ids    = module.network.private_subnet_ids
-  target_group_arn      = module.alb.target_group_arn
-  ecr_repository_url    = module.ecr.repository_url
+  name_prefix             = local.name
+  region                  = var.region
+  instance_type           = var.instance_type
+  app_port                = var.app_port
+  ami_id                  = data.aws_ssm_parameter.ubuntu.value
+  app_security_group_id   = module.alb.app_security_group_id
+  private_subnet_ids      = module.network.private_subnet_ids
+  target_group_arn        = module.alb.target_group_arn
+  alb_arn_suffix          = module.alb.alb_arn_suffix
+  target_group_arn_suffix = module.alb.target_group_arn_suffix
+  ecr_repository_url      = module.ecr.repository_url
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------
