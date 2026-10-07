@@ -12,6 +12,9 @@ The PWA saves everything on the phone first and sends later, sometimes hours lat
 | `API-CONTRACT.md` (this) | The wire format for registering farmers, photos, `GET /farmers/me` | `frontend/agroconnect-pwa/docs/` |
 | `AUTH-CONTRACT.md` | Sign-in, approval of agents, tokens | same folder |
 | `ADMIN-CONTRACT.md` | Dashboard, agent approvals, audit view, feedback | same folder |
+| `PAYMENTS-CONTRACT.md` | Wallet: mobile-money payments, balance, loan requests | same folder |
+| `ADVICE-CONTRACT.md` | Crop checks: a farmer's photo and question, the extension officer's answer | same folder |
+| `LISTINGS-CONTRACT.md` | Produce for sale, browsed by buyers | same folder |
 
 **If two documents disagree:** `DATA-CONTRACT.md` wins on how data is *stored*; these three win on what is *sent over the wire*. Anything not settled by either is listed under "Open items" at the end.
 
@@ -204,7 +207,7 @@ An oversized body makes `express.raw` raise a 413 on its own; make sure your err
 | 2 | Link each farmer to the agent and association that registered them: `created_by` holds the agent's user ID, and the users table (see `AUTH-CONTRACT.md`) holds the association | Coordinators may only see their own association's farmers |
 | 3 | `consent_at` comes from `registered_at`, not server time | Consent was given at the phone, at registration |
 | 4 | Drop `farm_crops` and `farm_media` from `schema.sql`, or say what they are for | The data contract replaces them with `farmer_crops` and `photo_object_key` |
-| 5 | Tables for the auth and admin contracts: users, OTP codes, feedback, agent sync status | Listed in the "Storage" sections of those two documents |
+| 5 | Tables for the other contracts: users and OTP codes (`AUTH`), feedback and agent sync status (`ADMIN`), payments and loan requests (`PAYMENTS`), crop checks (`ADVICE`), listings (`LISTINGS`) | Listed in the "Storage" sections of those documents |
 | 6 | Confirm 400 (not FastAPI-style 422) for missing fields, and `{ error, message }` for every error | The PWA shows `message` to the registerer |
 | 7 | CORS for the hosted PWA origin including `Authorization` | Browsers block the PWA without it |
 | 8 | Migration C1 copies the old `phone` column into `phone_national` unchanged. If any rows exist, strip a leading `0` or `+233` in that `UPDATE`, for example `regexp_replace(phone, '^(\+233\|233\|0)', '')` | Otherwise `0241234567` becomes `+2330241234567` |

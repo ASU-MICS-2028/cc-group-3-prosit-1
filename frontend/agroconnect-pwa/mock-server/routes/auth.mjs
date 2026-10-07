@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { HttpError, readJson } from '../http.mjs'
 import { hashSecret, jwks, REFRESH_GRACE_SECONDS, requireAuth, sha256, signToken, ttlSecondsFor, verifyToken, verifySecret } from '../security.mjs'
-import { ASSOCIATIONS, normalisePhone, publicUser } from '../store.mjs'
+import { ASSOCIATIONS, isE164, publicUser } from '../store.mjs'
 
 const OTP_RATE_LIMIT = 3
 const OTP_RATE_WINDOW_MS = 15 * 60_000
@@ -65,7 +65,7 @@ export function authRoutes(ctx) {
   const findFarmer = (phone) => [...store.users.values()].find((u) => u.role === 'farmer' && u.phone === phone)
 
   function findStaff(identifier) {
-    const phone = normalisePhone(identifier)
+    const phone = isE164(identifier) ? identifier : null
     const loginId = String(identifier ?? '').trim().toUpperCase()
     return [...store.users.values()].find((u) => u.role !== 'farmer' && ((phone && u.phone === phone) || (u.loginId && u.loginId === loginId)))
   }
@@ -75,9 +75,8 @@ export function authRoutes(ctx) {
   }
 
   function requirePhone(raw) {
-    const phone = normalisePhone(raw)
-    if (!phone) throw new HttpError(400, 'invalid_request', 'Enter a valid Ghana phone number.', { field: 'phone' })
-    return phone
+    if (!isE164(raw)) throw new HttpError(400, 'invalid_request', 'Phone numbers must be in international format, like +233241234567.', { field: 'phone' })
+    return raw
   }
 
   return [

@@ -74,6 +74,48 @@ describe('PWA auth client against the mock', () => {
     setTokenProvider(null)
   })
 
+  it('loads dashboard figures and the CSV through the admin client', async () => {
+    const admin = await import('../src/admin/adminApi.ts')
+    const { setTokenProvider } = await import('../src/auth/authedRequest.ts')
+    const { token } = await api.loginStaff(DEMO_ACCOUNTS.admin.loginId, DEMO_ACCOUNTS.admin.password)
+    setTokenProvider({ getToken: () => token, refresh: async () => null })
+
+    const stats = await admin.fetchStats()
+    expect(stats.totals).toMatchObject({ farmers: 0, agentsActive: expect.any(Number) })
+    expect(Array.isArray(stats.byCrop) && Array.isArray(stats.sync)).toBe(true)
+
+    const csv = await (await admin.fetchCsv('farmers')).text()
+    expect(csv).toContain('clientId,id,name,phoneE164')
+    setTokenProvider(null)
+  })
+
+  it('lets an admin add a coordinator who can then sign in, and suspend them', async () => {
+    const admin = await import('../src/admin/adminApi.ts')
+    const { setTokenProvider } = await import('../src/auth/authedRequest.ts')
+    const adminSession = await api.loginStaff(DEMO_ACCOUNTS.admin.loginId, DEMO_ACCOUNTS.admin.password)
+    setTokenProvider({ getToken: () => adminSession.token, refresh: async () => null })
+
+    const created = await admin.createCoordinator({ name: 'Abena Owusu', phone: '024 411 1222', association: 'ngfn', password: 'long-enough-pw' })
+    expect(created).toMatchObject({ role: 'coordinator', status: 'approved', phone: '+233244111222' })
+    expect((await admin.listCoordinators()).map((person) => person.name)).toContain('Abena Owusu')
+
+    const signedIn = await api.loginStaff(created.loginId, 'long-enough-pw')
+    expect(signedIn.user.role).toBe('coordinator')
+
+    expect((await admin.applyCoordinatorAction(created.id, 'suspend')).status).toBe('suspended')
+    const refused = await rejection(api.refreshToken(signedIn.token))
+    expect(refused).toMatchObject({ status: 403, code: 'suspended' })
+
+    const duplicate = await rejection(admin.createCoordinator({ name: 'Someone', phone: '0244111222', association: 'ngfn', password: 'long-enough-pw' }))
+    expect(duplicate).toMatchObject({ status: 409, code: 'phone_taken' })
+    setTokenProvider(null)
+  })
+
+  it('rejects a phone number that is not valid before calling the server', async () => {
+    const error = await rejection(api.startFarmer('12'))
+    expect(error).toMatchObject({ status: 400, code: 'invalid_request' })
+  })
+
   it('treats an unreachable server as a network error, not a refusal', async () => {
     vi.stubEnv('VITE_AUTH_URL', 'http://localhost:1')
     vi.resetModules()

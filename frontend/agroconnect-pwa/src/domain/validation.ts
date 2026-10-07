@@ -1,10 +1,10 @@
 import type { RegistrationFields, RegistrationStep } from './farmer'
+import { splitPhone } from './phone'
 
 export type FieldName = 'name' | 'phone' | 'farmSize' | 'consent'
 export type ValidationError = 'nameRequired' | 'phoneInvalid' | 'farmSizeInvalid' | 'consentRequired'
 export type FieldErrors = Partial<Record<FieldName, ValidationError>>
 
-const PHONE_PATTERN = /^(\+233|233|0)\d{9}$/
 const FARM_SIZE_PATTERN = /^\d+([.,]\d+)?$/
 
 export function cleanPhone(phone: string): string {
@@ -12,7 +12,7 @@ export function cleanPhone(phone: string): string {
 }
 
 export function isValidPhone(phone: string): boolean {
-  return PHONE_PATTERN.test(cleanPhone(phone))
+  return splitPhone(phone) !== null
 }
 
 export function parseFarmSize(text: string): number | null {

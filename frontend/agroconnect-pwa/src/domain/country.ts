@@ -14,10 +14,21 @@ export const COUNTRY_INFO: Record<CountryCode, CountryInfo> = {
   KE: { currency: 'KES', symbol: 'KSh' },
 }
 
-export function formatMoney(amount: number, country: CountryCode): string {
-  const { symbol } = COUNTRY_INFO[country]
+export function formatCurrency(amount: number, currency: Currency): string {
   const text = amount.toLocaleString('en', { minimumFractionDigits: amount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })
-  return `${symbol} ${text}`
+  return `${CURRENCY_SYMBOL[currency]} ${text}`
 }
 
-export type PriceTable = Record<CountryCode, Record<CropId, number>>
+export const formatMoney = (amount: number, country: CountryCode): string => formatCurrency(amount, COUNTRY_INFO[country].currency)
+
+export type Currency = CountryInfo['currency']
+
+export const CURRENCY_SYMBOL: Record<Currency, string> = { GHS: '₵', NGN: '₦', KES: 'KSh' }
+
+export interface PriceEntry {
+  price: number
+  /** Percent change since last week. */
+  change: number
+}
+
+export type PriceTable = Record<CountryCode, Record<CropId, PriceEntry>>

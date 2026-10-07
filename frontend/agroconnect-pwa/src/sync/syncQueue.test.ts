@@ -4,6 +4,9 @@ import { db } from '../db/db'
 import { getFarmer, newDraft, saveDraft, saveFarmer } from '../db/repository'
 import { SYNC_STATUS } from '../domain/farmer'
 
+vi.mock('./heartbeat', () => ({ reportHeartbeat: vi.fn() }))
+vi.mock('./outbox', () => ({ sendOutbox: vi.fn() }))
+
 vi.mock('./api', async () => {
   class NetworkError extends Error {}
   class ServerError extends Error {}
