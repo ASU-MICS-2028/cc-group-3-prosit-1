@@ -1,7 +1,7 @@
-__pycache__
-*.pyc
-.venv
-.env
+node_modules
+dist
 .git
-.github
-*.md
+.gitignore
+.env
+.env.*
+npm-debug.log*
