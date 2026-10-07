@@ -1,7 +1,8 @@
 # AgroConnect Ghana — Group 3 (Highlanders)
 
 **Course:** ICS 534 Cloud Computing | **Milestone:** PROSIT 1  
-**Target Region:** AWS `af-south-1` (Cape Town) | **Domain:** [`api.agroconnect.space`](https://api.agroconnect.space)
+**Target Region:** AWS `af-south-1` (Cape Town) & `eu-west-1` (Amplify)  
+**Live Frontend:** [`https://app.agroconnect.space`](https://app.agroconnect.space) | **API Endpoint:** [`https://api.agroconnect.space`](https://api.agroconnect.space)
 
 AgroConnect Ghana is an offline-first agricultural profiling and registration platform designed for field extension agents operating in rural communities across Ghana where cellular connectivity is intermittent or unavailable.
 
@@ -13,14 +14,15 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 
 | Document | Description |
 |---|---|
-| [**Documentation Index**](./docs/README.md) | Navigation index and high-level project summary |
+| [**Documentation Index**](./docs/README.md) | Navigation index, directory mapping, and high-level project summary |
 | [**1. System Overview**](./docs/system-overview.md) | Operational context, high-level topology & Well-Architected Framework alignment |
-| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-005 |
+| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-009 |
+| [**2b. Engineering Learnings**](./docs/learnings.md) | Engineering journal — discoveries & mental models (Amplify API gaps, CloudFront routing) |
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |
 | [**4. Client Tier (PWA)**](./docs/client-tier.md) | Offline-first architecture, Dexie IndexedDB, sync queue & hardware hooks |
 | [**5. API Tier**](./docs/api-tier.md) | Containerized FastAPI `farmer-profile-service`, endpoints & health probes |
 | [**6. Data Tier**](./docs/data-tier.md) | PostgreSQL relational schema (`db/schema.sql`) & S3 media offloading |
-| [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform AWS `af-south-1` VPC, `fck-nat` cost optimization, ALB TLS & ASG |
+| [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform modular IaC (7 modules), `af-south-1` VPC, `fck-nat`, ALB TLS & ASG |
 | [**8. CI/CD & Operations**](./docs/ci-cd-and-operations.md) | GitHub Actions OIDC deployment, ASG rolling refresh & team IAM governance |
 
 ---
@@ -29,12 +31,14 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 
 The system is architected as an offline-first client syncing with a highly available, dual-AZ cloud runtime on AWS, automated via GitOps CI/CD.
 
-![AgroConnect Architecture v2](./AgroConnect%20Architecture%20v2.png)
+![AgroConnect Architecture v2](./docs/assets/architecture-v2.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       Client Tier (Offline-First PWA)                   │
-│   Service Worker Cache • IndexedDB (Dexie) • Client UUIDs • GPS • Camera│
+│   React 19 • Vite • Dexie (IndexedDB) • Client UUIDs • GPS • Camera     │
+│   Hosted on AWS Amplify (eu-west-1 origin + global CloudFront edges)    │
+│   Domain: https://app.agroconnect.space                                 │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │ HTTPS :443 (api.agroconnect.space)
                                      ▼
@@ -47,7 +51,8 @@ The system is architected as an offline-first client syncing with a highly avail
 │     └── fck-nat (t4g.nano) — Cost-optimized outbound NAT gateway       │
 │                                                                         │
 │   [Private App Subnets (10.20.11.0/24, 10.20.12.0/24)]                 │
-│     └── Auto Scaling Group (min 1, des 2, max 2)                       │
+│     └── Auto Scaling Group (min 1, des 1, max 3)                       │
+│           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
 │           └── EC2 (t3.micro) + Docker running FastAPI :8000             │
 │                                                                         │
 │   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)] (Week 4)        │
@@ -58,6 +63,7 @@ The system is architected as an offline-first client syncing with a highly avail
 │                    CI/CD & GitOps Automation (GitHub)                   │
 │   PR: Smoke Test + Terraform Validate                                   │
 │   Push to main: AWS IAM OIDC Auth ➔ ECR Push ➔ ASG Instance Refresh     │
+│   Frontend push to main: AWS Amplify Git-connected CI/CD (amplify.yml)  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,17 +96,19 @@ Each tier is decoupled and maintained in its respective subdirectory:
 ├── frontend/               # Offline-first Progressive Web App (PWA)
 ├── backend/                # Containerized FastAPI farmer-profile-service
 ├── db/                     # Relational schema & migration scripts
-├── infra/                  # Terraform IaC for AWS af-south-1
+├── infra/                  # Modular Terraform IaC (af-south-1 & eu-west-1)
 ├── scripts/                # Administrative & IAM onboarding scripts
 ├── .github/                # Workflows (CI/CD) and CODEOWNERS
-├── CONTRIBUTING.md         # GitOps branch & contribution guidelines
-└── AgroConnect Architecture v2.png # System architecture diagram
+├── amplify.yml             # Monorepo build spec for AWS Amplify Hosting
+└── CONTRIBUTING.md         # GitOps branch & contribution guidelines
 ```
 
 ### 1. Client Tier — Offline-First PWA ([`frontend/`](./frontend))
+* **Live Deployment:** [`https://app.agroconnect.space`](https://app.agroconnect.space) (AWS Amplify Hosting, `eu-west-1` origin with global CloudFront edge delivery).
+* **Stack:** React 19, TypeScript, Vite, Dexie (IndexedDB), Service Worker.
 * **Primary Principle:** *The app never waits for the network.*
 * **Local Storage:** Utilizes browser **IndexedDB** wrapped with **Dexie** across three isolated tables (`drafts`, `farmers`, `photos`). Unsaved forms autosave every 300 ms.
-* **Client-Side UUIDs:** Every profile generates a client UUID (`clientId`) upon initiation, allowing idempotent retries against the backend without duplicate record creation.
+* **Client-Side UUIDs:** Every profile generates an immutable client UUID (`clientId`) upon initiation, allowing idempotent retries against the backend without duplicate record creation.
 * **Hardware Resilience:**
   * In-browser photo compression reducing camera captures to `<100 KB` via HTML Canvas before queueing.
   * Direct satellite GPS polling (independent of cellular network coverage).
@@ -127,25 +135,30 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details:* See [`docs/data-tier.md`](./docs/data-tier.md).
 
 ### 4. Cloud Infrastructure as Code ([`infra/`](./infra))
-* **Orchestration:** HashiCorp Terraform (`>= 1.6`).
-* **VPC Networking:** Dual-AZ subnets across `af-south-1a` and `af-south-1b`:
-  * Public subnets (`10.20.1.0/24`, `10.20.2.0/24`) with Internet Gateway.
-  * Private application subnets (`10.20.11.0/24`, `10.20.12.0/24`).
-  * Private isolated data subnets (`10.20.21.0/24`, `10.20.22.0/24`) with no public route.
-* **Cost-Optimized NAT:** Replaced AWS Managed NAT Gateway (~$32/mo) with an ARM64 [`fck-nat`](https://github.com/nathanpeck/fck-nat) AMI on `t4g.nano` (~$3/mo).
+* **Orchestration:** HashiCorp Terraform (`>= 1.6`) structured into 7 modular components under [`infra/modules/`](./infra/modules):
+  * `network` — VPC, 6 subnets across 2 AZs, IGW, routing tables.
+  * `nat` — ARM64 `fck-nat` (`t4g.nano`) cutting NAT costs by >90%.
+  * `alb` — Application Load Balancer, ACM TLS certificate for `api.agroconnect.space`, HTTP-to-HTTPS redirect.
+  * `compute` — EC2 IAM role, launch template, ASG, target-tracking scaling policy.
+  * `ecr` — Container registry (`agroconnect-dev-backend`).
+  * `cicd` — AWS IAM OIDC federation for GitHub Actions.
+  * `frontend` — AWS Amplify App in `eu-west-1` with custom domain `app.agroconnect.space`.
 * **Load Balancing & TLS:** AWS ALB with automatic HTTP :80 to HTTPS :443 redirection and ACM DNS-validated certificate for `api.agroconnect.space`.
+* **Dynamic Scaling:** Target-tracking policy on `ALBRequestCountPerTarget` (500 req/min/target, scaling 1→3) to absorb bursty registration traffic.
 * **Zero-SSH Administration:** Instances boot with AWS Systems Manager Core policy (`AmazonSSMManagedInstanceCore`) using IMDSv2; port 22 is completely closed.
 * *Details & deployment commands:* See [`docs/cloud-infrastructure.md`](./docs/cloud-infrastructure.md) and [`infra/README.md`](./infra/README.md).
 
-### 5. GitOps CI/CD & Deployments ([`.github/workflows/`](./.github/workflows))
+### 5. GitOps CI/CD & Deployments ([`.github/workflows/`](./.github/workflows), [`amplify.yml`](./amplify.yml))
 * **Continuous Integration ([`ci.yml`](./.github/workflows/ci.yml)):**
   * Gated on pull requests into `main`.
   * Executes Python dependency resolution, smoke tests (`app.main`), and Terraform validation (`fmt -check`, `validate`).
-* **Continuous Deployment ([`deploy.yml`](./.github/workflows/deploy.yml)):**
+* **Backend Continuous Deployment ([`deploy.yml`](./.github/workflows/deploy.yml)):**
   * Triggered exclusively on merges to `main`.
   * Authenticates to AWS via **IAM OIDC Web Identity Federation** (no long-lived credentials stored in GitHub).
   * Builds and pushes versioned + `:latest` Docker images to Amazon ECR (`agroconnect-dev-backend`).
   * Triggers an automated rolling instance refresh (`MinHealthyPercentage: 50%`) across the Auto Scaling Group.
+* **Frontend Continuous Deployment ([`amplify.yml`](./amplify.yml)):**
+  * AWS Amplify Hosting pipeline building the React PWA on push to `main` with automatic edge invalidation.
 * *Details:* See [`docs/ci-cd-and-operations.md`](./docs/ci-cd-and-operations.md).
 
 ### 6. Operations & Team Governance ([`scripts/`](./scripts), [`CONTRIBUTING.md`](./CONTRIBUTING.md))
@@ -158,11 +171,11 @@ Each tier is decoupled and maintained in its respective subdirectory:
 
 | Pillar | Architectural Implementation in AgroConnect |
 |---|---|
-| **Operational Excellence** | Infrastructure managed 100% via Terraform. Immutable container deployments through ECR and ASG rolling refreshes. CloudWatch metric collection and health probes on `/health`. |
-| **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. IAM team members protected by mandatory MFA. |
-| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement of unhealthy nodes. Stateless backend application design. |
-| **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Client-side IndexedDB caching and photo compression minimizing payload overhead. |
-| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with aggressive scale-in. $5 AWS Budgets anomaly alert. |
+| **Operational Excellence** | Infrastructure 100% codified across 7 Terraform modules (`infra/modules/`). Immutable container deployments through ECR and ASG rolling refreshes. Git-connected Amplify builds. CloudWatch metrics and ALB health probes on `/health`. |
+| **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
+| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Stateless backend application design. |
+| **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Static PWA cached at CloudFront edge; client-side IndexedDB caching and photo compression reducing payload overhead by >95%. |
+| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$5 AWS Budgets anomaly alert. |
 | **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Planned evaluation of AWS Graviton processors for the app tier. |
 
 *Full architectural deep-dive:* See [`docs/system-overview.md`](./docs/system-overview.md).
