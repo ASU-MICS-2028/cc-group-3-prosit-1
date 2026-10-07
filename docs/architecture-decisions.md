@@ -15,6 +15,7 @@ This document formalizes the key architectural decisions made for **AgroConnect 
 * [ADR-007: Terraform Modularization](#adr-007-terraform-modularization)
 * [ADR-008: Target-Tracking Auto Scaling on `ALBRequestCountPerTarget`](#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget)
 * [ADR-009: Frontend Hosting on AWS Amplify in `eu-west-1`](#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)
+* [ADR-010: App Languages Limited to English, Twi and Ewe](#adr-010-app-languages-limited-to-english-twi-and-ewe)
 
 ---
 
@@ -259,6 +260,30 @@ CloudFront serves the PWA assets from edges globally (including Lagos and Cape T
 * **Positive:** Git-connected deploys with zero pipeline code; auto-managed TLS cert for `app.agroconnect.space`; farmer-facing latency essentially unchanged vs. a Cape-Town-hosted option; no long-lived secret to rotate.
 * **Negative (Ponytail Debt):** Build logs and the Amplify console live in `eu-west-1`, not `af-south-1` — team members need to switch regions in the console to view them. The GitHub App install itself is a one-time ClickOps action outside Terraform; the Terraform resource is unaware of it and will fail with `Deploy keys are disabled for this repository` if the install is ever revoked.
 * **Note:** The GitHub App install is scoped to the single repo (`cc-group-3-prosit-1`). Future repos in the same org would need either their own install or a widened scope on this install.
+
+---
+
+## ADR-010: App Languages Limited to English, Twi and Ewe
+
+### Status
+Accepted
+
+### Context
+The PWA was built with four interface languages: English, Twi, Ewe and Dagbani. English was complete; the other three fell back to English. The translations ship inside the app bundle (`src/i18n/*.json`) because the app must work offline, so a live translation service at runtime is not an option. Every string has to be translated ahead of time.
+
+Google Translate supports Twi (`ak`) and Ewe (`ee`) but **not Dagbani**; it is absent from Google's 249 target languages. No team member writes Dagbani, so there was no reliable source for its strings.
+
+Google's Twi and Ewe output was also compared against hand-written drafts and found unsafe to use directly: it translated the `{placeholder}` names (so names, dates and prices would render blank), rendered "signal" as "sign/symbol" (*Nsɛnkyerɛnne*, *Dzesi*) and "sign out" as "put down a signature".
+
+### Decision
+1. **App languages:** English, Twi and Ewe. Dagbani is removed from the language picker (`AppLanguage`) until a Dagbani speaker can supply the strings.
+2. **Farmer data keeps Dagbani:** `dag` stays a valid *preferred language* on the farmer record (`FARMER_LANGUAGES`, the API contract and the `language` CHECK constraint). That field describes the farmer, not the app, and agents in the north still need to record it.
+3. **Translation source:** the hand-written Twi and Ewe drafts, not Google Translate. A test in `translate.test.ts` fails if a translation uses a key missing from `en.json` or drops a placeholder.
+
+### Consequences
+* **Positive:** No half-translated language in the picker; every language offered is complete. A wrong-placeholder or stale-key regression fails CI.
+* **Negative:** Dagbani-speaking farmers use the app in English, Twi or Ewe for now. The Twi and Ewe text still needs review by native speakers, especially the wallet, loan and consent strings.
+* **Reversal:** Add `dag.json`, restore `'dag'` in `AppLanguage` and the `dictionaries` map in `src/i18n/translate.ts`, and add it to the translation test.
 
 ---
 
