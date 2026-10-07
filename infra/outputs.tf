@@ -37,3 +37,24 @@ output "nat_instance_id" {
 output "aws_account_id" {
   value = data.aws_caller_identity.current.account_id
 }
+
+output "amplify_app_id" {
+  value = module.frontend.app_id
+}
+
+output "amplify_default_url" {
+  value = "https://${module.frontend.default_domain}"
+}
+
+output "frontend_url" {
+  value = module.frontend.custom_url
+}
+
+output "frontend_dns_records_to_publish" {
+  description = "Add these CNAMEs at Hostinger: sub_domain + cert validation"
+  value       = module.frontend.dns_records_to_publish
+}
+
+output "frontend_cert_validation_record" {
+  value = module.frontend.certificate_verification_dns_record
+}
