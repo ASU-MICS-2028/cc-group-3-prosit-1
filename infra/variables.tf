@@ -63,3 +63,13 @@ variable "api_hostname" {
   type    = string
   default = "api.agroconnect.space"
 }
+
+variable "frontend_apex_domain" {
+  type    = string
+  default = "agroconnect.space"
+}
+
+variable "frontend_subdomain_prefix" {
+  type    = string
+  default = "app"
+}
