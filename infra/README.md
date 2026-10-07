@@ -1,6 +1,24 @@
-# AgroConnect Infrastructure (Week 3)
+# AgroConnect Infrastructure
 
-Terraform-managed infra in `af-south-1`.
+Terraform-managed infra in `af-south-1`. Root is a thin orchestrator; each concern
+lives in its own module under `modules/`.
+
+## Layout
+
+```
+infra/
+├── main.tf              # providers, locals, module wiring
+├── variables.tf         # root inputs
+├── outputs.tf           # pulls from module outputs
+├── migrate-state.sh     # one-shot state-mv helper (idempotent)
+└── modules/
+    ├── network/         # VPC, subnets (×6), IGW, route tables
+    ├── nat/             # fck-nat instance + SG + ENI
+    ├── alb/             # ALB, SGs, target group, listeners, ACM cert
+    ├── compute/         # EC2 IAM, launch template, ASG, scaling policy
+    ├── ecr/             # container registry
+    └── cicd/            # GitHub Actions OIDC + deploy role
+```
 
 ## Shape
 
@@ -11,7 +29,8 @@ Terraform-managed infra in `af-south-1`.
 - fck-nat on `t4g.nano` in `af-south-1a` for private-tier egress
 - ALB: `:80` → 301 → HTTPS `:443` (ACM cert for `api.agroconnect.space`) → target group `/health` on port 8000
 - Launch Template: Ubuntu 24.04, `t3.micro`, IMDSv2, SSM-managed (no SSH keys)
-- ASG: min 1, max 2, desired 2, rolling instance refresh
+- ASG: min 1, max 3, desired 1, rolling instance refresh
+- Scaling: target-tracking policy on `ASGAverageCPUUtilization` @ 60% (scales 1→3 under load, back to 1 when quiet)
 - ECR repo `agroconnect-dev-backend`
 - IAM OIDC provider + role for GitHub Actions (no long-lived keys)
 
