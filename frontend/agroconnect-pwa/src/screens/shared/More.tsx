@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useAuth } from '../../auth/context'
 import { Button } from '../../components/Button'
 import { ScreenHeader } from '../../components/ScreenHeader'
+import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
 import type { TranslationKey } from '../../i18n/translate'
 import { CropChecks } from '../staff/CropChecks'
@@ -22,7 +22,6 @@ const LABELS: Record<MoreEntry, TranslationKey> = {
 
 export function More({ entries }: { entries: readonly MoreEntry[] }) {
   const { t } = useT()
-  const { signOut } = useAuth()
   const [view, setView] = useState<MoreEntry | null>(null)
   const back = () => setView(null)
 
@@ -61,7 +60,7 @@ export function More({ entries }: { entries: readonly MoreEntry[] }) {
                 </li>
               ))}
             </ul>
-            <Button onClick={() => void signOut()}>{t('auth.signOut')}</Button>
+            <SignOutButton />
           </main>
         </>
       )

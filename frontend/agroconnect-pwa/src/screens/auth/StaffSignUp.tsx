@@ -56,6 +56,7 @@ export function StaffSignUp({ onBack, onDone }: { onBack: () => void; onDone: ()
     <AuthLayout title={step === 'form' ? t('auth.signup.title') : t('auth.signup.verifyTitle')} onBack={onBack}>
       {step === 'form' ? (
         <section className="card form">
+          <p className="hint">{t('auth.signup.agentOnly')}</p>
           <Field label={t('auth.signup.name')} htmlFor="u-name">
             <input id="u-name" className="input" type="text" autoComplete="name" value={form.name} onChange={(e) => change('name')(e.target.value)} />
           </Field>

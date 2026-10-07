@@ -62,6 +62,8 @@ Every other service request carries `Authorization: Bearer <token>`.
 Account lifecycle: `pending_verification → pending → approved`, or `rejected` / `suspended`.
 
 ### `POST /auth/staff/signup`
+**Always creates a field agent** (role `agent`). There is no role field, and a request cannot ask to be a coordinator or admin. Coordinators are created by an admin (`ADMIN-CONTRACT.md`), and admins are seeded.
+
 `{ "name", "phone", "association", "password" }`: password at least 8 characters. Sends a code to the phone.
 201 `{ "id": "...", "status": "pending_verification", "testCode": "123456" }`. `testCode` is present only when `AUTH_TEST_MODE=true`, as with the farmer code. 409 `phone_taken`. A badly filled field returns 400 `invalid_request` with the field name in `field`.
 

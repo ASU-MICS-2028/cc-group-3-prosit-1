@@ -34,15 +34,23 @@ Dates optional. Scope is applied from the token. Registrations are counted by `r
 }
 ```
 
-`byCrop` counts `farmer_crops` rows, so a farmer who grows two crops counts once in each. Gender keys are `female`, `male`, `undisclosed`, plus `unknown` for records with a null `gender`. `agentId` in `byAgent` and `sync` is the agent's `login_id`. `lastSeenAt` is the agent's latest `agent_sync_status.updated_at`.
+`byCrop` counts `farmer_crops` rows, so a farmer who grows two crops counts once in each. `payments` counts successful payments only, per currency: `collected` is money taken from farmers and `paidOut` money paid to them (see `PAYMENTS-CONTRACT.md`). Gender keys are `female`, `male`, `undisclosed`, plus `unknown` for records with a null `gender`. `agentId` in `byAgent` and `sync` is the agent's `login_id`. `lastSeenAt` is the agent's latest `agent_sync_status.updated_at`.
 
 ### `GET /admin/income?from&to`
-Income per farmer: `[{ "farmerId", "name", "currency", "received" }]`, sorted by `received` descending. The data comes from payments-service.
+Admin and coordinator, scoped like the dashboard. Returns `{ "items": [{ "farmerId", "name", "currency", "received" }] }`, sorted by `received` descending. `received` is the total of successful `payout` payments to that farmer, so this is the income-tracking figure. `name` is the farmer's registered name when a record exists, else their account name or phone.
 
 ### `GET /admin/export/farmers.csv` and `/admin/export/payments.csv`
 `Content-Type: text/csv`, scoped like the dashboard, UTF-8 with BOM so Excel reads ₵ and Ghanaian letters.
 
 Farmer columns: `clientId, id, name, phoneE164, gender, preferredLanguage, community, region, farmSizeHectares, farmSizeEntered, farmSizeUnit, crops (semicolon-separated), lat, lng, accuracyMetres, registeredAt, createdAt, registeredBy`. Hectares is the canonical size (it is what MoFA reports in); the entered value and its unit are kept beside it so a conversion mistake stays recoverable. `registeredBy` is the agent's `login_id`.
+
+Also send `Content-Disposition: attachment; filename="farmers.csv"`, and `from` / `to` date filters work as in `/admin/stats`. Rows end with `\r\n`; quote any value containing a comma, a quote or a line break, and double the quotes inside it.
+
+**Spreadsheet formulas.** A farmer's name is typed by a registerer, and Excel runs any cell that starts with `=`, `+`, `-` or `@` as a formula. In text columns, put a single quote in front of such a value. Do **not** do this for the numeric columns, or a longitude like `-0.12` would be damaged. The mock does this and has a test for it.
+
+Payment columns: `id, clientId, farmerName, phoneE164, direction, amount, currency, network, status, createdAt`, newest first, scoped the same way. `amount` is numeric, so it is not given the formula guard.
+
+Recording each export in the audit log (`export.farmers`, with the row count in `detail`) is recommended, since a CSV is the easiest way for farmer data to leave the system.
 
 ## Heartbeat (for the sync overview)
 
@@ -64,7 +72,12 @@ Store one row per agent and overwrite it each time; no history is needed:
 | `POST /admin/agents/:id/reject` | Body `{ "reason" }`, stored in `users.status_reason`. |
 | `POST /admin/agents/:id/suspend` | Body `{ "reason" }`. Takes effect when the phone next refreshes its token. |
 | `POST /admin/agents/:id/reinstate` | `suspended → approved`. |
-| `POST /admin/coordinators` | Admin only. `{ "name", "phone" (E.164), "association", "password" }` creates an approved coordinator. |
+| `GET /admin/coordinators` | Admin only. `{ "items": [...] }` of every coordinator, same item shape as agents. |
+| `POST /admin/coordinators` | Admin only. `{ "name", "phone" (E.164), "association", "password" }` creates an **approved** coordinator and assigns their login ID (`CO-0002`). 201 with the account. 400 `invalid_request` with `field` for a bad name, phone, association or a password under 8 characters. 409 `phone_taken` if a staff account already has that number. The admin tells the coordinator their ID and password; the coordinator chooses their own PIN at first sign-in. |
+| `POST /admin/coordinators/:id/suspend` | Admin only. Body `{ "reason" }`. `approved → suspended`. Takes effect when the phone next refreshes its token. |
+| `POST /admin/coordinators/:id/reinstate` | Admin only. `suspended → approved`. |
+
+Coordinators have no approval step (an admin creates them already approved), so there is no approve or reject. A coordinator ID used on an agent route, or an agent ID on a coordinator route, is 404.
 
 An action on an agent in the wrong state returns 409 `invalid_transition`. Each action is audited (below).
 
@@ -92,12 +105,12 @@ Admin only. The source is the `audit_log` table from `DATA-CONTRACT.md` §5. Res
 | `detail` | A short text of what changed (for an update: the changed columns and their old and new values) |
 | `actorRole` | Optional. Include it if easy; the PWA shows it when present. |
 
-**`action`** is derived from the row. For `users` rows whose `status` changed: `pending → approved` is `agent.approve`, `pending → rejected` is `agent.reject`, `approved → suspended` is `agent.suspend`, `suspended → approved` is `agent.reinstate`. Everything else is `<table>.<insert|update|delete>`, for example `farmers.insert`. A coordinator being created appears as `users.insert`.
+**`action`** is derived from the row. For `users` rows whose `status` changed: `pending → approved` is `agent.approve`, `pending → rejected` is `agent.reject`, `approved → suspended` is `agent.suspend`, `suspended → approved` is `agent.reinstate`. The same two changes on a coordinator are `coordinator.suspend` and `coordinator.reinstate`. Everything else is `<table>.<insert|update|delete>`, for example `farmers.insert`. A coordinator being created appears as `users.insert`.
 
 Events that are not table changes (an export, repeated failed logins) are optional. If you record them, insert a row into `audit_log` with `table_name = 'app'` and a clear `action`.
 
 ### `GET /admin/activity?type=cropcheck|feedback`
-The crop-check list (defined in the advice contract, later) and the feedback inbox.
+Admin only; any other `type` is 400. `type=feedback` returns `{ "items": [{ "id", "at", "name", "role", "screen", "message", "rating" }] }`, newest first. `type=cropcheck` returns `{ "items": [...] }` of every crop check, in the shape defined in `ADVICE-CONTRACT.md`.
 
 ## Feedback (any signed-in role)
 
@@ -112,4 +125,4 @@ The same idempotency pattern as farmers: a `feedback` table with `client_id UUID
 
 ## Not in this contract yet
 
-Crop checks and advice, Wallet and payments, market prices. Each gets its own contract when its screens are built.
+Market prices (the PWA ships sample prices until a market-info service exists). Payments are in `PAYMENTS-CONTRACT.md`, crop checks in `ADVICE-CONTRACT.md`, produce listings in `LISTINGS-CONTRACT.md`.

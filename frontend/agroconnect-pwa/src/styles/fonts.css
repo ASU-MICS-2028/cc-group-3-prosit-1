@@ -12,10 +12,22 @@
   font-display: swap;
 }
 
+/* Unbounded's zero is a perfect circle and reads as the letter O in a count or a price. So the digit 0
+   alone (U+0030) is drawn from Onest, whose zero is a narrow oval, and everything else from Unbounded. */
 @font-face {
   font-family: 'Unbounded';
   src: url('/fonts/unbounded-var.woff2') format('woff2');
   font-weight: 500 800;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-002F, U+0031-10FFFF;
+}
+
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/onest-var.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0030;
 }
