@@ -1,14 +1,12 @@
-import { useAuth } from '../../auth/context'
 import { useCurrentUser } from '../../auth/useCurrentUser'
-import { Button } from '../../components/Button'
 import { CountryPicker } from '../../components/CountryPicker'
 import { LanguagePicker } from '../../components/LanguagePicker'
 import { ScreenHeader } from '../../components/ScreenHeader'
+import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
 
 export function Me() {
   const { t } = useT()
-  const { signOut } = useAuth()
   const user = useCurrentUser()
 
   return (
@@ -42,7 +40,7 @@ export function Me() {
           <CountryPicker />
         </section>
 
-        <Button onClick={() => void signOut()}>{t('auth.signOut')}</Button>
+        <SignOutButton />
       </main>
     </>
   )

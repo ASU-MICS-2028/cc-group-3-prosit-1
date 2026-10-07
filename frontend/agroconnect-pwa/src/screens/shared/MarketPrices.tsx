@@ -1,16 +1,22 @@
 import { Button } from '../../components/Button'
 import { CountryPicker } from '../../components/CountryPicker'
 import { CropArt } from '../../components/CropArt'
+import { PriceChange } from '../../components/PriceChange'
 import { CROP_BACKGROUND } from '../../components/cropColours'
 import { SampleBadge } from '../../components/SampleBadge'
 import { ScreenHeader } from '../../components/ScreenHeader'
-import { SAMPLE_PRICES } from '../../data/samplePrices'
+import { SAMPLE_PRICES, SAMPLE_PRICES_UPDATED } from '../../data/samplePrices'
 import { formatMoney } from '../../domain/country'
 import { CROP_IDS } from '../../domain/farmer'
 import { useT } from '../../i18n/context'
 import { useSettings } from '../../settings/context'
 
-export function MarketPrices({ onSell }: { onSell?: () => void }) {
+interface MarketPricesProps {
+  onSell?: () => void
+  onBrowse?: () => void
+}
+
+export function MarketPrices({ onSell, onBrowse }: MarketPricesProps) {
   const { t } = useT()
   const { country } = useSettings()
 
@@ -31,17 +37,20 @@ export function MarketPrices({ onSell }: { onSell?: () => void }) {
                 </span>
                 <span className="price-name">{t(`crop.${crop}`)}</span>
                 <span className="price-value">
-                  {formatMoney(SAMPLE_PRICES[country][crop], country)} <span className="price-unit">{t('market.perKg')}</span>
+                  {formatMoney(SAMPLE_PRICES[country][crop].price, country)} <span className="price-unit">{t('market.perKg')}</span>
+                  <PriceChange change={SAMPLE_PRICES[country][crop].change} />
                 </span>
               </li>
             ))}
           </ul>
+          <p className="farmer-meta">{t('market.updated', { date: new Date(SAMPLE_PRICES_UPDATED).toLocaleDateString([], { dateStyle: 'medium' }) })}</p>
         </section>
         {onSell && (
           <Button variant="main" onClick={onSell}>
             {t('farmer.sell')}
           </Button>
         )}
+        {onBrowse && <Button onClick={onBrowse}>{t('market.browse')}</Button>}
       </main>
     </>
   )

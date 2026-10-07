@@ -8,6 +8,8 @@ import {
   setStatus,
 } from '../db/repository'
 import { SYNC_STATUS } from '../domain/farmer'
+import { reportHeartbeat } from './heartbeat'
+import { sendOutbox } from './outbox'
 import { NetworkError, postFarmer, postPhoto, RejectedError, ServerError, UnauthorizedError } from './api'
 
 let running = false
@@ -75,7 +77,9 @@ export async function requestSync(): Promise<void> {
     do {
       runAgain = false
       await syncOnce()
+      await sendOutbox()
     } while (runAgain)
+    await reportHeartbeat()
   } finally {
     running = false
   }

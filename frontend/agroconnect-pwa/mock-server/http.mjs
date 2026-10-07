@@ -13,7 +13,12 @@ export class HttpError extends Error {
   }
 }
 
-export function send(res, status, body) {
+/** A string or Buffer body is sent as-is (CSV, an image); anything else is sent as JSON. `extraHeaders` can override the type. */
+export function send(res, status, body, extraHeaders = {}) {
+  if (typeof body === 'string' || Buffer.isBuffer(body)) {
+    res.writeHead(status, { ...CORS_HEADERS, ...extraHeaders })
+    return res.end(body)
+  }
   const headers = body === undefined ? CORS_HEADERS : { ...CORS_HEADERS, 'Content-Type': 'application/json' }
   res.writeHead(status, headers)
   res.end(body === undefined ? undefined : JSON.stringify(body))
@@ -46,9 +51,9 @@ export function createRouter(routes) {
 
   return async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`)
-    const done = (status, body) => {
+    const done = (status, body, headers) => {
       console.log(`${req.method} ${url.pathname} -> ${status}`)
-      send(res, status, body)
+      send(res, status, body, headers)
     }
 
     if (req.method === 'OPTIONS') return done(204)
@@ -57,8 +62,8 @@ export function createRouter(routes) {
       for (const { method, matcher, handler } of compiled) {
         const match = method === req.method && matcher.exec(url.pathname)
         if (!match) continue
-        const [status, body] = await handler({ req, res, params: match.groups ?? {}, query: url.searchParams })
-        return done(status, body)
+        const [status, body, headers] = await handler({ req, res, params: match.groups ?? {}, query: url.searchParams })
+        return done(status, body, headers)
       }
       done(404, { error: 'not_found', message: 'Not found' })
     } catch (error) {

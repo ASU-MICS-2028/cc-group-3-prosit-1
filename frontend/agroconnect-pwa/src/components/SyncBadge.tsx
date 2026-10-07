@@ -10,14 +10,14 @@ const SHAPES: Record<SyncStatus, ReactElement> = {
   attention: <path d="M12 5v9M12 18.5v.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />,
 }
 
-export function SyncBadge({ status }: { status: SyncStatus }) {
+export function SyncBadge({ status, label }: { status: SyncStatus; label?: string }) {
   const { t } = useT()
   return (
     <span className={`sync-badge sync-${status}`}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         {SHAPES[status]}
       </svg>
-      {t(`status.${status}`)}
+      {label ?? t(`status.${status}`)}
     </span>
   )
 }

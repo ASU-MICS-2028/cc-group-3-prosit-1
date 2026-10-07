@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { Button } from '../../components/Button'
+import { FarmerPayments } from '../../components/FarmerPayments'
 import { CropArt } from '../../components/CropArt'
 import { CROP_BACKGROUND } from '../../components/cropColours'
 import { SyncBadge } from '../../components/SyncBadge'
@@ -102,6 +103,11 @@ export function FarmerDetail({ clientId, onClose }: FarmerDetailProps) {
             </DetailRow>
             <DetailRow label={t('detail.consent')}>{t('detail.consentGiven')}</DetailRow>
           </dl>
+        </section>
+
+        <section className="card">
+          <h2 className="card-title">{t('detail.payments')}</h2>
+          {farmer.serverId ? <FarmerPayments recordId={farmer.serverId} /> : <p>{t('detail.paymentsAfterSync')}</p>}
         </section>
       </main>
     </>

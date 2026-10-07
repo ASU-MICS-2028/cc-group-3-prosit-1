@@ -1,8 +1,11 @@
 import { Button } from '../../components/Button'
 import { CropArt } from '../../components/CropArt'
 import { CROP_BACKGROUND } from '../../components/cropColours'
+import { PriceChange } from '../../components/PriceChange'
 import { SampleBadge } from '../../components/SampleBadge'
+import { WeatherCard } from '../../components/WeatherCard'
 import { ScreenHeader } from '../../components/ScreenHeader'
+import { useState } from 'react'
 import { useCurrentUser } from '../../auth/useCurrentUser'
 import { SAMPLE_ADVICE } from '../../data/sampleAdvice'
 import { SAMPLE_PRICES } from '../../data/samplePrices'
@@ -10,6 +13,7 @@ import { formatMoney } from '../../domain/country'
 import { useT } from '../../i18n/context'
 import { useSettings } from '../../settings/context'
 import type { FarmerTab } from '../../apps/tabs'
+import { Weather } from '../shared/Weather'
 
 const FEATURED_CROPS = ['maize', 'tomato', 'cassava'] as const
 const [latestAdvice] = SAMPLE_ADVICE
@@ -19,16 +23,15 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
   const { country } = useSettings()
   const user = useCurrentUser()
   const name = user?.name.trim()
+  const [showWeather, setShowWeather] = useState(false)
+
+  if (showWeather) return <Weather onBack={() => setShowWeather(false)} />
 
   return (
     <>
       <ScreenHeader title={name ? t('farmer.hello', { name }) : t('farmer.helloNoName')} />
       <main className="screen-body">
-        <section className="card">
-          <h2 className="card-title">{t('farmer.weather')}</h2>
-          <SampleBadge label="common.sampleForecast" />
-          <p className="stat-number small">{t('farmer.weatherSample')}</p>
-        </section>
+        <WeatherCard onOpen={() => setShowWeather(true)} />
 
         <section className="card">
           <h2 className="card-title">{t('farmer.prices')}</h2>
@@ -40,7 +43,10 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
                   <CropArt crop={crop} size={36} />
                 </span>
                 <span className="price-name">{t(`crop.${crop}`)}</span>
-                <span className="price-value">{formatMoney(SAMPLE_PRICES[country][crop], country)}</span>
+                <span className="price-value">
+                  {formatMoney(SAMPLE_PRICES[country][crop].price, country)}
+                  <PriceChange change={SAMPLE_PRICES[country][crop].change} />
+                </span>
               </li>
             ))}
           </ul>
