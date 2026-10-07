@@ -15,6 +15,10 @@ export type FarmerLanguage = (typeof FARMER_LANGUAGES)[number]
 export const GENDERS = ['female', 'male', 'undisclosed'] as const
 export type Gender = (typeof GENDERS)[number]
 
+export const isCropId = (value: string): value is CropId => (CROP_IDS as readonly string[]).includes(value)
+export const isFarmerLanguage = (value: string): value is FarmerLanguage => (FARMER_LANGUAGES as readonly string[]).includes(value)
+export const isGender = (value: string): value is Gender => (GENDERS as readonly string[]).includes(value)
+
 export type RegistrationStep = 1 | 2 | 3
 
 export interface GpsFix {

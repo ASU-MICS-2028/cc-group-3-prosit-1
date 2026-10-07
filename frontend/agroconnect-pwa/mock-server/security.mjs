@@ -1,6 +1,8 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { promisify } from 'node:util'
-import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from 'jose'
+import { exportJWK, generateKeyPair, importJWK, jwtVerify, SignJWT } from 'jose'
 import { HttpError } from './http.mjs'
 
 const scryptAsync = promisify(scrypt)
@@ -20,15 +22,41 @@ export async function verifySecret(secret, stored) {
 export const sha256 = (text) => createHash('sha256').update(text).digest('hex')
 
 const KEY_ID = 'mock-1'
-const { publicKey, privateKey } = await generateKeyPair('RS256')
-export const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: KEY_ID, alg: 'RS256', use: 'sig' }] }
+let publicKey
+let privateKey
+/** The public key set other services would fetch. A live binding: it changes if loadKeys() swaps the keys. */
+export let jwks
+
+async function adopt(pair) {
+  ;({ publicKey, privateKey } = pair)
+  jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: KEY_ID, alg: 'RS256', use: 'sig' }] }
+}
+
+await adopt(await generateKeyPair('RS256', { extractable: true }))
+
+/**
+ * Reuses the signing key saved in `file`, or saves the current one there. Without this every restart
+ * makes a new key, which invalidates every token already on a phone. Mock only: a real service keeps
+ * its private key in a secrets manager.
+ */
+export async function loadKeys(file) {
+  try {
+    const saved = JSON.parse(await readFile(file, 'utf8'))
+    await adopt({ publicKey: await importJWK(saved.public, 'RS256'), privateKey: await importJWK(saved.private, 'RS256') })
+    return 'loaded'
+  } catch {
+    await mkdir(dirname(file), { recursive: true })
+    await writeFile(file, JSON.stringify({ public: await exportJWK(publicKey), private: await exportJWK(privateKey) }), { mode: 0o600 })
+    return 'created'
+  }
+}
 
 const DAY = 24 * 3600
 export const ttlSecondsFor = (role) => (role === 'farmer' ? 30 * DAY : 7 * DAY)
 export const REFRESH_GRACE_SECONDS = 30 * DAY
 
 export function signToken(user, ttlSeconds = ttlSecondsFor(user.role)) {
-  return new SignJWT({ role: user.role, name: user.name, assoc: user.assoc })
+  return new SignJWT({ role: user.role, name: user.name, phone: user.phone, assoc: user.assoc })
     .setProtectedHeader({ alg: 'RS256', kid: KEY_ID })
     .setSubject(user.id)
     .setIssuedAt()

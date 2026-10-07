@@ -1,5 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { fetchMyCropChecks } from '../../advice/adviceApi'
+import { buildCheckRows, type CheckState } from '../../advice/merge'
 import { Button } from '../../components/Button'
 import { CropPicker } from '../../components/CropPicker'
 import { Field } from '../../components/Field'
@@ -7,13 +9,26 @@ import { PhotoButton } from '../../components/PhotoButton'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { SyncBadge } from '../../components/SyncBadge'
 import { addToOutbox, listOutbox } from '../../db/outbox'
-import type { CropId } from '../../domain/farmer'
+import { isCropCheckList } from '../../domain/advice'
+import type { CropId, SyncStatus } from '../../domain/farmer'
+import { useCachedRemote } from '../../hooks/useCachedRemote'
+import { requestSync } from '../../sync/syncQueue'
 import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import { useT } from '../../i18n/context'
 
+const BADGE_FOR: Record<CheckState, SyncStatus> = { queued: 'saved', attention: 'attention', open: 'sending', answered: 'sent' }
+const REFRESH_EVERY_MS = 15_000
+
 export function CropCheckForm({ onBack }: { onBack: () => void }) {
   const { t } = useT()
-  const mine = useLiveQuery(() => listOutbox('cropCheck'), [])
+  const onPhone = useLiveQuery(() => listOutbox('cropCheck'), [])
+  const { state, reload } = useCachedRemote('myCropChecks', fetchMyCropChecks, isCropCheckList)
+  const rows = buildCheckRows(onPhone ?? [], state.status === 'ready' ? state.data : [])
+
+  useEffect(() => {
+    const timer = setInterval(() => navigator.onLine && reload(), REFRESH_EVERY_MS)
+    return () => clearInterval(timer)
+  }, [reload])
 
   const [crop, setCrop] = useState<CropId | null>(null)
   const [note, setNote] = useState('')
@@ -30,6 +45,7 @@ export function CropCheckForm({ onBack }: { onBack: () => void }) {
     setPhotoBlob(null)
     setError(null)
     setSaved(true)
+    void requestSync()
   }
 
   return (
@@ -72,16 +88,24 @@ export function CropCheckForm({ onBack }: { onBack: () => void }) {
 
         <section className="card">
           <h2 className="card-title">{t('check.mine')}</h2>
-          {mine && mine.length > 0 ? (
+          {rows.length > 0 ? (
             <ul className="plain-list">
-              {mine.map((item) => (
-                <li key={item.clientId} className="list-item">
-                  <span>
-                    <strong>{t(`crop.${item.payload.crop}`)}</strong>
-                    <br />
-                    {item.payload.note}
+              {rows.map((row) => (
+                <li key={row.clientId} className="agent-line">
+                  <span className="list-item">
+                    <span>
+                      <strong>{t(`crop.${row.crop}`)}</strong>
+                      <br />
+                      {row.note}
+                    </span>
                   </span>
-                  <SyncBadge status="saved" />
+                  <SyncBadge status={BADGE_FOR[row.state]} label={t(`check.state.${row.state}`)} />
+                  {row.message && <span className="error">{row.message}</span>}
+                  {row.advice && (
+                    <span className="note">
+                      <strong>{t('check.adviceFrom', { name: row.advice.by })}:</strong> {row.advice.text}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
