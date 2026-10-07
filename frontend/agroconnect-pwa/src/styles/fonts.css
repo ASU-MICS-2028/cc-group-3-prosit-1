@@ -1,0 +1,21 @@
+/* Both fonts are served from this app (public/fonts), not from Google, so the service
+   worker caches them and they work in airplane mode. Each file is one "variable" font:
+   a single file that holds every weight in the range, so we don't ship a file per weight.
+   font-display: swap shows text in the fallback font straight away and swaps when the
+   font file arrives, so text is never invisible. */
+
+@font-face {
+  font-family: 'Onest';
+  src: url('/fonts/onest-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/unbounded-var.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+}

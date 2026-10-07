@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "oxc", "typescript"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "typescript/no-explicit-any": "error",
+    "eqeqeq": "error",
+    "no-console": "warn"
+  },
+  "overrides": [{ "files": ["mock-server/**"], "rules": { "no-console": "off" } }],
+  "ignorePatterns": ["dist", "node_modules"]
+}
