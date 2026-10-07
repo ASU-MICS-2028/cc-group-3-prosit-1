@@ -64,6 +64,14 @@ module "compute" {
   alb_arn_suffix          = module.alb.alb_arn_suffix
   target_group_arn_suffix = module.alb.target_group_arn_suffix
   ecr_repository_url      = module.ecr.repository_url
+
+  # Data-tier wiring (RDS + S3). Compute uses these to construct DATABASE_URL
+  # and PHOTO_BUCKET env vars at EC2 boot via user_data.
+  db_endpoint               = module.database.endpoint
+  db_name                   = module.database.db_name
+  db_master_user_secret_arn = module.database.master_user_secret_arn
+  media_bucket_name         = module.storage.bucket_name
+  media_bucket_policy_json  = module.storage.app_access_policy_json
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------
@@ -94,6 +102,22 @@ module "network" {
 # ---------- ecr (container registry) ----------
 module "ecr" {
   source      = "./modules/ecr"
+  name_prefix = local.name
+}
+
+# ---------- database (RDS Postgres in the isolated data subnets) ----------
+module "database" {
+  source = "./modules/database"
+
+  name_prefix           = local.name
+  data_subnet_ids       = module.network.data_subnet_ids
+  app_security_group_id = module.alb.app_security_group_id
+}
+
+# ---------- storage (S3 bucket for farmer + crop-check photos) ----------
+module "storage" {
+  source = "./modules/storage"
+
   name_prefix = local.name
 }
 

@@ -24,6 +24,28 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# S3 photo bucket access — scoped to the specific bucket by the storage module.
+resource "aws_iam_role_policy" "ec2_media_bucket" {
+  name   = "${var.name_prefix}-ec2-media-bucket"
+  role   = aws_iam_role.ec2.id
+  policy = var.media_bucket_policy_json
+}
+
+# Secrets Manager read for the DB master-user secret only.
+data "aws_iam_policy_document" "db_secret_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.db_master_user_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_db_secret" {
+  name   = "${var.name_prefix}-ec2-db-secret"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.db_secret_read.json
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.name_prefix}-ec2-profile"
   role = aws_iam_role.ec2.name
@@ -65,8 +87,24 @@ locals {
       docker pull "$IMAGE" && break || sleep 15
     done
 
+    # Build DATABASE_URL from the Secrets-Manager-managed master credentials.
+    # Resolves to postgres://<user>:<pass>@<host>:<port>/<db>
+    DB_SECRET=$(aws secretsmanager get-secret-value --region "$REGION" --secret-id "${var.db_master_user_secret_arn}" --query SecretString --output text 2>/dev/null || echo "")
+    if [ -n "$DB_SECRET" ]; then
+      DB_USER=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['username'])")
+      DB_PASS=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['password'])")
+      DB_URL="postgres://$DB_USER:$DB_PASS@${var.db_endpoint}/${var.db_name}"
+    else
+      DB_URL=""
+    fi
+
     docker rm -f app 2>/dev/null || true
-    docker run -d --restart=always --name app -p ${var.app_port}:${var.app_port} "$IMAGE"
+    docker run -d --restart=always --name app \
+      -p ${var.app_port}:${var.app_port} \
+      -e DATABASE_URL="$DB_URL" \
+      -e PHOTO_BUCKET="${var.media_bucket_name}" \
+      -e AWS_REGION="$REGION" \
+      "$IMAGE"
   EOT
 }
 

@@ -65,3 +65,32 @@ variable "requests_per_target_target_value" {
   default     = 500
   description = "Target requests per target per minute. ~8 req/s per instance; keeps a t3.micro comfortable."
 }
+
+variable "db_endpoint" {
+  type        = string
+  description = "Postgres host:port — baked into DATABASE_URL at boot"
+  default     = ""
+}
+
+variable "db_name" {
+  type    = string
+  default = ""
+}
+
+variable "db_master_user_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN with the DB master credentials. EC2 role gets GetSecretValue on just this ARN."
+  default     = ""
+}
+
+variable "media_bucket_name" {
+  type        = string
+  description = "S3 photo bucket — exported as PHOTO_BUCKET env var to the container"
+  default     = ""
+}
+
+variable "media_bucket_policy_json" {
+  type        = string
+  description = "Inline IAM policy JSON from the storage module, attached to the EC2 role for S3 read/write"
+  default     = ""
+}
