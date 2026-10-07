@@ -12,7 +12,8 @@ This documentation dossier covers the entire system lifecycle—from empirical c
 docs/
 ├── README.md                     # Documentation Index & Hub (this page)
 ├── system-overview.md            # High-level architecture, business context & Well-Architected alignment
-├── architecture-decisions.md     # Architectural Decision Records (ADR-001 through ADR-005)
+├── architecture-decisions.md     # Architectural Decision Records (ADR-001 through ADR-009)
+├── learnings.md                  # Engineering journal — discoveries & corrections for reflection
 ├── empirical-research.md         # Network latency benchmarks & cloud provider comparison
 ├── client-tier.md                # Offline-first PWA, IndexedDB (Dexie), sync queue & hardware resilience
 ├── api-tier.md                   # Containerized FastAPI farmer-profile-service & API contracts
@@ -33,7 +34,8 @@ docs/
 | Document | Focus Area | Key Highlights |
 |---|---|---|
 | [**1. System Overview**](./system-overview.md) | Architectural Vision | Context in Ghana rural agriculture, high-level topology, Well-Architected Framework 6-pillar analysis |
-| [**2. Architecture Decisions (ADRs)**](./architecture-decisions.md) | Formal Decisions | ADR-001 (Region selection) to ADR-005 (Zero-trust GitOps CI/CD) |
+| [**2. Architecture Decisions (ADRs)**](./architecture-decisions.md) | Formal Decisions | ADR-001 (Region selection) through ADR-009 (Amplify region tradeoff) |
+| [**2b. Engineering Learnings**](./learnings.md) | Reflection Journal | Discoveries during implementation (API gaps, routing-layer mental models). Material for lab reflection + viva. |
 | [**3. Empirical Research**](./empirical-research.md) | Cloud Benchmarks | Network latency testing from Ghana (AWS vs Azure vs GCP) & provider service comparison |
 | [**4. Client Tier (PWA)**](./client-tier.md) | Frontend & Edge | Offline-first design, Dexie IndexedDB, client UUIDs, GPS polling, photo compression |
 | [**5. API Tier**](./api-tier.md) | Application Backend | FastAPI service, Docker containerization, health probes, OpenAPI specifications |
