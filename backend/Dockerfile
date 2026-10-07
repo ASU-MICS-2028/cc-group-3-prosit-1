@@ -1,16 +1,16 @@
-FROM python:3.12-slim
+FROM node:24-alpine
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip
+COPY package*.json ./
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN npm ci
 
-COPY app ./app
+COPY tsconfig.json ./
+COPY src ./src
 
-RUN useradd -r -u 1001 app && chown -R app /app
-USER app
+RUN npm run build
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+CMD ["npm", "start"]
