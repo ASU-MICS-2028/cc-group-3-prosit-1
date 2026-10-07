@@ -16,11 +16,11 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 |---|---|
 | [**Documentation Index**](./docs/README.md) | Navigation index, directory mapping, and high-level project summary |
 | [**1. System Overview**](./docs/system-overview.md) | Operational context, high-level topology & Well-Architected Framework alignment |
-| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-009 |
+| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-011 |
 | [**2b. Engineering Learnings**](./docs/learnings.md) | Engineering journal — discoveries & mental models (Amplify API gaps, CloudFront routing) |
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |
 | [**4. Client Tier (PWA)**](./docs/client-tier.md) | Offline-first architecture, Dexie IndexedDB, sync queue & hardware hooks |
-| [**5. API Tier**](./docs/api-tier.md) | Containerized FastAPI `farmer-profile-service`, endpoints & health probes |
+| [**5. API Tier**](./docs/api-tier.md) | Containerized Node.js/Express TypeScript `farmer-profile-service`, endpoints & health probes |
 | [**6. Data Tier**](./docs/data-tier.md) | PostgreSQL relational schema (`db/schema.sql`) & S3 media offloading |
 | [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform modular IaC (7 modules), `af-south-1` VPC, `fck-nat`, ALB TLS & ASG |
 | [**8. CI/CD & Operations**](./docs/ci-cd-and-operations.md) | GitHub Actions OIDC deployment, ASG rolling refresh & team IAM governance |
@@ -53,7 +53,7 @@ The system is architected as an offline-first client syncing with a highly avail
 │   [Private App Subnets (10.20.11.0/24, 10.20.12.0/24)]                 │
 │     └── Auto Scaling Group (min 1, des 1, max 3)                       │
 │           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
-│           └── EC2 (t3.micro) + Docker running FastAPI :8000             │
+│           └── EC2 (t3.micro) + Docker running Express :8000 (Node/TS)   │
 │                                                                         │
 │   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)] (Week 4)        │
 │     └── PostgreSQL / Amazon RDS (Isolated — no default internet route)  │
@@ -109,20 +109,25 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * **Primary Principle:** *The app never waits for the network.*
 * **Local Storage:** Utilizes browser **IndexedDB** wrapped with **Dexie** across three isolated tables (`drafts`, `farmers`, `photos`). Unsaved forms autosave every 300 ms.
 * **Client-Side UUIDs:** Every profile generates an immutable client UUID (`clientId`) upon initiation, allowing idempotent retries against the backend without duplicate record creation.
+* **Core Capabilities:**
+  * **Produce Marketplace:** Real-time commodity market prices, produce browsing, and harvest listing with Ghana Cedi (`₵`) pricing.
+  * **Mobile Money Wallet:** Integrated wallet with MoMo transaction simulation and active polling.
+  * **Agronomic Weather & Advisory:** Open-Meteo weather forecasts and contextual farming advisories.
+  * **Crop Health Checks:** Field inspection logging with pest and plot condition recording.
 * **Hardware Resilience:**
   * In-browser photo compression reducing camera captures to `<100 KB` via HTML Canvas before queueing.
   * Direct satellite GPS polling (independent of cellular network coverage).
-* **Localization:** Custom font subsets (Onest, Unbounded) supporting local Ghanaian character sets (`Ɛɛ`, `Ɔɔ`, `Ŋŋ`, `Đɖ`, `Ƒƒ`, `Ɣɣ`, `Ʋʋ`, `Ʒʒ`) and currency formatting (`₵`).
+* **Localization (ADR-010):** Full 424-string human translations for **Twi (`tw.json`)** and **Ewe (`ee.json`)** with CI placeholder validation; custom font subsets for Ghanaian orthography (`Ɛɛ`, `Ɔɔ`, `Ŋŋ`, `Đɖ`, `Ƒƒ`, `Ɣɣ`, `Ʋʋ`, `Ʒʒ`).
 * *Details & specifications:* See [`docs/client-tier.md`](./docs/client-tier.md) and [`frontend/README.md`](./frontend/README.md).
 
 ### 2. Application & API Tier ([`backend/`](./backend))
-* **Service:** `farmer-profile-service` implemented in Python with **FastAPI**.
-* **Containerization:** Packaged with Docker ([`backend/Dockerfile`](./backend/Dockerfile)), bound to port `8000`.
+* **Service:** `farmer-profile-service` implemented in **Node.js 24**, **Express 5**, and **TypeScript** (migrated from Python/FastAPI; see [ADR-011](./docs/architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript)).
+* **Containerization:** Packaged with multi-stage Alpine Docker ([`backend/Dockerfile`](./backend/Dockerfile)) running unprivileged as `USER node`, bound to port `8000`.
 * **API Endpoints:**
-  * `GET /` — Service metadata and OpenAPI discovery
+  * `GET /` — Service metadata and endpoint discovery
   * `GET /health` — Liveness probe queried every 15s by the AWS ALB
   * `POST /farmers` — Idempotent profile registration
-  * `GET /farmers/{farmer_id}` — Profile retrieval
+  * `GET /farmers/:farmer_id` — Profile retrieval
 * *Details & run instructions:* See [`docs/api-tier.md`](./docs/api-tier.md) and [`backend/README.md`](./backend/README.md).
 
 ### 3. Database Tier ([`db/`](./db))
@@ -151,7 +156,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
 ### 5. GitOps CI/CD & Deployments ([`.github/workflows/`](./.github/workflows), [`amplify.yml`](./amplify.yml))
 * **Continuous Integration ([`ci.yml`](./.github/workflows/ci.yml)):**
   * Gated on pull requests into `main`.
-  * Executes Python dependency resolution, smoke tests (`app.main`), and Terraform validation (`fmt -check`, `validate`).
+  * Executes Node.js dependency resolution, TypeScript compilation (`npm run build`), server boot `/health` probe verification, and Terraform validation (`fmt -check`, `validate`).
 * **Backend Continuous Deployment ([`deploy.yml`](./.github/workflows/deploy.yml)):**
   * Triggered exclusively on merges to `main`.
   * Authenticates to AWS via **IAM OIDC Web Identity Federation** (no long-lived credentials stored in GitHub).

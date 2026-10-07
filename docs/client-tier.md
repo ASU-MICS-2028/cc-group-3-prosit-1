@@ -159,17 +159,46 @@ The sync orchestrator (`src/sync/`) manages the lifecycle of local records and r
 
 ---
 
-## 7. Ghanaian Localization & UI Accessibility
+---
+
+## 7. Application Modules & Field Workflows
+
+The PWA integrates five core workflows tailored for rural smallholders and field extension agents:
+
+1. **Farmer Registration & Profiles:**
+   * Rapid digital intake capturing personal demographics, contact info, land size, and GPS coordinates.
+   * Direct camera capture with client-side canvas compression for identification photos.
+2. **Produce Marketplace & Trading (`src/screens/farmer/`):**
+   * **Browse Produce:** Real-time visibility into local market prices and active crop listings across communities.
+   * **Sell Produce:** Direct listing workflow enabling farmers to advertise harvested yields (maize, cassava, tomato, cocoa) with pricing in Ghana Cedis (`₵`).
+3. **Mobile Money Wallet & Payments (`src/payments/`):**
+   * Integrated wallet interface supporting local Mobile Money (MTN MoMo, Telecel Cash, AT Money) transactions.
+   * Active payment status polling with automatic cache reconciliation.
+4. **Agrarian Weather & Advisory (`src/weather/`, `src/advice/`):**
+   * Dynamic weather forecasts powered by Open-Meteo caching regional temperature, rainfall probability, and wind metrics.
+   * Localized agronomic advisory cards delivering actionable recommendations tailored to regional soil and seasonal planting patterns.
+5. **Crop Health Verification & Field Checks (`src/screens/staff/`):**
+   * Extension agents conduct on-site parcel inspections, logging crop health observations, pest pressures, and plot status updates.
+6. **Administrative & Agent Hierarchy (`src/screens/admin/`):**
+   * Regional coordinators manage field agents, review registration queues, and track village profiling progress.
+
+---
+
+## 8. Ghanaian Localization & Linguistic Resilience
 
 AgroConnect is tailored to Ghanaian operational realities:
 * **Special Orthography Support:** Embedded web fonts (**Onest** and **Unbounded**) include custom subsets supporting Ghanaian national language alphabets (Ewe, Twi, Dagbani):
   * Characters: `Ɛ / ɛ` (open E), `Ɔ / ɔ` (open O), `Ŋ / ŋ` (eng), `Đ / ɖ` (African D), `Ƒ / ƒ` (F with hook), `Ɣ / ɣ` (gamma), `Ʋ / ʋ` (V with hook), `Ʒ / ʒ` (ezh).
-* **Currency Formatting:** Native Ghana Cedi symbol (`₵`) formatting for plot financial profiling.
-* **Dialect Toggles:** Application language selector supporting English (`en`), Twi (`tw`) and Ewe (`ee`). Dagbani (`dag`) is still recorded as a farmer's preferred language at registration, but is not an app language yet (see [ADR-010](./architecture-decisions.md#adr-010-app-languages-limited-to-english-twi-and-ewe)).
+* **Currency Formatting:** Native Ghana Cedi symbol (`₵`) formatting for financial profiling, produce listings, and loan estimations.
+* **App Language Translations (ADR-010):**
+  * Complete translation dictionaries for **Twi (`tw.json`)** and **Ewe (`ee.json`)** covering all 424 application strings without falling back to English.
+  * Human-curated drafts ensure culturally accurate agricultural terminology (e.g., distinguishing "signal strength" from "symbol/sign", and "sign out" from "signing a contract").
+  * **Automated Translation Testing:** A dedicated Vitest suite ([`src/i18n/translate.test.ts`](../frontend/agroconnect-pwa/src/i18n/translate.test.ts)) automatically verifies that every translated key matches `en.json` and preserves all dynamic `{placeholder}` tokens (e.g. `{name}`, `{price}`, `{date}`).
+* **Demographic Language Choice:** Dagbani (`dag`) remains a valid *preferred language* recorded on farmer profiles, even though it is excluded from the app interface picker until native translations are finalized (see [ADR-010](./architecture-decisions.md#adr-010-app-languages-limited-to-english-twi-and-ewe)).
 
 ---
 
-## 8. AWS Amplify Hosting Architecture & Edge Performance
+## 9. AWS Amplify Hosting Architecture & Edge Performance
 
 The PWA is hosted via **AWS Amplify Hosting** in `eu-west-1` and fronted by Amazon CloudFront:
 * **Live Origin:** `eu-west-1` (Ireland) — selected as the closest Amplify-supported region to West Africa (see [ADR-009](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)).
