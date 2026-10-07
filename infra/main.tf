@@ -19,6 +19,24 @@ provider "aws" {
   }
 }
 
+# Amplify Hosting is not offered in af-south-1 (Cape Town). We host it in
+# eu-west-1 (Ireland) — closest supported region. CloudFront still serves the
+# app from its global edges (including Cape Town/Johannesburg), so user-facing
+# latency is unaffected; only the build runners live in Ireland.
+provider "aws" {
+  alias   = "amplify"
+  region  = "eu-west-1"
+  profile = "ashesi-dev"
+  default_tags {
+    tags = {
+      Project   = var.project
+      Env       = var.env
+      ManagedBy = "terraform"
+      Team      = "highlanders"
+    }
+  }
+}
+
 locals {
   name = "${var.project}-${var.env}"
 }
@@ -95,4 +113,21 @@ module "cicd" {
   source      = "./modules/cicd"
   name_prefix = local.name
   github_repo = var.github_repo
+}
+
+# ---------- frontend (AWS Amplify Hosting for the Vite+React PWA) ----------
+# Repo auth is via the AWS Amplify GitHub App installed on the org (see
+# docs/architecture-decisions.md ADR-009). No PAT, no Secrets Manager lookup.
+module "frontend" {
+  source = "./modules/frontend"
+  providers = {
+    aws = aws.amplify
+  }
+
+  name_prefix             = local.name
+  repository_url          = "https://github.com/${var.github_repo}"
+  production_branch       = "main"
+  api_url                 = "https://${var.api_hostname}"
+  custom_domain           = var.frontend_apex_domain
+  custom_subdomain_prefix = var.frontend_subdomain_prefix
 }
