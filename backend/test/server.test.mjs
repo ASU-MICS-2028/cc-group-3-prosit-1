@@ -168,7 +168,8 @@ describe('staff sign-in and approval', () => {
 
   it('refuses wrong passwords and shows the seeded pending agent as waiting', async () => {
     const { staffLogin } = await start()
-    expect((await staffLogin('AG-0001', 'nope-nope-nope')).status).toBe(401)
+    const wrong = await staffLogin('AG-0001', 'nope-nope-nope')
+    expect(wrong).toMatchObject({ status: 401, body: { error: 'invalid_credentials', attemptsLeft: 4 } })
     const pending = await staffLogin(DEMO_ACCOUNTS.pendingAgent.phone, DEMO_ACCOUNTS.pendingAgent.password)
     expect(pending).toMatchObject({ status: 403, body: { error: 'pending_approval' } })
   })
