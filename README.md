@@ -13,7 +13,7 @@ AgroConnect Ghana is an offline-first agricultural profiling and registration pl
 
 A 2½-minute recording of the live app at [`app.agroconnect.space`](https://app.agroconnect.space), as a farmer, a field agent, an admin and a coordinator. Click to watch:
 
-https://github.com/user-attachments/assets/9f130db7-3a16-4d7d-97ba-011fa4d73795
+https://github.com/user-attachments/assets/083e61e6-e2cb-442e-9689-9c1001af3d5a
 
 How it is recorded (Playwright against the live site) and rebuilt: [`scripts/demo-video/`](./scripts/demo-video).
 
