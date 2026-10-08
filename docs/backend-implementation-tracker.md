@@ -34,7 +34,7 @@ against the code on `main`**, not against intentions.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 0 — Requirements & Architecture Baseline | 🟡 | Contracts + ADRs recorded; pagination and rate-limit conventions still open |
+| 0 — Requirements & Architecture Baseline | 🟢 | Contracts + ADRs recorded; pagination and rate-limit conventions defined |
 | 1 — Backend Project Foundation | 🟢 | Complete (PR #34) |
 | 2 — Database & Migration | 🟢 | Complete (PR #35) |
 | 3 — Authentication | 🟢 | Complete (PR #37); logout/revocation and password change stay out of contract |
@@ -44,12 +44,12 @@ against the code on `main`**, not against intentions.
 | 7 — Photo Storage | 🟢 | Complete (PR #44) |
 | 8 — Rate Limiting & Abuse Protection | 🟢 | Complete (PR #41) |
 | 9 — Admin & Coordinator API | 🟢 | Complete (PR #43) |
-| 10 — Pagination, Filtering & Query Performance | 🟡 | Uniform pagination + SQL paging (PR #47, in review) |
-| 11 — Feedback API | 🟡 | Feedback audit (PR #48, in review) |
-| 12 — Audit & Observability | 🟡 | Auth event logs + log policy (PR #49, in review) |
+| 10 — Pagination, Filtering & Query Performance | 🟢 | Complete (PR #47); optional load test left |
+| 11 — Feedback API | 🟢 | Complete (PR #48) |
+| 12 — Audit & Observability | 🟢 | Complete (PR #49) |
 | 13 — AWS Infrastructure | 🟢 | Complete; stale docs corrected (PR #51) |
-| 14 — Production Deployment | 🟡 | Post-deploy smoke test (PR #52, in review) |
-| 15 — Testing & Production Readiness | 🟡 | Unit tests + backup/restore check (PR #54, in review) |
+| 14 — Production Deployment | 🟢 | Complete (PR #52) |
+| 15 — Testing & Production Readiness | 🟢 | Complete (PR #54); see Remaining |
 
 ---
 
@@ -63,12 +63,12 @@ against the code on `main`**, not against intentions.
 - [x] Confirm AWS deployment architecture
 - [x] Confirm authentication implementation
 - [x] Resolve API phone-field decision _(split `country_code` + `phone_national`, generated `phone_e164`)_
-- [ ] Define pagination convention _(Phase 10)_
-- [ ] Define general rate-limit policy _(Phase 8)_
+- [x] Define pagination convention _(?page=&pageSize=, capped at 100, `{ items, total }`)_
+- [x] Define general rate-limit policy _(per-IP global 300/min + stricter auth 20/min, 429 with Retry-After)_
 - [x] Resolve contract inconsistencies _(DATA/API/AUTH/ADMIN/ADVICE/LISTINGS/PAYMENTS contracts)_
 - [x] Record final architecture decisions _(ADRs 001–013)_
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified
 
 ---
 
@@ -314,7 +314,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [~] Query performance testing _(indexes added; no load test yet)_
 - [x] Avoid unbounded queries _(every list endpoint is paged)_
 
-**Status:** 🟡 In review (PR #47)
+**Status:** 🟢 Verified (PR #47)
 
 ---
 
@@ -332,7 +332,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Audit requirements _(audit trigger on feedback, actor set)_
 - [x] Duplicate submission testing
 
-**Status:** 🟡 In review (PR #48)
+**Status:** 🟢 Verified (PR #48)
 
 ---
 
@@ -355,7 +355,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Monitoring _(CloudWatch log group + dashboard)_
 - [x] Alerts _(8 CloudWatch alarms + SNS + budget)_
 
-**Status:** 🟡 In review (PR #49)
+**Status:** 🟢 Verified (PR #49)
 
 ---
 
@@ -400,7 +400,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Deployment rollback _(SSM-pinned image tag, PR #27)_
 - [x] Smoke test _(CI image boot + post-deploy probe in deploy.yml)_
 
-**Status:** 🟡 In review (PR #52)
+**Status:** 🟢 Verified (PR #52)
 
 ---
 
@@ -426,7 +426,51 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Production smoke test _(post-deploy probe in deploy.yml)_
 - [~] Frontend integration test _(PWA unit + mock-contract tests; no shipped-PWA ↔ shipped-API e2e)_
 
-**Status:** 🟡 In review (PR #54)
+**Status:** 🟢 Verified (PR #54)
+
+---
+
+# Remaining work (optional / needs a decision)
+
+All 15 phases above are implemented and verified against `main`. What is left is either optional
+hardening, a contract change, or work that arrived after this tracker was written — not a gap in the plan.
+
+## Optional (no contract change)
+
+- **Query performance / load test** (Phase 10) — indexes and bounded, paged queries are in; a load test
+  under realistic volume is not.
+- **Deeper security tests** (Phase 15) — CORS, webhook HMAC, audit redaction and CSV injection are
+  covered; there are no SQL-injection, XSS or brute-force tests.
+- **Backend-driven offline-retry test** — the server half (a repeat returns 200 with the same id; a 503
+  keeps work queued) is covered; the phone-side retry loop is tested in the PWA, not end to end.
+- **Shipped-PWA ↔ shipped-API e2e** — the PWA runs unit and mock-contract tests; nothing drives the real
+  PWA against the real API.
+
+## Needs a contract decision first (🔴)
+
+- **Logout / refresh-token revocation and password/PIN change** — not in AUTH-CONTRACT; adding them is a
+  contract change, not a backend gap.
+- **`PATCH /farmers/:id` (update a farmer)** — not in API-CONTRACT.
+
+## Added after this tracker was written (not in the original plan)
+
+Features merged onto `main` since this tracker was drafted, which this phase list does not cover:
+
+- **Farmer profile extension** — `backend/migrations/004_farmer_profile.sql`, `backend/src/profile.ts`,
+  and an admin route (#46).
+- **USSD menu for basic phones** — `backend/src/routes/ussd.ts`, `backend/src/ussdText.ts`, migration `005` (#50).
+- **Extension visit log** — `backend/migrations/006_extension_visits.sql`, `backend/src/routes/farmers.ts` (#53).
+- **Push notifications** — `backend/src/push.ts`, `backend/src/routes/push.ts`, migration `007` (#58).
+
+They carry their own endpoints, migrations and tests (the backend suite is now 168 tests over 14 files),
+but were not written against this tracker — they deserve their own contract/coverage review if we want
+this tracker to remain the single source of truth.
+
+## Housekeeping
+
+- Two migrations share the `004_` prefix — `004_farmer_profile.sql` and `004_feedback_audit.sql`. The
+  runner keys on the full filename, so both apply in name order; only the numbering is duplicated
+  (cosmetic, and forward-only to change).
 
 ---
 
