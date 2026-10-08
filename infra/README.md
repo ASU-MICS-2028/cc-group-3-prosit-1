@@ -7,19 +7,44 @@ lives in its own module under `modules/`.
 
 ```
 infra/
+├── backend.tf           # S3 remote state (bucket + native lockfile)
 ├── main.tf              # providers, locals, module wiring
 ├── variables.tf         # root inputs
 ├── outputs.tf           # pulls from module outputs
 ├── migrate-state.sh     # one-shot state-mv helper (idempotent)
+├── bootstrap/           # one-time: creates the state bucket (own local state)
 └── modules/
     ├── network/         # VPC, subnets (×6), IGW, route tables
     ├── nat/             # fck-nat instance + SG + ENI
     ├── alb/             # ALB, SGs, target group, listeners, ACM cert
     ├── compute/         # EC2 IAM, launch template, ASG, scaling policy
     ├── ecr/             # container registry
+    ├── database/        # RDS Postgres in the isolated data subnets
+    ├── storage/         # S3 media bucket + lifecycle
+    ├── secrets/         # app secrets (Arkesel SMS); values set out-of-band
+    ├── observability/   # SNS alarms, CloudWatch dashboard, AWS Budgets
     ├── cicd/            # GitHub Actions OIDC + deploy role
     └── frontend/        # AWS Amplify Hosting in eu-west-1 (app.agroconnect.space)
 ```
+
+## Remote state
+
+State lives in S3 (`agroconnect-tfstate-<account-id>`, key
+`agroconnect/dev/terraform.tfstate`) with a **native lockfile** — no local
+state, no DynamoDB.
+
+The bucket is created once by `infra/bootstrap/`, which is kept separate
+because it can't live in the state it stores:
+
+```bash
+cd infra/bootstrap && terraform init && terraform apply
+cd .. && terraform init          # picks up backend.tf
+```
+
+The bootstrap root keeps its own local state (gitignored); if that is lost, the
+bucket can be re-adopted with `terraform import`. After any change to the
+`backend` block, run `terraform init -migrate-state`.
+
 
 ## Shape
 
