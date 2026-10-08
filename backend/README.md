@@ -17,6 +17,7 @@ One Node.js 24 / Express 5 / TypeScript service that implements every contract t
 | [PAYMENTS](../frontend/agroconnect-pwa/docs/PAYMENTS-CONTRACT.md) | `/payments`, `/payments/me`, `/payments/:id`, `/farmers/:id/payments`, `/loan-requests`, `/admin/income`, `/webhooks/votex365` |
 | [ADVICE](../frontend/agroconnect-pwa/docs/ADVICE-CONTRACT.md) | `/crop-checks`, `/crop-checks/me`, `/crop-checks/:id/{photo,advice}` |
 | [LISTINGS](../frontend/agroconnect-pwa/docs/LISTINGS-CONTRACT.md) | `/listings`, `/listings/:id/close` |
+| [CONTENT](../frontend/agroconnect-pwa/docs/CONTENT-CONTRACT.md) | `GET /market-prices`, `GET /advice`, `POST /admin/market-prices`, `POST /admin/advice`, `/admin/advice/:id/archive` |
 
 The PWA's mock server (`frontend/agroconnect-pwa/mock-server/`) is the executable reference: its contract tests are ported into `test/` and run against this service.
 

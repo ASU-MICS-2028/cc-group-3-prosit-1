@@ -6,6 +6,7 @@ import { createRouter } from './http.mjs'
 import { KEYS_FILE, STATE_FILE, createSaver, readSnapshot, resetData } from './persist.mjs'
 import { adminRoutes } from './routes/admin.mjs'
 import { authRoutes } from './routes/auth.mjs'
+import { contentRoutes } from './routes/content.mjs'
 import { farmerRoutes } from './routes/farmers.mjs'
 import { feedbackRoutes } from './routes/feedback.mjs'
 import { paymentRoutes } from './routes/payments.mjs'
@@ -31,7 +32,7 @@ export async function createApp({ dataFile, ...options } = {}) {
   const store = await createStore(dataFile ? await readSnapshot(dataFile) : null)
   const ctx = { store, config: { ...DEFAULTS, ...options } }
   const saver = dataFile ? createSaver(dataFile, store) : null
-  const router = createRouter([...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx)])
+  const router = createRouter([...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx)])
 
   const server = createServer((req, res) => {
     if (saver && req.method !== 'GET' && req.method !== 'OPTIONS') res.on('finish', saver.schedule)

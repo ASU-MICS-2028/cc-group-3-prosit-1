@@ -423,5 +423,22 @@
   "coordinators.create": "Wɔ account",
   "coordinators.cancel": "Ɖe asi le eŋu",
   "coordinators.created": "Wowɔe. Eƒe ID enye {id}. Na ID kple password la. Eya ŋutɔ atia eƒe PIN zi gbãtɔ si wòage ɖe eme.",
-  "auth.signup.agentOnly": "Esia nye na agble dzi dɔwɔlawo. Dzikpɔla gã ye tsɔa dzikpɔlawo kpena ɖe eŋu."
+  "auth.signup.agentOnly": "Esia nye na agble dzi dɔwɔlawo. Dzikpɔla gã ye tsɔa dzikpɔlawo kpena ɖe eŋu.",
+  "more.content": "Asiwo kple aɖaŋuɖoɖo",
+  "content.title": "Asiwo kple aɖaŋuɖoɖo",
+  "content.hint": "Agbledelawo kpɔa esiawo le Aƒeme, Asi kple Aɖaŋuɖoɖo dzi.",
+  "content.priceTitle": "Ŋlɔ egbe ƒe home",
+  "content.pricePerKg": "Home le kg ɖeka",
+  "content.priceSave": "Dzra home la ɖo",
+  "content.priceSaved": "Wodzra {crop} ƒe home ɖo.",
+  "content.priceInvalid": "Tia nuku eye nàŋlɔ home si wu 0.",
+  "content.adviceTitle": "Ɖe aɖaŋuɖoɖo ɖe go",
+  "content.adviceHeading": "Tanya",
+  "content.adviceBody": "Aɖaŋuɖoɖo (nuŋɔŋlɔ 500 alo esi mede nenema o)",
+  "content.advicePublish": "Ɖee ɖe go",
+  "content.adviceSaved": "Woɖee ɖe go. Agbledelawo akpɔe ne woʋu Aɖaŋuɖoɖo ake.",
+  "content.adviceInvalid": "Tia nuku eye nàŋlɔ tanya kple aɖaŋuɖoɖo la.",
+  "content.published": "Aɖaŋuɖoɖo siwo woɖe ɖe go",
+  "content.archive": "Ɖee ɖa",
+  "content.none": "Woɖe naneke ɖe go haɖe o. Agbledelawo kpɔa kpɔɖeŋu aɖaŋuɖoɖo va se ɖe esime nàɖe aɖewo ɖe go."
 }
