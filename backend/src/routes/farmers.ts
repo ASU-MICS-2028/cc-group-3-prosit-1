@@ -2,7 +2,7 @@ import express, { type Express } from 'express'
 import { actorOf, nowDate, type Ctx } from '../context.js'
 import { iso, num, pgError, type Queryable, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
-import { isUuid, requireAuth } from '../security.js'
+import { isUuid, requireAuth, type Claims } from '../security.js'
 
 const STAFF = ['agent', 'coordinator'] as const
 const ACRES_TO_HECTARES = 0.404686
@@ -50,6 +50,23 @@ export async function getFarmer(q: Queryable, where: string, params: unknown[]) 
 
 export function farmerRoutes(app: Express, ctx: Ctx): void {
   const { db, signer } = ctx
+
+  /**
+   * A farmer the caller may see: an agent only the records they registered, a coordinator only their
+   * association's, an admin any. Anything else looks like it does not exist (404), like the other
+   * 404-for-forbidden paths.
+   */
+  async function visibleFarmer(claims: Claims, id: string): Promise<Row> {
+    const row = await getFarmer(db, 'f.id = $1', [id])
+    if (!row) throw notFound('farmer')
+    if (claims.role === 'admin') return row
+    if (claims.role === 'agent' && row.created_by === claims.sub) return row
+    if (claims.role === 'coordinator') {
+      const { rows } = await db.query('SELECT association_id FROM users WHERE id = $1', [row.created_by])
+      if (rows[0]?.association_id === claims.assoc) return row
+    }
+    throw notFound('farmer')
+  }
 
   app.get('/health', route(async () => [200, { status: 'ok' }]))
 
@@ -130,10 +147,10 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
     route(async ({ req, params }) => {
       const claims = await requireAuth(signer, req, STAFF)
       if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      // Only the agent who registered the farmer (or their coordinator) may attach a photo.
+      await visibleFarmer(claims, params.id ?? '')
       const photo: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
       if (photo.length === 0) throw invalid('photo', 'Send the photo as the request body')
-      const { rows } = await db.query('SELECT id FROM farmers WHERE id = $1', [params.id])
-      if (rows.length === 0) throw notFound('farmer')
 
       const key = `farmers/${params.id}/photo.jpg`
       await ctx.storage.put(key, photo, req.get('content-type') || 'image/jpeg')
@@ -147,11 +164,9 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
   app.get(
     '/farmers/:id',
     route(async ({ req, params }) => {
-      await requireAuth(signer, req, [...STAFF, 'admin'])
+      const claims = await requireAuth(signer, req, [...STAFF, 'admin'])
       if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
-      const row = await getFarmer(db, 'f.id = $1', [params.id])
-      if (!row) throw notFound('farmer')
-      return [200, farmerView(row)]
+      return [200, farmerView(await visibleFarmer(claims, params.id ?? ''))]
     }),
   )
 }
