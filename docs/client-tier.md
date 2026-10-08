@@ -155,21 +155,56 @@ The sync orchestrator (`src/sync/`) manages the lifecycle of local records and r
 ### Conflict Resolution Strategy
 * **Idempotent Retry:** If the server returns `200 OK` for an existing `clientId`, the client accepts the returned server ID and transitions the status to `'synced'`.
 * **Phone Collision (`HTTP 409`):** If a farmer's phone number already exists under a *different* `clientId` (e.g., registered by another agent in a neighboring village), the record transitions to `'conflict'`. The agent is prompted with an inline alert to review the contact details.
-* **Transient Network Failure:** Network timeouts, HTTP 408, 429, or 5xx responses maintain the record in `'pending'` with exponential backoff retry intervals ($2\text{s}, 4\text{s}, 8\text{s}, 16\text{s}, \dots$).
+* **Transient Network Failure:** Network timeouts, HTTP 408, 429, or 5xx responses stop the run and keep the record in `'pending'` for the next one.
+
+### When Sync Runs
+* **While the app is open:** on launch, right after anything is saved, when the phone comes back online, when the app returns to the foreground, and every 30 seconds.
+* **After the app is closed:** whenever a run ends with items still waiting, the app registers a Background Sync (`agroconnect-sync`). The browser wakes the service worker (`src/sw.ts`) once there is signal, and it sends the queue with the session token saved on the phone. If items are still waiting after that, the event fails and the browser retries later with its own back-off. Signed-out phones send nothing.
+* **One sender at a time:** the app and the service worker share the IndexedDB queue, so each run holds a Web Lock (`agroconnect-sync`).
+* **Browser support:** Background Sync works in Chrome and other Chromium browsers on Android, which is what field agents use. On iOS Safari and Firefox the queue waits until the app is opened again.
 
 ---
 
-## 7. Ghanaian Localization & UI Accessibility
+---
+
+## 7. Application Modules & Field Workflows
+
+The PWA integrates five core workflows tailored for rural smallholders and field extension agents:
+
+1. **Farmer Registration & Profiles:**
+   * Rapid digital intake capturing personal demographics, contact info, land size, and GPS coordinates.
+   * Direct camera capture with client-side canvas compression for identification photos.
+2. **Produce Marketplace & Trading (`src/screens/farmer/`):**
+   * **Browse Produce:** Real-time visibility into local market prices and active crop listings across communities.
+   * **Sell Produce:** Direct listing workflow enabling farmers to advertise harvested yields (maize, cassava, tomato, cocoa) with pricing in Ghana Cedis (`₵`).
+3. **Mobile Money Wallet & Payments (`src/payments/`):**
+   * Integrated wallet interface supporting local Mobile Money (MTN MoMo, Telecel Cash, AT Money) transactions.
+   * Active payment status polling with automatic cache reconciliation.
+4. **Agrarian Weather & Advisory (`src/weather/`, `src/advice/`):**
+   * Dynamic weather forecasts powered by Open-Meteo caching regional temperature, rainfall probability, and wind metrics.
+   * Localized agronomic advisory cards delivering actionable recommendations tailored to regional soil and seasonal planting patterns.
+5. **Crop Health Verification & Field Checks (`src/screens/staff/`):**
+   * Extension agents conduct on-site parcel inspections, logging crop health observations, pest pressures, and plot status updates.
+6. **Administrative & Agent Hierarchy (`src/screens/admin/`):**
+   * Regional coordinators manage field agents, review registration queues, and track village profiling progress.
+
+---
+
+## 8. Ghanaian Localization & Linguistic Resilience
 
 AgroConnect is tailored to Ghanaian operational realities:
 * **Special Orthography Support:** Embedded web fonts (**Onest** and **Unbounded**) include custom subsets supporting Ghanaian national language alphabets (Ewe, Twi, Dagbani):
   * Characters: `Ɛ / ɛ` (open E), `Ɔ / ɔ` (open O), `Ŋ / ŋ` (eng), `Đ / ɖ` (African D), `Ƒ / ƒ` (F with hook), `Ɣ / ɣ` (gamma), `Ʋ / ʋ` (V with hook), `Ʒ / ʒ` (ezh).
-* **Currency Formatting:** Native Ghana Cedi symbol (`₵`) formatting for plot financial profiling.
-* **Dialect Toggles:** Application language selector supporting English (`en`), Twi (`tw`), Ewe (`ee`), and Dagbani (`dag`).
+* **Currency Formatting:** Native Ghana Cedi symbol (`₵`) formatting for financial profiling, produce listings, and loan estimations.
+* **App Language Translations (ADR-010):**
+  * Complete translation dictionaries for **Twi (`tw.json`)** and **Ewe (`ee.json`)** covering all 424 application strings without falling back to English.
+  * Human-curated drafts ensure culturally accurate agricultural terminology (e.g., distinguishing "signal strength" from "symbol/sign", and "sign out" from "signing a contract").
+  * **Automated Translation Testing:** A dedicated Vitest suite ([`src/i18n/translate.test.ts`](../frontend/agroconnect-pwa/src/i18n/translate.test.ts)) automatically verifies that every translated key matches `en.json` and preserves all dynamic `{placeholder}` tokens (e.g. `{name}`, `{price}`, `{date}`).
+* **Demographic Language Choice:** Dagbani (`dag`) remains a valid *preferred language* recorded on farmer profiles, even though it is excluded from the app interface picker until native translations are finalized (see [ADR-010](./architecture-decisions.md#adr-010-app-languages-limited-to-english-twi-and-ewe)).
 
 ---
 
-## 8. AWS Amplify Hosting Architecture & Edge Performance
+## 9. AWS Amplify Hosting Architecture & Edge Performance
 
 The PWA is hosted via **AWS Amplify Hosting** in `eu-west-1` and fronted by Amazon CloudFront:
 * **Live Origin:** `eu-west-1` (Ireland) — selected as the closest Amplify-supported region to West Africa (see [ADR-009](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)).

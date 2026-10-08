@@ -9,6 +9,8 @@ import {
 } from '../db/repository'
 import { SYNC_STATUS } from '../domain/farmer'
 import { reportHeartbeat } from './heartbeat'
+import { scheduleBackgroundSync } from './background'
+import { hasUnsent } from './pending'
 import { sendOutbox } from './outbox'
 import { NetworkError, postFarmer, postPhoto, RejectedError, ServerError, UnauthorizedError } from './api'
 
@@ -63,32 +65,49 @@ async function syncOnce(): Promise<void> {
 }
 
 /**
- * Sends everything waiting, text first and photos after. Safe to call from anywhere, any
- * number of times: overlapping calls collapse into one run plus one follow-up run.
+ * The app and the service worker share one IndexedDB queue, so only one of them may send at a time.
+ * Holding the lock also means nothing else is mid-upload, which makes it safe to re-queue a record left
+ * on "sending" by an app that closed during an upload.
  */
-export async function requestSync(): Promise<void> {
-  if (!navigator.onLine) return
-  if (running) {
-    runAgain = true
-    return
-  }
-  running = true
-  try {
-    do {
-      runAgain = false
-      await syncOnce()
-      await sendOutbox()
-    } while (runAgain)
-    await reportHeartbeat()
-  } finally {
-    running = false
-  }
+async function withSyncLock(run: () => Promise<void>): Promise<void> {
+  if (!navigator.locks) return run()
+  await navigator.locks.request('agroconnect-sync', run)
 }
 
-/** Run once when a signed-in staff member's app opens, before anything else touches the queue. */
+/**
+ * Sends everything waiting, text first and photos after. Safe to call from anywhere, any
+ * number of times: overlapping calls collapse into one run plus one follow-up run.
+ * Resolves to whether anything is still waiting to be sent.
+ */
+export async function requestSync(): Promise<boolean> {
+  if (running) {
+    runAgain = true
+    return true
+  }
+  if (navigator.onLine) {
+    running = true
+    try {
+      await withSyncLock(async () => {
+        await resetStuckSending()
+        do {
+          runAgain = false
+          await syncOnce()
+          await sendOutbox()
+        } while (runAgain)
+      })
+      await reportHeartbeat()
+    } finally {
+      running = false
+    }
+  }
+  const waiting = await hasUnsent()
+  if (waiting) await scheduleBackgroundSync()
+  return waiting
+}
+
+/** Run once when a signed-in user's app opens. */
 export async function startSync(): Promise<void> {
   if (started) return
   started = true
-  await resetStuckSending()
   await requestSync()
 }

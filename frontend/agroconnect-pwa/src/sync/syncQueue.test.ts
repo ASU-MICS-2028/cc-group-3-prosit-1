@@ -6,6 +6,7 @@ import { SYNC_STATUS } from '../domain/farmer'
 
 vi.mock('./heartbeat', () => ({ reportHeartbeat: vi.fn() }))
 vi.mock('./outbox', () => ({ sendOutbox: vi.fn() }))
+vi.mock('./background', () => ({ scheduleBackgroundSync: vi.fn() }))
 
 vi.mock('./api', async () => {
   class NetworkError extends Error {}
@@ -16,6 +17,7 @@ vi.mock('./api', async () => {
 })
 
 const api = await import('./api')
+const { scheduleBackgroundSync } = await import('./background')
 const { requestSync, startSync } = await import('./syncQueue')
 const postFarmer = vi.mocked(api.postFarmer)
 const postPhoto = vi.mocked(api.postPhoto)
@@ -31,7 +33,7 @@ async function register(name: string, photo: Blob | null = null) {
 beforeEach(async () => {
   vi.resetAllMocks()
   vi.stubGlobal('navigator', { onLine: true })
-  await Promise.all([db.farmers.clear(), db.drafts.clear(), db.photos.clear()])
+  await Promise.all([db.farmers.clear(), db.drafts.clear(), db.photos.clear(), db.outbox.clear()])
 })
 
 describe('requestSync', () => {
@@ -100,6 +102,37 @@ describe('requestSync', () => {
     await requestSync()
     expect(postPhoto).toHaveBeenCalledTimes(1)
     expect((await db.photos.get(id))?.rejected).toBe(true)
+  })
+})
+
+describe('background sync', () => {
+  it('asks for a background sync while offline with something waiting', async () => {
+    vi.stubGlobal('navigator', { onLine: false })
+    await register('Ama')
+    expect(await requestSync()).toBe(true)
+    expect(scheduleBackgroundSync).toHaveBeenCalled()
+  })
+
+  it('asks for a background sync when the network fails mid-run', async () => {
+    await register('Ama')
+    postFarmer.mockRejectedValue(new api.NetworkError('offline'))
+    expect(await requestSync()).toBe(true)
+    expect(scheduleBackgroundSync).toHaveBeenCalled()
+  })
+
+  it('does not ask once everything is sent or needs attention', async () => {
+    await register('Good')
+    await register('Bad')
+    postFarmer.mockResolvedValueOnce('srv-6').mockRejectedValueOnce(new api.RejectedError('no'))
+    expect(await requestSync()).toBe(false)
+    expect(scheduleBackgroundSync).not.toHaveBeenCalled()
+  })
+
+  it('counts a photo still to send as waiting', async () => {
+    await register('Kofi', new Blob(['jpeg']))
+    postFarmer.mockResolvedValue('srv-7')
+    postPhoto.mockRejectedValue(new api.NetworkError('dropped'))
+    expect(await requestSync()).toBe(true)
   })
 })
 

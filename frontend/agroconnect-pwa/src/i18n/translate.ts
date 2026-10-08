@@ -1,15 +1,14 @@
-import dag from './dag.json'
 import ee from './ee.json'
 import en from './en.json'
 import tw from './tw.json'
 
 export type TranslationKey = keyof typeof en
 export type TranslationVars = Record<string, string | number>
-export type AppLanguage = 'en' | 'tw' | 'ee' | 'dag'
+export type AppLanguage = 'en' | 'tw' | 'ee'
 
 type Dictionary = Partial<Record<TranslationKey, string>>
 
-const dictionaries: Record<AppLanguage, Dictionary> = { en, tw, ee, dag }
+const dictionaries: Record<AppLanguage, Dictionary> = { en, tw, ee }
 
 export const APP_LANGUAGES = Object.keys(dictionaries) as AppLanguage[]
 

@@ -15,6 +15,8 @@ This document formalizes the key architectural decisions made for **AgroConnect 
 * [ADR-007: Terraform Modularization](#adr-007-terraform-modularization)
 * [ADR-008: Target-Tracking Auto Scaling on `ALBRequestCountPerTarget`](#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget)
 * [ADR-009: Frontend Hosting on AWS Amplify in `eu-west-1`](#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)
+* [ADR-010: App Languages Limited to English, Twi and Ewe](#adr-010-app-languages-limited-to-english-twi-and-ewe)
+* [ADR-011: Backend Runtime Migration to Node.js and TypeScript](#adr-011-backend-runtime-migration-to-nodejs-and-typescript)
 
 ---
 
@@ -70,7 +72,7 @@ Field extension agents register farmers in remote rural communities where cellul
 ## ADR-003: Stateless Containerized Application Tier on Auto-Scaled Compute
 
 ### Status
-Accepted
+Accepted (superseded in part: scaling policy updated by ADR-008; runtime migrated to Node.js and TypeScript by ADR-011)
 
 ### Context
 Field registrations fluctuate dramatically between quiet off-peak periods and intense agricultural subsidy distribution windows (e.g., Ministry of Food and Agriculture campaigns), where request volume jumps tenfold (50 &rarr; 500 req/s). The application backend must scale dynamically without session locking or operational overhead.
@@ -262,7 +264,59 @@ CloudFront serves the PWA assets from edges globally (including Lagos and Cape T
 
 ---
 
+## ADR-010: App Languages Limited to English, Twi and Ewe
+
+### Status
+Accepted
+
+### Context
+The PWA was built with four interface languages: English, Twi, Ewe and Dagbani. English was complete; the other three fell back to English. The translations ship inside the app bundle (`src/i18n/*.json`) because the app must work offline, so a live translation service at runtime is not an option. Every string has to be translated ahead of time.
+
+Google Translate supports Twi (`ak`) and Ewe (`ee`) but **not Dagbani**; it is absent from Google's 249 target languages. No team member writes Dagbani, so there was no reliable source for its strings.
+
+Google's Twi and Ewe output was also compared against hand-written drafts and found unsafe to use directly: it translated the `{placeholder}` names (so names, dates and prices would render blank), rendered "signal" as "sign/symbol" (*Nsɛnkyerɛnne*, *Dzesi*) and "sign out" as "put down a signature".
+
+### Decision
+1. **App languages:** English, Twi and Ewe. Dagbani is removed from the language picker (`AppLanguage`) until a Dagbani speaker can supply the strings.
+2. **Farmer data keeps Dagbani:** `dag` stays a valid *preferred language* on the farmer record (`FARMER_LANGUAGES`, the API contract and the `language` CHECK constraint). That field describes the farmer, not the app, and agents in the north still need to record it.
+3. **Translation source:** the hand-written Twi and Ewe drafts, not Google Translate. A test in `translate.test.ts` fails if a translation uses a key missing from `en.json` or drops a placeholder.
+
+### Consequences
+* **Positive:** No half-translated language in the picker; every language offered is complete. A wrong-placeholder or stale-key regression fails CI.
+* **Negative:** Dagbani-speaking farmers use the app in English, Twi or Ewe for now. The Twi and Ewe text still needs review by native speakers, especially the wallet, loan and consent strings.
+* **Reversal:** Add `dag.json`, restore `'dag'` in `AppLanguage` and the `dictionaries` map in `src/i18n/translate.ts`, and add it to the translation test.
+
+---
+
+## ADR-011: Backend Runtime Migration to Node.js and TypeScript
+
+### Status
+Accepted (supersedes runtime selection in ADR-003)
+
+### Context
+The backend service (`farmer-profile-service`) was originally scaffolded in Python with FastAPI. As the frontend PWA expanded rapidly in TypeScript (React 19, Dexie IndexedDB, Vitest, mock server), maintaining two separate programming language stacks created significant operational and technical friction:
+1. **Type & Schema Disconnect:** Data models, validation rules, and contract types defined in TypeScript on the frontend could not be shared or verified against the Python backend without duplicate definitions.
+2. **Mock Server Divergence:** The frontend mock server (`frontend/agroconnect-pwa/mock-server/server.mjs`) was written in JavaScript, meaning contract tests against the mock server did not test the Python code.
+3. **Developer Ergonomics:** Full-stack contributors had to maintain dual toolchains (`python3`, `pip`, `venv`, `uvicorn` alongside `node`, `npm`, `tsx`, `vite`), complicating local setup and CI pipelines.
+
+### Decision
+1. **Runtime & Framework:** Migrate `farmer-profile-service` to **Node.js 24 LTS** with **Express 5** and **TypeScript** (`backend/src/server.ts`).
+2. **Compilation & Packaging:** Use `tsc` for build compilation (`ES2022`, `NodeNext` resolution). Package in a multi-stage Docker build (`node:24-alpine`) with unprivileged runtime execution (`USER node`) on port 8000.
+3. **CI Smoke Test:** Update GitHub Actions CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) to set up Node 24, run `npm ci` and `npm run build`, boot the compiled server in the background, and probe `http://localhost:8000/health`.
+
+### Consequences
+* **Positive:**
+  * Unified TypeScript ecosystem across the entire stack (PWA client, mock server, and production backend API).
+  * Simplified container lifecycle with multi-stage Alpine build (~120 MB runtime image) running as a non-root user (`USER node`).
+  * Fast event-driven I/O throughput on Node.js fitting the IO-bound workload.
+* **Negative:**
+  * Loss of FastAPI's automatic Swagger/OpenAPI documentation generation; API contracts are maintained explicitly in documentation and TypeScript types.
+* **Reversal:** The container interface (Docker on port 8000 probing `/health`) and ALB configuration are unchanged. Swapping runtimes in the future requires no infrastructure changes.
+
+---
+
 ## Related References
 * [Empirical Research & Benchmark Details](./empirical-research.md)
 * [Cloud Infrastructure Deep Dive](./cloud-infrastructure.md)
 * [CI/CD & Operations Deep Dive](./ci-cd-and-operations.md)
+

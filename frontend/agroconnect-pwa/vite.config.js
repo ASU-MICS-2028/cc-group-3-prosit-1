@@ -12,9 +12,13 @@ export default defineConfig({
     VitePWA({
       // The service worker downloads every app file the first time the phone is online,
       // then serves them from the phone afterwards. That is what lets the app open offline.
+      // Our own service worker (src/sw.ts) so it can also send the queue after the app is closed.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
       },
       manifest: {
