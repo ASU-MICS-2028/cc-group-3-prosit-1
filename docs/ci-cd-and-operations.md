@@ -104,9 +104,9 @@ To deploy the new container image to EC2 without dropping incoming requests, the
 ```bash
 aws autoscaling start-instance-refresh \
   --auto-scaling-group-name "$ASG_NAME" \
-  --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}'
+  --preferences '{"MinHealthyPercentage":100,"MaxHealthyPercentage":200,"InstanceWarmup":180}'
 ```
-* **`MinHealthyPercentage: 50`:** Guarantees that at least half the instances remain healthy and serving traffic while nodes are replaced sequentially.
+* **`MinHealthyPercentage: 100`, `MaxHealthyPercentage: 200`:** Launch first, then terminate. Each replacement instance is started and must pass the ALB health check before an old one is removed, so the API stays up during a deploy. (The earlier 50% minimum rounded down to zero at the usual capacity of one instance, which took the API offline for several minutes on every deploy.)
 * **`InstanceWarmup: 180`:** Grants newly booted instances 3 minutes to pull the ECR container image, start Docker, and pass ALB `/health` checks before older instances are terminated.
 * **Concurrency Handling (`InstanceRefreshInProgress`):** AWS allows only one instance refresh per ASG at a time. When `terraform apply` updates the launch template, it triggers its own refresh. If `deploy.yml` runs concurrently, it catches `InstanceRefreshInProgress` and retries `start-instance-refresh` every 15s (for up to 30 minutes) until the prior refresh completes. Rather than joining the earlier refresh (where instances might have already booted with the old image), it insists on starting its own fresh cycle to guarantee 100% of fleet instances run the newly pushed image.
 * **Status Polling & Failure Detection:** The workflow polls `describe-instance-refreshes` until status reaches `Successful`. Deployment failures, cancellations, rollback attempts, or `RollbackSuccessful` exit with code 1 immediately.
