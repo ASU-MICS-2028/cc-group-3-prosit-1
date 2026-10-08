@@ -24,7 +24,12 @@ export default defineConfig({
       manifest: {
         name: 'AgroConnect Ghana',
         short_name: 'AgroConnect',
-        description: 'Register farmers, even with no signal.',
+        description: 'Farmer registration, market prices, weather, advice and mobile money for Ghanaian farmers, even with no signal.',
+        id: '/',
+        lang: 'en-GH',
+        dir: 'ltr',
+        orientation: 'portrait',
+        categories: ['agriculture', 'education', 'finance'],
         theme_color: '#1F3D2B',
         background_color: '#F4F1E6',
         display: 'standalone',

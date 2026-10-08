@@ -497,5 +497,7 @@
   "profile.seasons": "Growing seasons",
   "profile.season.major": "Major rainy season",
   "profile.season.minor": "Minor rainy season",
-  "profile.season.dry": "Dry season (irrigated)"
+  "profile.season.dry": "Dry season (irrigated)",
+  "install.button": "Install AgroConnect on this phone",
+  "install.iosHint": "To install: tap Share, then Add to Home Screen."
 }

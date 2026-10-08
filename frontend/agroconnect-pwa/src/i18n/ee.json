@@ -497,5 +497,7 @@
   "profile.seasons": "Ɣeyiɣi siwo me wodoa nu",
   "profile.season.major": "Tsidzaɣi gãtɔ",
   "profile.season.minor": "Tsidzaɣi suetɔ",
-  "profile.season.dry": "Keleŋɔli (tsi kuku)"
+  "profile.season.dry": "Keleŋɔli (tsi kuku)",
+  "install.button": "Tsɔ AgroConnect de fon sia dzi",
+  "install.iosHint": "Be nàtsɔe de eme: zi Share, emegbe zi Add to Home Screen."
 }

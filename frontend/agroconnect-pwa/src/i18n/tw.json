@@ -497,5 +497,7 @@
   "profile.seasons": "Berɛ a wodua",
   "profile.season.major": "Asusoɔ kɛseɛ",
   "profile.season.minor": "Asusoɔ ketewa",
-  "profile.season.dry": "Ɔpɛ berɛ (nsuo a wɔde gu so)"
+  "profile.season.dry": "Ɔpɛ berɛ (nsuo a wɔde gu so)",
+  "install.button": "Fa AgroConnect hyɛ fon yi so",
+  "install.iosHint": "Sɛ wobɛhyɛ so a: mia Share, na mia Add to Home Screen."
 }
