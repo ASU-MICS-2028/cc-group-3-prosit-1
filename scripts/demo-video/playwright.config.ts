@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Record each role flow to its own video. Mobile viewport 390x844 (iPhone 13-ish),
-// scaled up to 1280x720 later via ffmpeg so text stays legible.
+// Record each role flow to its own video on an Android-sized phone; build-video.sh puts it
+// beside the captions in a 1280x720 frame.
 export default defineConfig({
   testDir: './tests',
   timeout: 180_000,
@@ -15,12 +15,12 @@ export default defineConfig({
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
-    userAgent: devices['iPhone 13'].userAgent,
+    userAgent: devices['Pixel 5'].userAgent, // farmers and agents in Ghana are mostly on Android
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
     video: {
       mode: 'on',
-      // Match viewport pixel dimensions so the whole frame is page content.
+      // Match the viewport: a larger size does not add detail, it pads the frame.
       size: { width: 412, height: 820 },
     },
     // Live service worker/IndexedDB can cause stale state between runs; isolate storage.
