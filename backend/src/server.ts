@@ -2,7 +2,7 @@ import { createApp } from './app.js'
 import { loadConfig, validateConfig } from './config.js'
 import { DEFAULT_SETTINGS } from './context.js'
 import { createPgDb } from './db.js'
-import { arkeselSms, memoryStorage, s3Storage, votexProvider } from './integrations.js'
+import { naloSms, memoryStorage, s3Storage, votexProvider } from './integrations.js'
 import { logger } from './logging.js'
 import { migrate } from './migrate.js'
 import { optionalSecret } from './secrets.js'
@@ -36,7 +36,7 @@ if (!vapid) logger.warn('VAPID_SECRET_ARN not set or empty: push notifications a
 const app = createApp({
   db,
   signer: await createSigner(config),
-  sms: arkeselSms(config),
+  sms: naloSms(config),
   storage: config.photoBucket ? s3Storage({ ...config, photoBucket: config.photoBucket }) : memoryStorage(),
   checkout: config.votexSecretArn ? votexProvider(config) : null,
 

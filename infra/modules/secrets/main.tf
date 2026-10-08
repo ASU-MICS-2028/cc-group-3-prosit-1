@@ -7,7 +7,7 @@
 
 resource "aws_secretsmanager_secret" "arkesel_sms" {
   name                    = "${var.name_prefix}-arkesel-sms"
-  description             = "Arkesel SMS credentials — JSON { sender_id, api_key, sandbox? }"
+  description             = "Nalo Solutions SMS credentials — JSON { key, sender_id }"
   recovery_window_in_days = 0
 }
 
