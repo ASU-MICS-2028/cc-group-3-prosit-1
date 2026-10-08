@@ -52,7 +52,8 @@ against the code on `main`**, not against intentions.
 | 15 — Testing & Production Readiness | 🟢 | Complete (PR #54); see Remaining |
 
 Phase **16**, further down, covers four features added after this tracker was drafted (farmer profile
-extension, USSD access for feature phones, extension visit log, push notifications).
+extension, USSD access for feature phones, extension visit log, push notifications). Phase **17** covers
+session revocation, credential change and farmer editing.
 
 ---
 
@@ -161,7 +162,7 @@ extension, USSD access for feature phones, extension visit log, push notificatio
 - [x] Ensure test codes never appear in production
 - [x] Staff login returns `attemptsLeft` / `retryAfterSeconds` (parity with farmer login)
 - [x] Farmer suspension enforced on `/auth/refresh` (any non-approved account is refused)
-- 🔴 Decision: logout / token revocation and PIN/password change — **not in AUTH-CONTRACT**
+- [x] Logout / token revocation and password/PIN change _(AUTH-CONTRACT updated; see Phase 17)_
 
 **Status:** 🟢 Verified (PR #37)
 
@@ -212,7 +213,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Correct 201/200/400/409 responses
 - [x] `GET /farmers/:id`
 - [x] `GET /farmers/me`
-- 🔴 Decision: `PATCH /farmers/:id` (update) is **not in API-CONTRACT**
+- [x] `PATCH /farmers/:id` (update) _(API-CONTRACT updated; see Phase 17)_
 
 **Status:** 🟢 Verified (PR #39)
 
@@ -519,10 +520,41 @@ push service reports gone (404/410) is deleted.
 
 ---
 
+# Phase 17 — Session revocation, credential change and farmer editing
+
+The two items that were parked as "needs a contract decision" are now implemented end to end,
+contract-first.
+
+| Work | PR | What |
+|---|---|---|
+| Contracts + mock server | #67 | AUTH/API contracts and the mock: `ver`/`token_version` revocation, `POST /auth/logout`, `/auth/staff/password`, `/auth/farmer/pin`, `PATCH /farmers/:id` |
+| Backend auth | #70 | `users.token_version` (migration `008`), a per-request `resolveSession` guard, and the three auth routes |
+| Backend farmer editing | #71 | `PATCH /farmers/:id` (scoped; phone/`clientId` immutable; `crops` replaced; audited) |
+| PWA auth | #73 | server logout, forced sign-out on revocation/suspension, Change password (Settings) and Change PIN (Me) |
+| PWA farmer editing | #74 | an edit form on the farmer detail; edits sync as a `PATCH` |
+
+**What changed**
+
+- **Revocation is immediate.** Every token carries a `ver` claim; each request compares it with the
+  account's `token_version`, so a logout, a password/PIN change or an admin suspension cuts the phone off
+  on its **next request** — not at the next refresh. This also closes the old "a suspended agent keeps
+  working until the token expires" gap.
+- **Credential change** (staff password, farmer PIN) re-hashes the secret, bumps the version and returns a
+  fresh token, so the current device stays signed in while the user's other sessions end.
+- **Farmer editing** lets staff fix a record they can see (name, community, region, language, gender, farm
+  size, crops, GPS, consent, profile). The phone is immutable because it links the login account. An edit
+  made offline waits as an `edited` record and is patched on the next sync (last-write-wins).
+- **Documented:** the `ver` claim and `token_version` in AUTH-CONTRACT; `PATCH /farmers/:id` in API-CONTRACT.
+
+**Still open (optional):** the per-request account lookup could be cached under load, and logout ends all of
+a user's sessions rather than one device (see AUTH-CONTRACT).
+
+---
+
 # Remaining work (optional / needs a decision)
 
-All 15 phases above are implemented and verified against `main`. What is left is either optional
-hardening, a contract change, or work that arrived after this tracker was written — not a gap in the plan.
+All phases above — including **16** and **17** — are implemented and verified against `main`. What is left
+is optional hardening or work that arrived after this tracker was written, not a gap in the plan.
 
 ## Optional (no contract change)
 
@@ -535,11 +567,10 @@ hardening, a contract change, or work that arrived after this tracker was writte
 - **Shipped-PWA ↔ shipped-API e2e** — the PWA runs unit and mock-contract tests; nothing drives the real
   PWA against the real API.
 
-## Needs a contract decision first (🔴)
+## Decisions now made
 
-- **Logout / refresh-token revocation and password/PIN change** — not in AUTH-CONTRACT; adding them is a
-  contract change, not a backend gap.
-- **`PATCH /farmers/:id` (update a farmer)** — not in API-CONTRACT.
+Both former decisions are implemented in **Phase 17** above: session revocation / logout / password-PIN
+change, and `PATCH /farmers/:id`.
 
 ## Added after this tracker was written
 
