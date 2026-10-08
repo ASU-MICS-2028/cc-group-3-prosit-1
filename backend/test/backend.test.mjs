@@ -1,6 +1,7 @@
 // What the real API does beyond the mock: Postgres constraints and audit, CORS, error shapes, SMS when
 // test mode is off, S3 photo keys, and the votex365 checkout with its signed webhook.
 import { createHmac } from 'node:crypto'
+import { readdirSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { votexProvider } from '../src/integrations.ts'
@@ -58,7 +59,9 @@ const registration = (overrides = {}) => ({
 describe('schema and migrations', () => {
   it('applies each migration once, even when run again', async () => {
     const db = pgliteDb(new PGlite())
-    expect(await migrate(db)).toEqual(['001_initial.sql'])
+    const files = readdirSync(new URL('../migrations/', import.meta.url)).filter((name) => name.endsWith('.sql')).sort()
+    expect(files[0]).toBe('001_initial.sql')
+    expect(await migrate(db)).toEqual(files)
     expect(await migrate(db)).toEqual([])
     await db.close()
   })

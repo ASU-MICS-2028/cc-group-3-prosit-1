@@ -15,7 +15,7 @@ export function AdminApp() {
     agents: <Agents />,
     farmers: <AdminFarmers />,
     activity: <Activity />,
-    more: <More entries={['feedback', 'settings']} />,
+    more: <More entries={['content', 'feedback', 'settings']} />,
   }
 
   return <AppShell items={ADMIN_TABS} active={tab} onChange={setTab} screens={screens} />

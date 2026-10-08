@@ -125,4 +125,4 @@ The same idempotency pattern as farmers: a `feedback` table with `client_id UUID
 
 ## Not in this contract yet
 
-Market prices (the PWA ships sample prices until a market-info service exists). Payments are in `PAYMENTS-CONTRACT.md`, crop checks in `ADVICE-CONTRACT.md`, produce listings in `LISTINGS-CONTRACT.md`.
+Market prices and advice cards are in `CONTENT-CONTRACT.md`. Payments are in `PAYMENTS-CONTRACT.md`, crop checks in `ADVICE-CONTRACT.md`, produce listings in `LISTINGS-CONTRACT.md`.

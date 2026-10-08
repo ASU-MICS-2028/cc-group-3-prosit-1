@@ -31,6 +31,8 @@ function emptyStore() {
     feedback: new Map(),
     cropChecks: new Map(),
     listings: new Map(),
+    marketPrices: [],
+    adviceCards: [],
     audit: [],
     counters: { user: 0, farmer: 0, agent: 1, coordinator: 1, serverId: 1, payment: 0, loan: 0, feedback: 0, cropCheck: 0, listing: 0 },
   }
@@ -47,6 +49,8 @@ export function snapshotOf(store) {
     feedback: [...store.feedback.values()],
     cropChecks: [...store.cropChecks.values()],
     listings: [...store.listings.values()],
+    marketPrices: store.marketPrices,
+    adviceCards: store.adviceCards,
     audit: store.audit,
     counters: store.counters,
   }
@@ -61,6 +65,8 @@ function restoreInto(store, snapshot) {
   for (const entry of snapshot.feedback ?? []) store.feedback.set(entry.id, entry)
   for (const check of snapshot.cropChecks ?? []) store.cropChecks.set(check.id, check)
   for (const listing of snapshot.listings ?? []) store.listings.set(listing.id, listing)
+  store.marketPrices = snapshot.marketPrices ?? []
+  store.adviceCards = snapshot.adviceCards ?? []
   store.audit = snapshot.audit ?? []
   Object.assign(store.counters, snapshot.counters)
 }

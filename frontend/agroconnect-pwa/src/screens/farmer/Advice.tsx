@@ -4,13 +4,14 @@ import { CropArt } from '../../components/CropArt'
 import { CROP_BACKGROUND } from '../../components/cropColours'
 import { SampleBadge } from '../../components/SampleBadge'
 import { ScreenHeader } from '../../components/ScreenHeader'
-import { SAMPLE_ADVICE } from '../../data/sampleAdvice'
+import { useAdvice } from '../../content/useContent'
 import { useT } from '../../i18n/context'
 import { CropCheckForm } from './CropCheckForm'
 
 export function Advice() {
   const { t } = useT()
   const [checking, setChecking] = useState(false)
+  const { view } = useAdvice()
 
   if (checking) return <CropCheckForm onBack={() => setChecking(false)} />
 
@@ -18,8 +19,9 @@ export function Advice() {
     <>
       <ScreenHeader title={t('advice.title')} />
       <main className="screen-body">
-        <SampleBadge label="common.sampleAdvice" />
-        {SAMPLE_ADVICE.map((card) => (
+        {!view && <p>{t('common.loading')}</p>}
+        {view?.sample && <SampleBadge label="common.sampleAdvice" />}
+        {view?.cards.map((card) => (
           <article key={card.title} className="card advice-card">
             <span className="crop-tile" style={{ background: CROP_BACKGROUND[card.crop] }}>
               <CropArt crop={card.crop} size={44} />

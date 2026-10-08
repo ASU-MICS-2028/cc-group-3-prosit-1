@@ -423,5 +423,22 @@
   "coordinators.create": "Create account",
   "coordinators.cancel": "Cancel",
   "coordinators.created": "Created. Their ID is {id}. Give them the ID and password. They choose their own PIN the first time they sign in.",
-  "auth.signup.agentOnly": "This is for field agents. Coordinators are added by an administrator."
+  "auth.signup.agentOnly": "This is for field agents. Coordinators are added by an administrator.",
+  "more.content": "Prices & advice",
+  "content.title": "Prices & advice",
+  "content.hint": "Farmers see these on Home, Market and Advice.",
+  "content.priceTitle": "Record today's price",
+  "content.pricePerKg": "Price per kg",
+  "content.priceSave": "Save price",
+  "content.priceSaved": "Saved the price for {crop}.",
+  "content.priceInvalid": "Choose a crop and enter a price above 0.",
+  "content.adviceTitle": "Publish advice",
+  "content.adviceHeading": "Title",
+  "content.adviceBody": "Advice (up to 500 characters)",
+  "content.advicePublish": "Publish",
+  "content.adviceSaved": "Published. Farmers see it the next time they open Advice.",
+  "content.adviceInvalid": "Choose a crop and write a title and the advice.",
+  "content.published": "Published advice",
+  "content.archive": "Remove",
+  "content.none": "Nothing published yet. Farmers see sample advice until you publish some."
 }

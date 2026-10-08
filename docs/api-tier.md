@@ -9,7 +9,7 @@
 
 ## 1. Role & Architectural Responsibilities
 
-The API tier is the single backend the PWA talks to. One Node.js service, `agroconnect-api`, implements all six contracts the PWA was built against ([`frontend/agroconnect-pwa/docs/`](../frontend/agroconnect-pwa/docs)): farmer registration, sign-in for all four roles, the admin dashboard, payments, crop checks and produce listings.
+The API tier is the single backend the PWA talks to. One Node.js service, `agroconnect-api`, implements every contract the PWA was built against ([`frontend/agroconnect-pwa/docs/`](../frontend/agroconnect-pwa/docs)): farmer registration, sign-in for all four roles, the admin dashboard, payments, crop checks, produce listings, and the market prices and advice cards admins enter.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -66,6 +66,8 @@ Every endpoint except `/health`, `/`, `/.well-known/jwks.json`, the sign-in call
 | | `POST /webhooks/votex365` | votex365 (signed) | |
 | Advice | `POST /crop-checks`, `POST /crop-checks/:id/photo`, `GET /crop-checks/me`, `GET /crop-checks`, `GET /crop-checks/:id/photo`, `POST /crop-checks/:id/advice` | farmer / field staff | [ADVICE](../frontend/agroconnect-pwa/docs/ADVICE-CONTRACT.md) |
 | Listings | `POST /listings`, `GET /listings`, `POST /listings/:id/close` | farmer / any | [LISTINGS](../frontend/agroconnect-pwa/docs/LISTINGS-CONTRACT.md) |
+| Content | `GET /market-prices`, `GET /advice` | any | [CONTENT](../frontend/agroconnect-pwa/docs/CONTENT-CONTRACT.md) |
+| | `POST /admin/market-prices`, `POST /admin/advice`, `POST /admin/advice/:id/archive` | admin, coordinator | |
 | Ops | `GET /health`, `GET /` | public | |
 
 ### Example: `POST /farmers`

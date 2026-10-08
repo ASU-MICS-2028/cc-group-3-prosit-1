@@ -423,5 +423,22 @@
   "coordinators.create": "Yɛ akawnt",
   "coordinators.cancel": "Gyae",
   "coordinators.created": "Wɔayɛ. Ne ID ne {id}. Fa ID ne password no ma no. Ɔno ara bɛyi ne PIN berɛ a ɔbɛba mu kane no.",
-  "auth.signup.agentOnly": "Eyi yɛ ma mfuo so adwumayɛfoɔ. Ɔpanin na ɔde ahwɛfoɔ ka ho."
+  "auth.signup.agentOnly": "Eyi yɛ ma mfuo so adwumayɛfoɔ. Ɔpanin na ɔde ahwɛfoɔ ka ho.",
+  "more.content": "Aguadeɛ boɔ ne afotuo",
+  "content.title": "Aguadeɛ boɔ ne afotuo",
+  "content.hint": "Akuafoɔ hunu yeinom wɔ Fie, Gua ne Afotuo so.",
+  "content.priceTitle": "Kyerɛw ɛnnɛ boɔ",
+  "content.pricePerKg": "Boɔ wɔ kg baako",
+  "content.priceSave": "Kora boɔ no",
+  "content.priceSaved": "Wɔakora {crop} boɔ.",
+  "content.priceInvalid": "Yi nnɔbae na kyerɛw boɔ a ɛboro 0.",
+  "content.adviceTitle": "Fa afotuo to dwa",
+  "content.adviceHeading": "Asɛmti",
+  "content.adviceBody": "Afotuo (nkyerɛwdeɛ 500 anaa nea ɛnnu saa)",
+  "content.advicePublish": "Fa to dwa",
+  "content.adviceSaved": "Wɔde ato dwa. Akuafoɔ bɛhunu berɛ a wɔbɛbue Afotuo bio.",
+  "content.adviceInvalid": "Yi nnɔbae na kyerɛw asɛmti ne afotuo no.",
+  "content.published": "Afotuo a wɔde ato dwa",
+  "content.archive": "Yi fi",
+  "content.none": "Wɔmmfaa biribiara nto dwa nnya. Akuafoɔ hunu nhwɛsoɔ afotuo kosi sɛ wobɛfa bi ato dwa."
 }

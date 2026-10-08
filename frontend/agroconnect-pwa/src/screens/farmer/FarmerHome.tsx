@@ -7,16 +7,14 @@ import { WeatherCard } from '../../components/WeatherCard'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { useState } from 'react'
 import { useCurrentUser } from '../../auth/useCurrentUser'
-import { SAMPLE_ADVICE } from '../../data/sampleAdvice'
-import { SAMPLE_PRICES } from '../../data/samplePrices'
+import { useAdvice, useMarketPrices } from '../../content/useContent'
 import { formatMoney } from '../../domain/country'
 import { useT } from '../../i18n/context'
 import { useSettings } from '../../settings/context'
 import type { FarmerTab } from '../../apps/tabs'
 import { Weather } from '../shared/Weather'
 
-const FEATURED_CROPS = ['maize', 'tomato', 'cassava'] as const
-const [latestAdvice] = SAMPLE_ADVICE
+const FEATURED_COUNT = 3
 
 export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
   const { t } = useT()
@@ -24,6 +22,9 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
   const user = useCurrentUser()
   const name = user?.name.trim()
   const [showWeather, setShowWeather] = useState(false)
+  const { view: prices } = useMarketPrices(country)
+  const { view: advice } = useAdvice()
+  const latestAdvice = advice?.cards[0]
 
   if (showWeather) return <Weather onBack={() => setShowWeather(false)} />
 
@@ -35,17 +36,17 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
 
         <section className="card">
           <h2 className="card-title">{t('farmer.prices')}</h2>
-          <SampleBadge label="common.samplePrices" />
+          {prices?.sample && <SampleBadge label="common.samplePrices" />}
           <ul className="price-list">
-            {FEATURED_CROPS.map((crop) => (
+            {prices?.rows.slice(0, FEATURED_COUNT).map(({ crop, price, change }) => (
               <li key={crop} className="price-row">
                 <span className="crop-tile" style={{ background: CROP_BACKGROUND[crop] }}>
                   <CropArt crop={crop} size={36} />
                 </span>
                 <span className="price-name">{t(`crop.${crop}`)}</span>
                 <span className="price-value">
-                  {formatMoney(SAMPLE_PRICES[country][crop].price, country)}
-                  <PriceChange change={SAMPLE_PRICES[country][crop].change} />
+                  {formatMoney(price, country)}
+                  <PriceChange change={change} />
                 </span>
               </li>
             ))}
@@ -55,7 +56,7 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
         {latestAdvice && (
           <section className="card">
             <h2 className="card-title">{t('farmer.advice')}</h2>
-            <SampleBadge label="common.sampleAdvice" />
+            {advice?.sample && <SampleBadge label="common.sampleAdvice" />}
             <p className="card-title">{latestAdvice.title}</p>
             <p>{latestAdvice.body}</p>
           </section>

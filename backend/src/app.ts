@@ -3,6 +3,7 @@ import type { Ctx } from './context.js'
 import { errorHandler } from './http.js'
 import { adminRoutes } from './routes/admin.js'
 import { authRoutes } from './routes/auth.js'
+import { contentRoutes } from './routes/content.js'
 import { farmerRoutes } from './routes/farmers.js'
 import { paymentRoutes } from './routes/payments.js'
 import { serviceRoutes } from './routes/services.js'
@@ -52,6 +53,7 @@ export function createApp(ctx: Ctx): Express {
   adminRoutes(app, ctx)
   paymentRoutes(app, ctx)
   serviceRoutes(app, ctx)
+  contentRoutes(app, ctx)
 
   app.use((_req, res) => void res.status(404).json({ error: 'not_found', message: 'Not found' }))
   app.use(errorHandler)

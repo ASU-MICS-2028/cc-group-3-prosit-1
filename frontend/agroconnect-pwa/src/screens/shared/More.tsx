@@ -4,18 +4,20 @@ import { ScreenHeader } from '../../components/ScreenHeader'
 import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
 import type { TranslationKey } from '../../i18n/translate'
+import { ContentAdmin } from '../admin/ContentAdmin'
 import { CropChecks } from '../staff/CropChecks'
 import { FeedbackScreen } from './FeedbackScreen'
 import { MarketPrices } from './MarketPrices'
 import { Settings } from './Settings'
 import { Weather } from './Weather'
 
-export type MoreEntry = 'weather' | 'market' | 'checks' | 'feedback' | 'settings'
+export type MoreEntry = 'weather' | 'market' | 'checks' | 'content' | 'feedback' | 'settings'
 
 const LABELS: Record<MoreEntry, TranslationKey> = {
   weather: 'more.weather',
   market: 'more.market',
   checks: 'more.checks',
+  content: 'more.content',
   feedback: 'more.feedback',
   settings: 'more.settings',
 }
@@ -41,6 +43,8 @@ export function More({ entries }: { entries: readonly MoreEntry[] }) {
       )
     case 'checks':
       return <CropChecks onBack={back} />
+    case 'content':
+      return <ContentAdmin onBack={back} />
     case 'feedback':
       return <FeedbackScreen onBack={back} />
     case 'settings':
