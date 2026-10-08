@@ -17,3 +17,8 @@ output "ec2_role_arn" {
 output "scaling_policy_arn" {
   value = aws_autoscaling_policy.cpu_target.arn
 }
+
+output "app_log_group_name" {
+  description = "CloudWatch log group the app container ships logs to"
+  value       = aws_cloudwatch_log_group.app.name
+}

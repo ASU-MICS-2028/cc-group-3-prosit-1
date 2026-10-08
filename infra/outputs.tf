@@ -93,3 +93,7 @@ output "sms_secret_arn" {
   description = "Secrets Manager secret for Arkesel SMS. Set its value with aws secretsmanager put-secret-value."
   value       = module.secrets.arkesel_sms_secret_arn
 }
+
+output "app_log_group_name" {
+  value = module.compute.app_log_group_name
+}
