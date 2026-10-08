@@ -1,4 +1,29 @@
-import { Page, expect } from '@playwright/test'
+import { Page } from '@playwright/test'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const CAPTIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'build', 'captions')
+let clip = ''
+let startedAt = 0
+let lines: { t: number; text: string }[] = []
+
+/** Call first in a test: the video starts recording when the page opens, so captions time from here. */
+export function startCaptions(name: string) {
+  clip = name
+  startedAt = Date.now()
+  lines = []
+}
+
+/** The text shown beside the phone from now until the next caption (build-video.sh draws it). */
+export function caption(text: string) {
+  lines.push({ t: (Date.now() - startedAt) / 1000, text })
+}
+
+export function saveCaptions() {
+  fs.mkdirSync(CAPTIONS_DIR, { recursive: true })
+  fs.writeFileSync(path.join(CAPTIONS_DIR, `${clip}.json`), JSON.stringify(lines, null, 2))
+}
 
 /** Pause so the video shows the screen long enough to read. */
 export async function dwell(page: Page, ms = 1800) {
@@ -48,7 +73,9 @@ export async function staffSignIn(page: Page, id: string, password: string) {
 }
 
 export async function maybeSetPin(page: Page, pin: string) {
-  await dwell(page, 1800)
+  // Sign-in lands on the PIN set-up or, on a device that has one, straight in the app.
+  await page.locator('.pin-keys, .bottom-nav').first().waitFor({ timeout: 30_000 })
+  await dwell(page, 1200)
   if (!(await page.locator('.pin-keys').first().isVisible().catch(() => false))) return
   // Choose
   await pressPin(page, pin)
@@ -76,8 +103,16 @@ export async function farmerSignInWithPin(page: Page, phone: string, pin: string
   await page.locator('#a-phone').fill(phone)
   await dwell(page, 600)
   // Button text is "Send code"
-  await page.getByRole('button', { name: /Send code/i }).first().click()
-  await page.waitForLoadState('networkidle')
+  // Retry when the live API drops a request ("No connection"), so one blip does not lose the clip.
+  for (let attempt = 1; ; attempt++) {
+    await page.getByRole('button', { name: /Send code/i }).first().click()
+    try {
+      await page.locator('.pin-keys').first().waitFor({ timeout: 15_000 })
+      break
+    } catch (error) {
+      if (attempt === 3) throw error
+    }
+  }
   await dwell(page, 1200)
   await pressPin(page, pin)
   await page.waitForLoadState('networkidle')
