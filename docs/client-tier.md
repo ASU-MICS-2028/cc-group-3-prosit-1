@@ -3,7 +3,7 @@
 **Lead:** Perfect Avugla ([@PeaElorm](https://github.com/PeaElorm))  
 **Production Domain:** [`https://app.agroconnect.space`](https://app.agroconnect.space)  
 **Hosting Infrastructure:** AWS Amplify Hosting (`eu-west-1` / CloudFront Global Edge)  
-**Associated Architectural Records:** [ADR-002 (Offline-First Client)](./architecture-decisions.md#adr-002-offline-first-client-architecture-with-client-generated-identity), [ADR-009 (Amplify Hosting)](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1), [L-001 & L-002](./learnings.md)
+**Associated Architectural Records:** [ADR-002 (Offline-First Client)](./architecture-decisions.md#adr-002-offline-first-client-architecture-with-client-generated-identity), [ADR-009 (Amplify Hosting)](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1), [ADR-012 (Background Sync & Web Locks)](./architecture-decisions.md#adr-012-service-worker-background-sync-with-web-locks-concurrency), [L-001 & L-002](./learnings.md)
 
 ---
 
@@ -65,7 +65,7 @@ The client does not offload raw binary camera captures to the cloud. Instead, de
 | **Framework** | **React 19** & **TypeScript** | Strict typing across domain models, modern hook paradigms, and high rendering performance on budget mobile devices. |
 | **Build Tooling** | **Vite 8** | Rapid build times, optimal tree-shaking, and lightweight static output bundles (`dist/`). |
 | **Offline Persistence** | **Dexie.js (`^4.4.6`)** | High-performance IndexedDB wrapper providing declarative schema definitions, transactional guarantees, and live reactive queries via `dexie-react-hooks`. |
-| **PWA Service Worker** | **`vite-plugin-pwa` (`^2.0.0`)** | Auto-generates standard Service Worker caching strategies (`precacheAndRoute`), web app manifest, and offline shell caching. |
+| **PWA Service Worker** | **`vite-plugin-pwa` (`^2.0.0`)** (InjectManifest) & **Workbox** | Custom Service Worker (`src/sw.ts`) providing Workbox asset precaching, W3C Background Sync API (`agroconnect-sync`), and W3C Web Locks concurrency control. |
 | **Mock Engine** | **Node.js Mock Server** | Standalone mock server (`mock-server/server.mjs`) executing identical contract tests to guarantee API compatibility before backend merges. |
 
 ---
@@ -157,13 +157,36 @@ The sync orchestrator (`src/sync/`) manages the lifecycle of local records and r
 * **Phone Collision (`HTTP 409`):** If a farmer's phone number already exists under a *different* `clientId` (e.g., registered by another agent in a neighboring village), the record transitions to `'conflict'`. The agent is prompted with an inline alert to review the contact details.
 * **Transient Network Failure:** Network timeouts, HTTP 408, 429, or 5xx responses stop the run and keep the record in `'pending'` for the next one.
 
-### When Sync Runs
-* **While the app is open:** on launch, right after anything is saved, when the phone comes back online, when the app returns to the foreground, and every 30 seconds.
-* **After the app is closed:** whenever a run ends with items still waiting, the app registers a Background Sync (`agroconnect-sync`). The browser wakes the service worker (`src/sw.ts`) once there is signal, and it sends the queue with the session token saved on the phone. If items are still waiting after that, the event fails and the browser retries later with its own back-off. Signed-out phones send nothing.
-* **One sender at a time:** the app and the service worker share the IndexedDB queue, so each run holds a Web Lock (`agroconnect-sync`).
-* **Browser support:** Background Sync works in Chrome and other Chromium browsers on Android, which is what field agents use. On iOS Safari and Firefox the queue waits until the app is opened again.
+### Synchronization Triggers & Lifecycle
+* **Foreground Sync (While App is Open):**
+  * **Application Launch:** Flushes any unsynced queue items immediately upon initialization.
+  * **Immediate Mutation:** Triggers a sync pass immediately after any record is saved or updated.
+  * **Connectivity Recovery:** Listens to `window.addEventListener('online', ...)` and executes queue drainage.
+  * **Visibility Changes:** Triggers sync whenever the application returns to the foreground (`visibilitychange`).
+  * **Periodic Heartbeat:** Executes a periodic synchronization sweep every 30 seconds while the app is active.
 
----
+### W3C Background Sync API & Offline Drainage (`agroconnect-sync`)
+In rural field operations, extension agents frequently register farmers offline, lock their phones, and travel back to market centers where signal is restored. Without background execution, records remain trapped on the device until the agent manually reopens the app:
+* **Service Worker Registration:** When an in-app sync pass finishes with items still waiting, or when a record is saved while offline, the app registers a Background Sync tag with the browser's `SyncManager` ([`src/sync/background.ts`](../frontend/agroconnect-pwa/src/sync/background.ts)):
+  ```typescript
+  const reg = await navigator.serviceWorker.ready;
+  await reg.sync.register('agroconnect-sync');
+  ```
+* **Browser Wakeup:** Chromium on Android wakes the custom Service Worker ([`src/sw.ts`](../frontend/agroconnect-pwa/src/sw.ts)) as soon as cellular data or Wi-Fi is restored—even if the PWA window and browser have been terminated.
+* **Autonomous Worker Drainage:** The Service Worker retrieves the saved JWT session from IndexedDB (`getSession()`), configures the API token provider, drains the queue, and automatically handles token renewal via `/auth/refresh` upon receiving an `HTTP 401 Unauthorized`.
+* **Exponential Backoff:** If items still remain in the outbox after the pass (e.g., due to an intermittent drop), the worker fails the `sync` event, instructing the browser engine to reschedule with its internal exponential backoff.
+* **Platform Fallback:** Fully supported in Chromium-based browsers on Android (the primary deployment target for field agents). On platforms without Background Sync support (e.g., iOS Safari or desktop Firefox), the app gracefully degrades to in-app foreground synchronization.
+
+### Concurrency Control via W3C Web Locks API
+Because both the foreground UI thread (`syncQueue.ts`) and the background Service Worker (`sw.ts`) operate on the shared Dexie IndexedDB outbox, concurrent execution could cause duplicate HTTP dispatches, race conditions on status transitions, and conflicting token refreshes:
+* **Mutual Exclusion:** Both the in-app queue runner and the Service Worker background event handler wrap queue execution within an exclusive Web Lock:
+  ```typescript
+  await navigator.locks.request('agroconnect-sync', async () => {
+    // Process queue with guaranteed single-sender exclusivity
+    return await runSyncQueue(options);
+  });
+  ```
+* **Safe Queue Recovery:** Holding the exclusive lock guarantees that no other thread is actively transmitting. This enables the queue runner to safely reset records stranded in the `'sending'` state back to `'saved'`/`'pending'` at the start of *every* sync execution (recovering from sudden app termination or battery death mid-upload) without risk of double-posting.
 
 ---
 

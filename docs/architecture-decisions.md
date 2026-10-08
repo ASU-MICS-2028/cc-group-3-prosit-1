@@ -17,6 +17,7 @@ This document formalizes the key architectural decisions made for **AgroConnect 
 * [ADR-009: Frontend Hosting on AWS Amplify in `eu-west-1`](#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)
 * [ADR-010: App Languages Limited to English, Twi and Ewe](#adr-010-app-languages-limited-to-english-twi-and-ewe)
 * [ADR-011: Backend Runtime Migration to Node.js and TypeScript](#adr-011-backend-runtime-migration-to-nodejs-and-typescript)
+* [ADR-012: Service Worker Background Sync with Web Locks Concurrency](#adr-012-service-worker-background-sync-with-web-locks-concurrency)
 
 ---
 
@@ -315,8 +316,41 @@ The backend service (`farmer-profile-service`) was originally scaffolded in Pyth
 
 ---
 
+## ADR-012: Service Worker Background Sync with Web Locks Concurrency
+
+### Status
+Accepted
+
+### Context
+Field extension agents in rural Ghana register smallholder farmers in areas with zero cellular reception. When an agent completes a registration or takes farm photos offline, the data queues in local IndexedDB. Agents typically lock their phones or put them away until returning to a trading center or transit point where mobile signal is restored.
+
+In a standard PWA, outbound network synchronization only runs while the browser tab or PWA window is actively open in the foreground. If the agent does not reopen AgroConnect after acquiring signal, queued registrations remain stranded on the device indefinitely.
+
+Conversely, if the browser supports background wakeups while the user simultaneously opens the app to perform another task, two independent execution contexts (the main UI thread and the Service Worker thread) would attempt to drain the shared IndexedDB queue concurrently. Without mutual exclusion, duplicate HTTP requests, race conditions on status transitions, and conflicting token refreshes would occur.
+
+### Decision
+1. **Custom Service Worker (`injectManifest`):** Switch `vite-plugin-pwa` from `generateSW` to `injectManifest` with a dedicated service worker source ([`src/sw.ts`](../frontend/agroconnect-pwa/src/sw.ts)). Preserve Workbox asset precaching while adding a custom `sync` event listener.
+2. **W3C Background Sync API:** When an in-app sync pass finishes with items remaining unsent, or when an offline registration completes, register the `agroconnect-sync` tag with the browser's `SyncManager` ([`src/sync/background.ts`](../frontend/agroconnect-pwa/src/sync/background.ts)). The browser automatically wakes the service worker once network connectivity is re-established, even if the PWA has been closed.
+3. **W3C Web Locks Concurrency Control:** Both the in-app queue runner and the service worker background handler acquire a shared exclusive Web Lock (`navigator.locks.request('agroconnect-sync', ...)`) before touching the outbox. Only one thread processes queue records at any given moment.
+4. **Safe Status Reset:** Because holding the Web Lock guarantees that no other process is actively transmitting, queue runs can safely reset records trapped in `'sending'` state back to `'saved'` on every run, preventing permanently stuck records if the browser is terminated mid-upload.
+5. **Background Authentication Handling:** The background worker reads the saved session token from IndexedDB, injects it into outgoing requests, and transparently invokes `/auth/refresh` upon encountering an `HTTP 401 Unauthorized`.
+6. **Browser Fallback:** The Background Sync API is fully supported in Chromium-based browsers on Android (the target field device ecosystem). On browsers without Background Sync support (e.g., iOS Safari or desktop Firefox), the app gracefully degrades to in-app foreground synchronization.
+
+### Consequences
+* **Positive:**
+  * Zero-touch outbox drainage: field agents do not need to remember to reopen the application when returning to cellular coverage.
+  * Robust concurrency guarantees: Web Locks eliminate duplicate HTTP dispatches and race conditions between foreground and background workers.
+  * Reliable error recovery: failing the `sync` event when items remain triggers the browser's internal exponential backoff algorithm.
+* **Negative:**
+  * Background Sync is not supported on WebKit/Safari (iOS), meaning iOS devices require foreground app execution to drain the queue.
+  * Added complexity in service worker lifecycle and build tooling (`vite-plugin-pwa` injectManifest mode).
+* **Reversal:** If Background Sync proves problematic, `src/sw.ts` can drop the `sync` listener, and `vite-plugin-pwa` can revert to `generateSW`.
+
+---
+
 ## Related References
 * [Empirical Research & Benchmark Details](./empirical-research.md)
 * [Cloud Infrastructure Deep Dive](./cloud-infrastructure.md)
 * [CI/CD & Operations Deep Dive](./ci-cd-and-operations.md)
+
 

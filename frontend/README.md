@@ -3,7 +3,7 @@
 **Lead:** Perfect Avugla ([@PeaElorm](https://github.com/PeaElorm))  
 **Live Application:** [`https://app.agroconnect.space`](https://app.agroconnect.space)  
 **Hosting Provider:** AWS Amplify Hosting (`eu-west-1` / CloudFront Global Edge)  
-**Architectural Decisions:** [ADR-002](../docs/architecture-decisions.md#adr-002-offline-first-client-architecture-with-client-generated-identity), [ADR-009](../docs/architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1)
+**Architectural Decisions:** [ADR-002](../docs/architecture-decisions.md#adr-002-offline-first-client-architecture-with-client-generated-identity), [ADR-009](../docs/architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1), [ADR-010](../docs/architecture-decisions.md#adr-010-app-languages-limited-to-english-twi-and-ewe), [ADR-012](../docs/architecture-decisions.md#adr-012-service-worker-background-sync-with-web-locks-concurrency)
 
 ---
 
@@ -15,10 +15,11 @@ The AgroConnect client is an offline-first Progressive Web App (PWA) built with 
 1. **The App Never Waits for the Network:** All user interactions, form entries, and photo captures persist immediately to client-side storage. The interface is 100% functional in airplane mode.
 2. **Client-Generated Identity (`clientId`):** Every profile receives an immutable cryptographically secure UUID on the client device. Sync retries against the backend are completely idempotent.
 3. **Local Storage Engine:** Powered by **IndexedDB** using **Dexie** across isolated tables (`drafts`, `farmers`, `photos`), with a 300 ms debounced autosave mechanism.
-4. **Hardware Resilience:**
+4. **Background Synchronization & Web Locks (ADR-012):** Custom Service Worker (`src/sw.ts`) configured via `vite-plugin-pwa` `injectManifest`. Outbox items trigger registration of the `agroconnect-sync` tag with the W3C Background Sync API to drain registrations when signal returns even after the app is closed. Mutual exclusion between the UI tab and the background service worker is guaranteed via the W3C Web Locks API (`navigator.locks.request('agroconnect-sync')`), enabling safe recovery of stuck `'sending'` items on every run.
+5. **Hardware Resilience:**
    * **Photo Compression:** On-device canvas compression downsamples raw camera captures to `<100 KB` JPEGs before queueing.
    * **Direct GPS Polling:** Uses browser geolocation with direct satellite fallback, operating independently of cellular tower triangulation.
-5. **Ghanaian Localization:** Custom typography supporting local orthographies (Ewe `Ɛɛ`, `Ɔɔ`, `Ŋŋ`, `Đɖ`, `Ƒƒ`, `Ɣɣ`, `Ʋʋ`, `Ʒʒ`, Dagbani, Twi) and Ghana Cedi formatting (`₵`).
+6. **Ghanaian Localization (ADR-010):** Full 424-string human translation dictionaries for **Twi (`tw.json`)** and **Ewe (`ee.json`)** with automated Vitest parity/token tests, and custom typography supporting local orthographies (Ewe `Ɛɛ`, `Ɔɔ`, `Ŋŋ`, `Đɖ`, `Ƒƒ`, `Ɣɣ`, `Ʋʋ`, `Ʒʒ`, Dagbani, Twi) and Ghana Cedi formatting (`₵`).
 
 ---
 
@@ -47,9 +48,10 @@ frontend/
     │   ├── lib/                  # Canvas image compression & utilities
     │   ├── screens/              # Farmer registration, list, sync status views
     │   ├── styles/               # Styling & Tailwind design system
-    │   └── sync/                 # Background queue & retry orchestrator
+    │   ├── sw.ts                 # Custom Service Worker (Background Sync, Web Locks, Precaching)
+    │   └── sync/                 # Background queue, Web Locks & retry orchestrator
     ├── package.json              # Dependencies & npm scripts
-    ├── vite.config.js            # Vite configuration with PWA service worker
+    ├── vite.config.js            # Vite configuration with PWA service worker (injectManifest)
     └── tsconfig.json             # TypeScript configuration
 ```
 

@@ -17,7 +17,7 @@ However, field extension agents operate under severe environmental constraints:
 AgroConnect Ghana addresses these constraints through four foundational design principles:
 
 ### Principle 1: The App Never Waits for the Network
-Every registration, plot update, and photo capture is written immediately to persistent client-side storage (IndexedDB). User interactions are zero-latency and 100% functional in airplane mode. Synchronization to the cloud operates asynchronously in the background whenever signal is acquired.
+Every registration, plot update, and photo capture is written immediately to persistent client-side storage (IndexedDB). User interactions are zero-latency and 100% functional in airplane mode. Synchronization to the cloud operates asynchronously in the background whenever signal is acquired (via in-app sync and W3C Background Sync with Web Locks concurrency control even after the app is closed).
 
 ### Principle 2: Client-Generated Permanent Identity
 Every entity receives an immutable UUID (`clientId`) on the mobile device at creation. The cloud backend accepts client-generated UUIDs, guaranteeing that network retries, connection timeouts, or duplicate pushes never result in duplicate database records.
@@ -103,7 +103,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 * **Dynamic Target Tracking:** Auto Scaling Group dynamically tracks `ALBRequestCountPerTarget` (500 req/min/target), scaling between 1 and 3 instances to handle load without human intervention.
 * **Stateless Application Architecture:** EC2 instances maintain zero local session state. Requests can be served interchangeably by any instance in the Auto Scaling Group.
 * **Automated Self-Healing:** The Auto Scaling Group replaces failed or unhealthy instances automatically when ALB health probes fail.
-* **Client-Side Fault Tolerance:** Network dropouts cause zero data loss on the frontend; requests queue safely in local IndexedDB until connectivity recovers.
+* **Client-Side Fault Tolerance:** Network dropouts cause zero data loss on the frontend; requests queue safely in local IndexedDB until connectivity recovers. The W3C Background Sync API (`agroconnect-sync`) and Web Locks concurrency control ensure zero-touch outbox drainage when signal returns even when the phone is locked or the app is closed, with strict mutual exclusion against foreground sync runs.
 
 ### 4. Performance Efficiency
 * **Empirical Regional Selection:** AWS `af-south-1` (Cape Town) was selected following empirical benchmark testing from Ghana, achieving **74 ms median application RTT**—significantly faster than European regions (~117 ms) and US regions (>170 ms).
@@ -125,8 +125,9 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 
 ## Next Steps & Further Reading
 
-* [Architectural Decision Records (ADR-001 through ADR-011)](./architecture-decisions.md)
+* [Architectural Decision Records (ADR-001 through ADR-012)](./architecture-decisions.md)
 * [Engineering Learnings Journal](./learnings.md)
+* [AI Tools Usage & Academic Integrity Disclosure](./ai-tools-usage.md)
 * [Empirical Latency & Provider Benchmark Results](./empirical-research.md)
 * [Client Tier Architecture & Offline Sync](./client-tier.md)
 * [API Tier Architecture & Contracts](./api-tier.md)

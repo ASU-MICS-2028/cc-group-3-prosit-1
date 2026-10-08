@@ -16,8 +16,9 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 |---|---|
 | [**Documentation Index**](./docs/README.md) | Navigation index, directory mapping, and high-level project summary |
 | [**1. System Overview**](./docs/system-overview.md) | Operational context, high-level topology & Well-Architected Framework alignment |
-| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-011 |
+| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-012 |
 | [**2b. Engineering Learnings**](./docs/learnings.md) | Engineering journal — discoveries & mental models (Amplify API gaps, CloudFront routing) |
+| [**2c. AI Tools Disclosure**](./docs/ai-tools-usage.md) | Academic integrity disclosure per Ashesi AI policy: tool categories, prompts & verification |
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |
 | [**4. Client Tier (PWA)**](./docs/client-tier.md) | Offline-first architecture, Dexie IndexedDB, sync queue & hardware hooks |
 | [**5. API Tier**](./docs/api-tier.md) | Containerized Node.js/Express TypeScript `farmer-profile-service`, endpoints & health probes |
@@ -105,10 +106,11 @@ Each tier is decoupled and maintained in its respective subdirectory:
 
 ### 1. Client Tier — Offline-First PWA ([`frontend/`](./frontend))
 * **Live Deployment:** [`https://app.agroconnect.space`](https://app.agroconnect.space) (AWS Amplify Hosting, `eu-west-1` origin with global CloudFront edge delivery).
-* **Stack:** React 19, TypeScript, Vite, Dexie (IndexedDB), Service Worker.
+* **Stack:** React 19, TypeScript, Vite, Dexie (IndexedDB), Custom Service Worker (`injectManifest`).
 * **Primary Principle:** *The app never waits for the network.*
 * **Local Storage:** Utilizes browser **IndexedDB** wrapped with **Dexie** across three isolated tables (`drafts`, `farmers`, `photos`). Unsaved forms autosave every 300 ms.
 * **Client-Side UUIDs:** Every profile generates an immutable client UUID (`clientId`) upon initiation, allowing idempotent retries against the backend without duplicate record creation.
+* **Background Sync & Concurrency (ADR-012):** Custom Service Worker (`src/sw.ts`) registers the `agroconnect-sync` tag with the W3C Background Sync API to drain queued farmer records when cellular signal returns even after the app is closed. Concurrency across the UI tab and background Service Worker is guaranteed via the W3C Web Locks API (`navigator.locks.request('agroconnect-sync')`), safely recovering stranded records on every run.
 * **Core Capabilities:**
   * **Produce Marketplace:** Real-time commodity market prices, produce browsing, and harvest listing with Ghana Cedi (`₵`) pricing.
   * **Mobile Money Wallet:** Integrated wallet with MoMo transaction simulation and active polling.
@@ -178,7 +180,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
 |---|---|
 | **Operational Excellence** | Infrastructure 100% codified across 7 Terraform modules (`infra/modules/`). Immutable container deployments through ECR and ASG rolling refreshes. Git-connected Amplify builds. CloudWatch metrics and ALB health probes on `/health`. |
 | **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
-| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Stateless backend application design. |
+| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Stateless backend application design. |
 | **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Static PWA cached at CloudFront edge; client-side IndexedDB caching and photo compression reducing payload overhead by >95%. |
 | **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$5 AWS Budgets anomaly alert. |
 | **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Planned evaluation of AWS Graviton processors for the app tier. |
