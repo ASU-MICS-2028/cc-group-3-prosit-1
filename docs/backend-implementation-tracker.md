@@ -35,7 +35,7 @@ against the code on `main`**, not against intentions.
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Requirements & Architecture Baseline | 🟡 | Contracts + ADRs recorded; pagination and rate-limit conventions still open |
-| 1 — Backend Project Foundation | 🟡 | App/errors/CORS/health done; headers, structured logs, request IDs, `/ready`, `.env.example` left |
+| 1 — Backend Project Foundation | 🟢 | Done, including Elise's foundation work (helmet, request IDs, JSON logs, graceful shutdown, `.env.example`) |
 | 2 — Database & Migration | 🟡 | Schema + triggers + migration runner done; extra indexes, delete policy, rollback strategy left |
 | 3 — Authentication | 🟢 | Full RS256 auth, OTP, PIN, lockout, JWKS, test mode; two minor decisions open (🔴) |
 | 4 — Authorization & Access Control | 🟡 | Role gates done; per-association scoping of `GET /farmers/:id` + photo left |
@@ -46,7 +46,7 @@ against the code on `main`**, not against intentions.
 | 9 — Admin & Coordinator API | 🟡 | Whole surface done except `GET /admin/farmers/:id` |
 | 10 — Pagination, Filtering & Query Performance | 🟡 | Farmers + audit paginate (in memory); uniform pagination/sorting left |
 | 11 — Feedback API | 🟡 | Endpoint done; audit trail left |
-| 12 — Audit & Observability | 🟡 | DB audit + CloudWatch done; structured logs, request/error IDs, log levels left |
+| 12 — Audit & Observability | 🟢 | DB audit, CloudWatch, JSON logs with request IDs and levels; a structured auth-event log is the only partial item |
 | 13 — AWS Infrastructure | 🟢 | Everything live is `af-south-1`; only Amplify stays `eu-west-1` (ADR-009). Some docs stale |
 | 14 — Production Deployment | 🟡 | HTTPS, domain, rollback, OIDC deploy done; `/ready` and post-deploy smoke left |
 | 15 — Testing & Production Readiness | 🟡 | Strong integration tests; unit, pagination, rate-limit, backup/restore left |
@@ -78,20 +78,20 @@ against the code on `main`**, not against intentions.
 
 - [x] Node.js/Express application structure
 - [x] Environment configuration
-- [ ] `.env.example`
-- [~] Configuration validation _(loads config; fail-fast validation left)_
+- [x] `.env.example`
+- [x] Configuration validation _(`validateConfig`: fails at boot listing every problem)_
 - [x] Centralized error-handling middleware
 - [x] 404/not-found handling
 - [x] Request validation middleware _(per-route; no shared schema library)_
-- [ ] Security headers
+- [x] Security headers _(helmet, `default-src 'none'` CSP)_
 - [x] CORS configuration
 - [x] Request/body size limits
-- [ ] Structured logging
-- [ ] Request/correlation ID
-- [~] Graceful shutdown _(SIGTERM only; SIGINT + force-exit timeout left)_
+- [x] Structured logging _(JSON lines, `src/log.ts`)_
+- [x] Request/correlation ID _(`X-Request-ID`, echoed and logged)_
+- [x] Graceful shutdown _(SIGTERM + SIGINT, 10 s force-exit)_
 - [x] `/health`
-- [ ] `/ready` or readiness check
-- [x] Production error responses _(error IDs left)_
+- [x] `/ready` or readiness check _(checks the database; `/health` stays DB-free for the ALB)_
+- [x] Production error responses _(500 bodies carry the `requestId`)_
 - [x] Ensure sensitive information is not exposed in errors/logs
 
 **Status:** 🟡 In progress
@@ -346,10 +346,10 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Failed-login audit
 - [x] Admin actions
 - [x] Export events
-- [ ] Structured logs
-- [ ] Request IDs
-- [ ] Error IDs
-- [ ] Log levels
+- [x] Structured logs
+- [x] Request IDs
+- [x] Error IDs _(the request ID, in the 500 body and the error log line)_
+- [x] Log levels _(info → stdout; warn/error → stderr)_
 - [~] Production log policy
 - [x] Sensitive-data protection
 - [x] Monitoring _(CloudWatch log group + dashboard)_

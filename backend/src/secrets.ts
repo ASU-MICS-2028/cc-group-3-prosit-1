@@ -1,5 +1,6 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager'
 import type { Config } from './config.js'
+import { describeError, log } from './log.js'
 
 const TTL_MS = 5 * 60_000
 const cache = new Map<string, { value: unknown; at: number }>()
@@ -26,7 +27,7 @@ export async function optionalSecret<T>(config: Config, arn: string | null): Pro
   try {
     return await getSecretJson<T>(config, arn)
   } catch (error) {
-    console.warn(`[secrets] ${arn} unavailable: ${(error as Error).message}`)
+    log.warn('secrets', 'secret unavailable', { arn, ...describeError(error) })
     return null
   }
 }

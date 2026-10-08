@@ -1,5 +1,6 @@
 import type { Db } from './db.js'
 import { hashSecret } from './security.js'
+import { log } from './log.js'
 
 /**
  * The demo accounts documented in frontend/agroconnect-pwa/docs/WALKTHROUGH.md, identical to the mock's.
@@ -62,7 +63,7 @@ export interface AdminSeed {
 /** AUTH-CONTRACT: admins are seeded (ADMIN_SEED), never created through the API. */
 export async function seedAdmin(db: Db, seed: AdminSeed): Promise<void> {
   if (!seed.login_id || !seed.phone || String(seed.password ?? '').length < 12) {
-    console.warn('[seed] admin seed ignored: it needs login_id, phone and a password of at least 12 characters')
+    log.warn('seed', 'admin seed ignored: it needs login_id, phone and a password of at least 12 characters')
     return
   }
   await upsert(db, { id: `U-${seed.login_id.toLowerCase()}`, role: 'admin', name: seed.name || 'Administrator', phone: seed.phone, loginId: seed.login_id.toUpperCase(), assoc: null, status: 'approved', password: seed.password })

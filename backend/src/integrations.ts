@@ -3,6 +3,7 @@ import { GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sd
 import type { Config } from './config.js'
 import { HttpError } from './http.js'
 import { optionalSecret } from './secrets.js'
+import { log } from './log.js'
 
 // SMS ---------------------------------------------------------------------------------------------
 
@@ -31,7 +32,7 @@ export function arkeselSms(config: Config): Sms {
       }).catch(() => null)
       const body = (await response?.json().catch(() => null)) as { status?: string; message?: string } | null
       if (!response?.ok || body?.status !== 'success') {
-        console.error(`[sms] Arkesel refused: ${response?.status} ${body?.message ?? ''}`)
+        log.error('sms', 'Arkesel refused the message', { status: response?.status ?? null, reason: body?.message ?? null })
         throw new HttpError(503, 'sms_unavailable', 'Text messages cannot be sent right now. Try again later.')
       }
     },
@@ -145,7 +146,7 @@ export function votexProvider(
     }).catch(() => null)
     const body = (await response?.json().catch(() => null)) as (VotexPayment & { detail?: { code?: string; message?: string } }) | null
     if (!response?.ok || !body) {
-      console.error(`[payments] votex365 ${path}: ${response?.status} ${body?.detail?.code ?? ''} ${body?.detail?.message ?? ''}`)
+      log.error('payments', 'votex365 call failed', { path, status: response?.status ?? null, code: body?.detail?.code ?? null, reason: body?.detail?.message ?? null })
       throw new HttpError(503, 'payments_unavailable', 'Payments are not available right now. Try again later.')
     }
     return body

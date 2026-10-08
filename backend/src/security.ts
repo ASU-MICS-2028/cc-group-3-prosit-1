@@ -5,6 +5,7 @@ import { calculateJwkThumbprint, exportJWK, jwtVerify, SignJWT, type JWK } from 
 import type { Config } from './config.js'
 import { HttpError } from './http.js'
 import { getSecretJson } from './secrets.js'
+import { describeError, log } from './log.js'
 
 const scryptAsync = promisify(scrypt) as (secret: string, salt: Buffer, length: number) => Promise<Buffer>
 
@@ -60,7 +61,7 @@ export interface Signer {
 export async function createSigner(config: Pick<Config, 'jwtSecretArn' | 'region'> & Partial<Config>): Promise<Signer> {
   const secret = config.jwtSecretArn
     ? await getSecretJson<{ private_key_pem?: string }>(config as Config, config.jwtSecretArn).catch((error: Error) => {
-        console.error(`[auth] cannot read the signing key (${error.message})`)
+        log.error('auth', 'cannot read the signing key', describeError(error))
         return null
       })
     : null
@@ -72,7 +73,7 @@ export async function createSigner(config: Pick<Config, 'jwtSecretArn' | 'region
     // anyone can fill it. Each instance then has its own key, so tokens fail between instances until the
     // secret is set and the instances are refreshed.
     privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
-    console.warn('[auth] no signing key in JWT_SECRET_ARN: using a throwaway key. Set the secret, then refresh the instances.')
+    log.warn('auth', 'no signing key in JWT_SECRET_ARN: using a throwaway key. Set the secret, then refresh the instances.')
   }
   const publicKey = createPublicKey(privateKey)
   const publicJwk = await exportJWK(publicKey)

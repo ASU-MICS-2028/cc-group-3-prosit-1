@@ -4,6 +4,7 @@ import { ASSOCIATIONS, findUser, publicUser, tokenUser, type Ctx, type UserRow }
 import { pgError, type Queryable } from '../db.js'
 import { HttpError, jsonBody, route } from '../http.js'
 import { bearerToken, hashSecret, isE164, REFRESH_GRACE_SECONDS, requireAuth, sha256, ttlSecondsFor, verifySecret } from '../security.js'
+import { log } from '../log.js'
 
 const OTP_RATE_LIMIT = 3
 const OTP_RATE_WINDOW_MS = 15 * 60_000
@@ -39,7 +40,7 @@ export function authRoutes(app: Express, ctx: Ctx): void {
         [phone, sha256(code), new Date(now + settings.otpTtlMs), OTP_ATTEMPTS, [...recent, new Date(now)]],
       )
       // Inside the transaction: if the SMS cannot go out, the code and the rate-limit slot are not spent.
-      if (settings.testMode) console.log(`[auth] Test mode: code for ${phone} is ${code}`)
+      if (settings.testMode) log.info('auth', 'test mode sign-in code', { phone, code })
       else await ctx.sms.send(phone, `Your AgroConnect code is ${code}. It expires in ${Math.round(settings.otpTtlMs / 60_000)} minutes. Do not share it.`)
     })
     return code

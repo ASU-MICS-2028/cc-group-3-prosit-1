@@ -4,6 +4,7 @@ import { createHmac } from 'node:crypto'
 import { readdirSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { loadConfig, validateConfig } from '../src/config.ts'
 import { votexProvider } from '../src/integrations.ts'
 import { migrate } from '../src/migrate.ts'
 import { createApp, DEMO_ACCOUNTS, pgliteDb, uid } from './harness.ts'
@@ -173,6 +174,37 @@ describe('HTTP behaviour', () => {
     expect(await t.call('GET', '/nowhere')).toMatchObject({ status: 404, body: { error: 'not_found', message: 'Not found' } })
     expect(await t.call('POST', '/auth/farmer/start', { raw: '{not json' })).toMatchObject({ status: 400, body: { error: 'invalid_json' } })
     expect(await t.call('POST', '/farmers', { body: registration() })).toMatchObject({ status: 401, body: { error: 'unauthorized' } })
+  })
+})
+
+describe('foundation (security headers, request IDs, readiness, config)', () => {
+  it('sets security headers and gives every response a request ID', async () => {
+    const t = await start()
+    const res = await t.call('GET', '/health')
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(res.headers.get('content-security-policy')).toContain("default-src 'none'")
+    expect(res.headers.get('x-powered-by')).toBeNull()
+    expect(res.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/)
+    const echoed = await t.call('GET', '/health', { headers: { 'X-Request-ID': 'phone-abc.123' } })
+    expect(echoed.headers.get('x-request-id')).toBe('phone-abc.123')
+    const unsafe = await t.call('GET', '/health', { headers: { 'X-Request-ID': 'bad id<script>' } })
+    expect(unsafe.headers.get('x-request-id')).not.toContain('<')
+  })
+
+  it('reports readiness from the database', async () => {
+    const t = await start()
+    expect(await t.call('GET', '/ready')).toMatchObject({ status: 200, body: { status: 'ready' } })
+    t.server.ctx.db.query = async () => {
+      throw new Error('connection refused')
+    }
+    expect(await t.call('GET', '/ready')).toMatchObject({ status: 503, body: { status: 'not_ready' } })
+  })
+
+  it('refuses to boot with a bad configuration, listing every problem', () => {
+    expect(() => validateConfig(loadConfig({ DATABASE_URL: 'postgres://x', PWA_ORIGINS: 'https://app.example' }))).not.toThrow()
+    expect(() => validateConfig(loadConfig({ PORT: 'abc', PWA_ORIGINS: 'https://app.example/path,nonsense' }))).toThrow(
+      /PORT must be a port number; set DATABASE_URL.*bare origin.*not a URL/,
+    )
   })
 })
 

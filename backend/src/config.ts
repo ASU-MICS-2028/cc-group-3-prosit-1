@@ -34,9 +34,29 @@ const list = (value: string | undefined) =>
 
 const flag = (value: string | undefined, fallback: boolean) => (value === undefined ? fallback : value === 'true')
 
+/** Fails at boot, with every problem listed, rather than at the first request that needs the setting. */
+export function validateConfig(config: Config): void {
+  const problems: string[] = []
+  if (!Number.isInteger(config.port) || config.port <= 0 || config.port > 65535) problems.push('PORT must be a port number')
+  if (!config.databaseUrl && !(config.dbHost && config.dbSecretArn)) problems.push('set DATABASE_URL, or DB_HOST and DB_SECRET_ARN')
+  for (const origin of config.pwaOrigins) {
+    try {
+      if (new URL(origin).origin !== origin) problems.push(`PWA_ORIGINS entry ${origin} must be a bare origin like https://app.example`)
+    } catch {
+      problems.push(`PWA_ORIGINS entry ${origin} is not a URL`)
+    }
+  }
+  try {
+    new URL(config.paymentReturnUrl)
+  } catch {
+    problems.push('PAYMENT_RETURN_URL is not a URL')
+  }
+  if (problems.length > 0) throw new Error(`Invalid configuration: ${problems.join('; ')}`)
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
-    port: Number(env.PORT) || 8000,
+    port: env.PORT === undefined ? 8000 : Number(env.PORT),
     databaseUrl: env.DATABASE_URL || null,
     dbHost: env.DB_HOST || null,
     dbName: env.DB_NAME || 'agroconnect',

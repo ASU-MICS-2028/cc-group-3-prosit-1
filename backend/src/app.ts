@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
+import helmet from 'helmet'
 import type { Ctx } from './context.js'
-import { errorHandler } from './http.js'
+import { errorHandler, route } from './http.js'
+import { log } from './log.js'
 import { adminRoutes } from './routes/admin.js'
 import { authRoutes } from './routes/auth.js'
 import { contentRoutes } from './routes/content.js'
@@ -27,12 +30,31 @@ function cors(origins: string[]) {
   }
 }
 
-/** One line per request to stdout (CloudWatch Logs). Never bodies: they hold phone numbers and PINs. */
+const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/
+
+/**
+ * Every request gets an ID (the caller's X-Request-ID if it looks sane, else a new UUID), echoed in the
+ * response and in every log line and 500 body for that request, so a report can be matched to its logs.
+ */
+function requestId(req: Request, res: Response, next: NextFunction) {
+  const incoming = req.get('x-request-id')
+  res.locals.requestId = incoming && REQUEST_ID.test(incoming) ? incoming : randomUUID()
+  res.set('X-Request-ID', res.locals.requestId)
+  next()
+}
+
+/** One JSON line per request (CloudWatch Logs). Never bodies: they hold phone numbers and PINs. */
 function requestLog(req: Request, res: Response, next: NextFunction) {
   const started = performance.now()
   res.on('finish', () => {
     if (req.path === '/health') return
-    console.log(`${req.method} ${req.path} -> ${res.statusCode} ${Math.round(performance.now() - started)}ms`)
+    log.info('http', 'request', {
+      requestId: res.locals.requestId,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Math.round(performance.now() - started),
+    })
   })
   next()
 }
@@ -41,6 +63,9 @@ export function createApp(ctx: Ctx): Express {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', true)
+  // Security headers. The API serves JSON, CSV and photos, never pages, so the strictest CSP fits.
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } } }))
+  app.use(requestId)
   app.use(requestLog)
   app.use(cors(ctx.settings.pwaOrigins))
   // Webhooks are verified against their raw bytes, so they must not be parsed as JSON here.
@@ -48,6 +73,19 @@ export function createApp(ctx: Ctx): Express {
   app.use((req, res, next) => (req.path.startsWith('/webhooks/') ? next() : json(req, res, next)))
 
   app.get('/', (_req, res) => void res.json({ service: 'agroconnect-api', status: 'ok' }))
+  // /health (liveness, polled by the ALB) never touches the database, so a database blip does not make the
+  // ALB drain every instance. /ready says whether this instance can actually serve requests.
+  app.get(
+    '/ready',
+    route(async () => {
+      try {
+        await ctx.db.query('SELECT 1')
+        return [200, { status: 'ready' }]
+      } catch {
+        return [503, { status: 'not_ready', reason: 'database' }]
+      }
+    }),
+  )
   authRoutes(app, ctx)
   farmerRoutes(app, ctx)
   adminRoutes(app, ctx)
