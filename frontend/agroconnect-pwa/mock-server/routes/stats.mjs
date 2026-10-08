@@ -1,4 +1,5 @@
 import { csvResponse } from '../csv.mjs'
+import { PROFILE_BREAKDOWNS, PROFILE_FIELDS, normaliseProfile, profileCell } from '../profile.mjs'
 import { HttpError, readJson } from '../http.mjs'
 import { requireAuth } from '../security.mjs'
 import { addAudit } from '../store.mjs'
@@ -20,6 +21,7 @@ const CSV_COLUMNS = [
   'clientId', 'id', 'name', 'phoneE164', 'gender', 'preferredLanguage', 'community', 'region',
   'farmSizeHectares', 'farmSizeEntered', 'farmSizeUnit', 'crops', 'lat', 'lng', 'accuracyMetres',
   'registeredAt', 'createdAt', 'registeredBy',
+  ...Object.keys(PROFILE_FIELDS),
 ]
 const NUMERIC_COLUMNS = ['farmSizeHectares', 'farmSizeEntered', 'lat', 'lng', 'accuracyMetres']
 
@@ -57,6 +59,14 @@ export function statsRoutes(ctx) {
         byCrop: byCountDescending(tally(farmers, (f) => f.crops ?? [])),
         byLanguage: byCountDescending(tally(farmers, (f) => f.preferredLanguage ?? 'unknown')),
         byGender: byCountDescending(tally(farmers, (f) => f.gender ?? 'unknown')),
+        ...Object.fromEntries(Object.entries(PROFILE_BREAKDOWNS).map(([key, field]) => [
+          key,
+          byCountDescending(tally(farmers, (f) => {
+            const value = normaliseProfile(f.profile)[field]
+            return Array.isArray(value) ? value : String(value ?? 'unknown')
+          })),
+        ])),
+        bankAccount: tally(farmers, (f) => { const v = normaliseProfile(f.profile).hasBankAccount; return v === null ? 'unknown' : v ? 'yes' : 'no' }),
         byAgent: agents.map((agent) => ({
           agentId: agent.loginId,
           name: agent.name,
@@ -94,6 +104,7 @@ export function statsRoutes(ctx) {
           farmSizeEntered: acres ?? '', farmSizeUnit: acres === null ? '' : 'acres',
           crops: (f.crops ?? []).join(';'), lat: f.gps?.lat, lng: f.gps?.lng, accuracyMetres: f.gps?.accuracy,
           registeredAt: f.registeredAt, createdAt: f.createdAt, registeredBy: store.users.get(f.registeredBy)?.loginId,
+          ...Object.fromEntries(Object.entries(normaliseProfile(f.profile)).map(([name, value]) => [name, profileCell(value)])),
         }
       })
 

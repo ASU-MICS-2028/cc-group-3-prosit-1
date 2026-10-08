@@ -86,8 +86,28 @@ Roles: `agent`, `coordinator`. A `farmer` token gets 403.
 | `gps` | `{ lat, lng, accuracy, capturedAt } \| null` | `gps_lat`, `gps_lng`, `gps_accuracy_m`, `gps_captured_at` | `accuracy` in metres, `capturedAt` ISO 8601. |
 | `consent` | boolean | `consent` | Always `true`: the PWA will not send without it. |
 | `registeredAt` | ISO 8601 | `registered_at`, and `consent_at` when `consent` is true | When it happened on the phone, not when it arrived. |
+| `profile` | object \| absent | profile columns (migration 004) | Optional. See "Farmer profile" below. |
 
 Responses: see the status table above. The success body is `{ "id": <server id> }`. The PWA marks the farmer **Sent** on 200 or 201, **Needs attention** (showing `message`) on any other 4xx, and keeps the record **Saved on phone** and retries on 408, 429, 5xx or no response.
+
+### Farmer profile
+
+The Prosit brief's "Real Data Requirements" ask for farm details, technology access, a financial profile, extension history and needs. They travel as one optional `profile` object; every field may be missing or null (lists may be empty). `GET /farmers/:id` and `GET /farmers/me` return it with every field present.
+
+| Field | Values | Column |
+|-------|--------|--------|
+| `soilType` | `loamy`, `sandy`, `clay`, `silt`, `unknown` | `soil_type` |
+| `seasons` | list of `major`, `minor`, `dry` | `seasons` |
+| `phoneType` | `smartphone`, `feature`, `none` | `phone_type` |
+| `dataPlan` | `none`, `daily`, `weekly`, `monthly` | `data_plan` |
+| `contactChannel` | `app`, `sms`, `call`, `whatsapp`, `agent` | `contact_channel` |
+| `incomeSources` | list of `crops`, `livestock`, `trading`, `wage`, `remittance`, `other` | `income_sources` |
+| `hasBankAccount` | `true`, `false` | `has_bank_account` |
+| `mobileMoney` | `none`, `sometimes`, `regular` | `mobile_money_use` |
+| `needs` | list of `inputs`, `credit`, `market`, `training`, `storage`, `irrigation`, `pests`, `weather` | `needs` |
+| `extensionVisit` | `never`, `this_year`, `over_a_year` | `last_extension_visit` |
+
+A value outside a list is 400 `invalid_request` with `field: "profile.<name>"`. `GET /admin/stats` adds `byPhoneType`, `byContactChannel`, `byMobileMoney`, `byNeed`, `bySoilType`, `byExtensionVisit` and `bankAccount`, and the farmers CSV gains one column per field (lists joined with `;`, booleans as `yes`/`no`).
 
 ## `POST /farmers/:id/photo`
 

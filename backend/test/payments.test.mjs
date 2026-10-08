@@ -229,7 +229,7 @@ describe('feedback', () => {
     const t = await boot()
     expect((await t.call('GET', '/admin/activity?type=feedback', { token: await t.agent() })).status).toBe(403)
     const admin = await t.admin()
-    expect((await t.call('GET', '/admin/activity?type=cropcheck', { token: admin })).body).toEqual({ items: [] })
+    expect((await t.call('GET', '/admin/activity?type=cropcheck', { token: admin })).body).toEqual({ items: [], total: 0 })
     expect((await t.call('GET', '/admin/activity?type=other', { token: admin })).status).toBe(400)
   })
 })

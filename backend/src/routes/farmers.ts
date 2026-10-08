@@ -2,6 +2,7 @@ import express, { type Express } from 'express'
 import { actorOf, nowDate, type Ctx } from '../context.js'
 import { iso, num, pgError, type Queryable, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
+import { PROFILE_COLUMN_NAMES, profileColumns, profileView } from '../profile.js'
 import { isUuid, requireAuth, type Claims } from '../security.js'
 
 const STAFF = ['agent', 'coordinator'] as const
@@ -42,6 +43,7 @@ export function farmerView(row: Row) {
     createdAt: iso(row.created_at),
     registeredBy: row.created_by,
     hasPhoto: row.photo_object_key !== null,
+    profile: profileView(row),
   }
 }
 
@@ -90,6 +92,7 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
       const crops: unknown[] = Array.isArray(f.crops) ? f.crops : []
       const registeredAt = f.registeredAt ?? nowDate(ctx).toISOString()
       const consent = f.consent === true
+      const profile = profileColumns(f.profile)
 
       try {
         const id = await db.tx(actorOf(claims), async (q) => {
@@ -98,8 +101,9 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
                (client_id, name, country_code, phone_national, language, gender, community, region,
                 farm_size_entered, farm_size_unit, farm_size_hectares,
                 gps_lat, gps_lng, gps_accuracy_m, gps_captured_at,
-                consent, consent_at, registered_at, created_by, updated_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
+                consent, consent_at, registered_at, created_by, updated_by, ${PROFILE_COLUMN_NAMES.join(', ')})
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19,
+                     ${PROFILE_COLUMN_NAMES.map((_, i) => `$${20 + i}`).join(', ')})
              RETURNING id`,
             [
               f.clientId, String(f.name).trim(), f.countryCode, f.phoneNational, f.preferredLanguage ?? null, f.gender ?? null,
@@ -107,6 +111,7 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
               acres, acres === null ? null : 'acres', acres === null ? null : acres * ACRES_TO_HECTARES,
               f.gps?.lat ?? null, f.gps?.lng ?? null, f.gps?.accuracy ?? null, f.gps?.capturedAt ?? null,
               consent, consent ? registeredAt : null, registeredAt, claims.sub,
+              ...profile,
             ],
           )
           const farmerId = rows[0]?.id
