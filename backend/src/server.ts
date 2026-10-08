@@ -8,6 +8,7 @@ import { migrate } from './migrate.js'
 import { optionalSecret } from './secrets.js'
 import { createSigner } from './security.js'
 import { seedAdmin, seedDemoAccounts, type AdminSeed } from './seed.js'
+import { webPushSender, type VapidKeys } from './push.js'
 
 const config = loadConfig()
 // Fail fast: a missing database setting should stop the boot, not surface as a 500 later.
@@ -29,12 +30,16 @@ if (!config.photoBucket) logger.warn('PHOTO_BUCKET not set: photos are kept in m
 if (!config.jwtSecretArn) logger.warn('JWT_SECRET_ARN not set: using a throwaway signing key')
 if (config.authTestMode) logger.warn('AUTH_TEST_MODE=true: sign-in codes are returned in responses')
 
+const vapid = await optionalSecret<VapidKeys>(config, config.vapidSecretArn)
+if (!vapid) logger.warn('VAPID_SECRET_ARN not set or empty: push notifications are off')
+
 const app = createApp({
   db,
   signer: await createSigner(config),
   sms: arkeselSms(config),
   storage: config.photoBucket ? s3Storage({ ...config, photoBucket: config.photoBucket }) : memoryStorage(),
   checkout: config.votexSecretArn ? votexProvider(config) : null,
+  push: vapid?.public_key && vapid.private_key ? webPushSender({ ...vapid, subject: vapid.subject || 'mailto:admin@agroconnect.space' }) : null,
   settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins },
   now: Date.now,
 })

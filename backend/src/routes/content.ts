@@ -4,6 +4,7 @@ import { iso, num } from '../db.js'
 import { HttpError, invalid, jsonBody, route } from '../http.js'
 import { requireAuth } from '../security.js'
 import { accraDay } from '../time.js'
+import { notifyFarmers } from '../push.js'
 
 const CURRENCY: Record<string, string> = { GH: 'GHS', NG: 'NGN', KE: 'KES' }
 const EDITORS = ['admin', 'coordinator'] as const
@@ -109,6 +110,7 @@ export function contentRoutes(app: Express, ctx: Ctx): void {
           [body.crop, title, cardBody, claims.name ?? '', nowDate(ctx), claims.sub],
         ),
       )
+      void notifyFarmers(ctx, 'newAdvice', { title }, '/?tab=advice')
       return [201, rows[0]]
     }),
   )

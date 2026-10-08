@@ -14,6 +14,8 @@ export interface Config {
   pwaOrigins: string[]
   /** When true, sign-in codes come back in the response and no SMS is sent. Must be false in production. */
   authTestMode: boolean
+  /** VAPID keys for Web Push ({ public_key, private_key, subject }). Unset: notifications off. */
+  vapidSecretArn: string | null
   jwtSecretArn: string | null
   smsSecretArn: string | null
   photoBucket: string | null
@@ -45,6 +47,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     region: env.AWS_REGION || 'af-south-1',
     pwaOrigins: list(env.PWA_ORIGINS ?? 'http://localhost:5173'),
     authTestMode: flag(env.AUTH_TEST_MODE, false),
+    vapidSecretArn: env.VAPID_SECRET_ARN || null,
     jwtSecretArn: env.JWT_SECRET_ARN || null,
     smsSecretArn: env.SMS_SECRET_ARN || null,
     photoBucket: env.PHOTO_BUCKET || null,

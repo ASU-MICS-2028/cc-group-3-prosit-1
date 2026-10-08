@@ -50,3 +50,48 @@ self.addEventListener('sync', (event) => {
   const sync = event as SyncEvent
   if (sync.tag === SYNC_TAG) sync.waitUntil(backgroundSync())
 })
+
+// Push notifications (PWA guide). The API sends { title, body, url, tag }; see backend/src/push.ts.
+interface PushData {
+  title?: string
+  body?: string
+  url?: string
+  tag?: string
+}
+
+self.addEventListener('push', (event) => {
+  const push = event as PushEvent
+  let data: PushData = {}
+  try {
+    data = push.data?.json() as PushData
+  } catch {
+    data = { body: push.data?.text() }
+  }
+  push.waitUntil(
+    self.registration.showNotification(data.title ?? 'AgroConnect', {
+      body: data.body ?? '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: data.tag,
+      data: { url: data.url ?? '/' },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  const click = event as NotificationEvent
+  click.notification.close()
+  const url = new URL((click.notification.data as { url?: string } | null)?.url ?? '/', self.location.origin).href
+  click.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const open = windows.find((client) => new URL(client.url).origin === self.location.origin)
+      if (open) {
+        await open.focus()
+        if ('navigate' in open) await (open as WindowClient).navigate(url)
+        return
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})

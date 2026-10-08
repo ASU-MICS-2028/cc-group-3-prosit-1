@@ -158,3 +158,9 @@ variable "image_tag_param_arn" {
   description = "ARN of the image-tag parameter (EC2 role gets ssm:GetParameter on just this one)."
   default     = ""
 }
+
+variable "vapid_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN of the Web Push VAPID keys ({ public_key, private_key, subject }). Passed as VAPID_SECRET_ARN."
+  default     = ""
+}

@@ -497,5 +497,11 @@
   "profile.seasons": "Ɣeyiɣi siwo me wodoa nu",
   "profile.season.major": "Tsidzaɣi gãtɔ",
   "profile.season.minor": "Tsidzaɣi suetɔ",
-  "profile.season.dry": "Keleŋɔli (tsi kuku)"
+  "profile.season.dry": "Keleŋɔli (tsi kuku)",
+  "push.title": "Nyanyuiwo",
+  "push.hint": "Xɔ gbedasi le fon sia dzi ne woɖo wò nuku dodokpɔ ŋu, gafexexe aɖe wu enu alo aɖaŋuɖoɖo yeye va, ne app la tu hã.",
+  "push.turnOn": "Ʋu nyanyuiwo",
+  "push.turnOff": "Tu nyanyuiwo",
+  "push.on": "Nyanyuiwo le dɔ wɔm le fon sia dzi.",
+  "push.blocked": "Wotsi tre ɖe nyanyuiwo nu. Ɖe mɔ na app sia le fon la ƒe settings me."
 }

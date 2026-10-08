@@ -497,5 +497,11 @@
   "profile.seasons": "Growing seasons",
   "profile.season.major": "Major rainy season",
   "profile.season.minor": "Minor rainy season",
-  "profile.season.dry": "Dry season (irrigated)"
+  "profile.season.dry": "Dry season (irrigated)",
+  "push.title": "Notifications",
+  "push.hint": "Get a message on this phone when your crop check is answered, a payment finishes or new advice arrives, even with the app closed.",
+  "push.turnOn": "Turn on notifications",
+  "push.turnOff": "Turn off notifications",
+  "push.on": "Notifications are on for this phone.",
+  "push.blocked": "Notifications are blocked. Allow them for this app in the phone's settings."
 }

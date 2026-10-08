@@ -25,6 +25,13 @@ resource "aws_secretsmanager_secret" "votex365" {
   recovery_window_in_days = 0
 }
 
+# Web Push keys (VAPID). Generated once with `npx web-push generate-vapid-keys --json`.
+resource "aws_secretsmanager_secret" "vapid" {
+  name                    = "${var.name_prefix}-vapid"
+  description             = "Web Push VAPID keys — JSON { public_key, private_key, subject }"
+  recovery_window_in_days = 0
+}
+
 # The first administrator. AUTH-CONTRACT: admins are seeded, never created through the API.
 resource "aws_secretsmanager_secret" "admin_seed" {
   name                    = "${var.name_prefix}-admin-seed"

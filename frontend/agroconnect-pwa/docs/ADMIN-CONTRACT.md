@@ -119,6 +119,12 @@ Admin only; any other `type` is 400. `type=feedback` returns `{ "items": [{ "id"
 
 The same idempotency pattern as farmers: a `feedback` table with `client_id UUID UNIQUE`, insert, catch `23505` on that constraint, and answer 200 with the existing record. The PWA saves feedback offline and sends it later, so repeats are normal. Store the sender's user ID from the token in `created_by`.
 
+## Push notifications (any signed-in role)
+
+`GET /push/key` → `{ "publicKey" }` (the VAPID key, base64url), or 404 when the server has no keys (notifications off). `POST /push/subscriptions` with the browser's `PushSubscription.toJSON()` (`{ endpoint, keys: { p256dh, auth } }`) → 201; an endpoint already stored moves to the caller. `POST /push/subscriptions/delete` `{ endpoint }` → 204.
+
+The server pushes `{ title, body, url, tag }`, in the farmer's language where known, when: a crop check is answered (to the farmer), a votex365 payment succeeds or fails (to the farmer), advice is published (to every subscribed farmer), and an agent is approved (to the agent, with their new ID). Pushes are best effort and never fail the request that caused them; a subscription the push service reports gone (404/410) is deleted. Stored in `push_subscriptions` (migration 007).
+
 ## Tables this contract adds
 
 `agent_sync_status`, `feedback`, and the audit trigger on `users` (from `AUTH-CONTRACT.md`). Nothing here changes the farmer tables in `DATA-CONTRACT.md`.

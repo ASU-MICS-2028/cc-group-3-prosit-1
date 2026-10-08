@@ -5,6 +5,7 @@ import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { isUuid, requireAuth, type Claims } from '../security.js'
 import { pageParams, totalOf } from '../pagination.js'
 import { isJpeg, rawPhoto } from './farmers.js'
+import { notifyUser } from '../push.js'
 
 const FIELD_STAFF = ['agent', 'coordinator'] as const
 const MAX_TEXT_LENGTH = 500
@@ -175,6 +176,7 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
         ),
       )
       if (rows.length === 0) throw new HttpError(409, 'already_answered', 'This crop check already has advice')
+      void notifyUser(ctx, check.farmer_user_id, 'cropCheckAnswered', {}, '/?tab=advice')
       return [200, checks.view(await checkFor(claims, String(check.id)))]
     }),
   )
