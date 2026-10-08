@@ -1,4 +1,5 @@
 import { HttpError, readBuffer, readJson } from '../http.mjs'
+import { normaliseProfile } from '../profile.mjs'
 import { requireAuth } from '../security.mjs'
 
 const STAFF = ['agent', 'coordinator']
@@ -23,6 +24,7 @@ export function farmerRoutes({ store, config }) {
       }
 
       const phoneE164 = body.countryCode + body.phoneNational
+      const profile = normaliseProfile(body.profile)
       const sameClientId = all().find((f) => f.clientId === body.clientId)
       if (sameClientId) return [200, { id: sameClientId.id }]
       if (all().some((f) => f.phoneE164 === phoneE164)) {
@@ -32,6 +34,7 @@ export function farmerRoutes({ store, config }) {
       const id = String(store.counters.serverId++)
       store.farmers.set(id, {
         ...body,
+        profile,
         id,
         phoneE164,
         registeredBy: claims.sub,

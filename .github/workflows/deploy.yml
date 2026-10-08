@@ -100,3 +100,18 @@ jobs:
             sleep 15
           done
           echo "Timed out waiting for instance refresh."; exit 1
+
+      # After the refresh, the live API must answer on its public hostname. A failure here
+      # marks the deploy red; roll back by pinning an earlier SHA and refreshing (infra/README.md).
+      - name: Smoke-test the live API
+        run: |
+          set -euo pipefail
+          for url in https://api.agroconnect.space/health https://api.agroconnect.space/ready; do
+            ok=0
+            for _ in $(seq 1 20); do
+              if curl -fsS "$url"; then ok=1; break; fi
+              sleep 3
+            done
+            [ "$ok" = 1 ] || { echo "smoke test failed: $url" >&2; exit 1; }
+          done
+          echo "API is healthy and ready."

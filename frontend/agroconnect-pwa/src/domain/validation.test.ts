@@ -67,7 +67,8 @@ describe('validateStep', () => {
   })
 
   it('requires consent in step 3', () => {
-    expect(validateStep(3, { ...valid, consent: false })).toEqual({ consent: 'consentRequired' })
+    expect(validateStep(3, { ...valid, consent: false })).toEqual({})
+    expect(validateStep(4, { ...valid, consent: false })).toEqual({ consent: 'consentRequired' })
   })
 
   it('treats photo and GPS as optional', () => {
@@ -79,7 +80,7 @@ describe('firstStepWithError', () => {
   it('points at the earliest step with a problem', () => {
     expect(firstStepWithError({ consent: 'consentRequired', phone: 'phoneInvalid' })).toBe(1)
     expect(firstStepWithError({ farmSize: 'farmSizeInvalid', consent: 'consentRequired' })).toBe(2)
-    expect(firstStepWithError({ consent: 'consentRequired' })).toBe(3)
+    expect(firstStepWithError({ consent: 'consentRequired' })).toBe(4)
   })
 })
 

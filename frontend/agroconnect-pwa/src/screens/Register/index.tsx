@@ -11,12 +11,13 @@ import { useT } from '../../i18n/context'
 import { requestSync } from '../../sync/syncQueue'
 import { Step1Who } from './Step1Who'
 import { Step2Farm } from './Step2Farm'
+import { Step3Access } from './Step3Access'
 import { Step3Proof } from './Step3Proof'
 import type { StepProps } from './stepProps'
 import { useRegistrationDraft } from './useRegistrationDraft'
 
-const STEPS = [1, 2, 3] as const
-const STEP_TITLES = { 1: 'reg.step1', 2: 'reg.step2', 3: 'reg.step3' } as const
+const STEPS = [1, 2, 3, 4] as const
+const STEP_TITLES = { 1: 'reg.step1', 2: 'reg.step2', 3: 'profile.step', 4: 'reg.step3' } as const
 const TOAST_MS = 2500
 
 interface RegisterProps {
@@ -73,7 +74,7 @@ export function Register({ onSaved }: RegisterProps) {
     if (!draft) return
     const found = validateStep(draft.step, draft)
     setErrors(found)
-    if (Object.keys(found).length === 0 && draft.step < 3) goToStep((draft.step + 1) as RegistrationStep)
+    if (Object.keys(found).length === 0 && draft.step < STEPS.length) goToStep((draft.step + 1) as RegistrationStep)
   }
 
   async function save(registerNext: boolean) {
@@ -123,7 +124,8 @@ export function Register({ onSaved }: RegisterProps) {
       <main className="screen-body">
         {step === 1 && <Step1Who {...stepProps} />}
         {step === 2 && <Step2Farm {...stepProps} />}
-        {step === 3 && <Step3Proof {...stepProps} />}
+        {step === 3 && <Step3Access {...stepProps} />}
+        {step === 4 && <Step3Proof {...stepProps} />}
 
         {saveFailed && (
           <p className="note" role="alert">
@@ -131,7 +133,7 @@ export function Register({ onSaved }: RegisterProps) {
           </p>
         )}
 
-        {step < 3 ? (
+        {step < STEPS.length ? (
           <Button variant="main" onClick={goNext}>
             {t('reg.next')}
           </Button>

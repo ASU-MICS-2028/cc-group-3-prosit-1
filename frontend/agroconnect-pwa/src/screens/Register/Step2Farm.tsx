@@ -1,12 +1,16 @@
+import { ChoiceChips } from '../../components/ChoiceChips'
 import { CropChip } from '../../components/CropChip'
 import { Field } from '../../components/Field'
 import { CROP_IDS, type CropId } from '../../domain/farmer'
+import { EMPTY_PROFILE, PROFILE_OPTIONS, type FarmerProfile } from '../../domain/profile'
 import { REGIONS } from '../../domain/regions'
 import { useT } from '../../i18n/context'
 import type { StepProps } from './stepProps'
 
 export function Step2Farm({ draft, update, errors }: StepProps) {
   const { t } = useT()
+  const profile = draft.profile ?? EMPTY_PROFILE
+  const setProfile = (patch: Partial<FarmerProfile>) => update({ profile: { ...profile, ...patch } })
 
   function toggleCrop(crop: CropId) {
     const crops = draft.crops.includes(crop) ? draft.crops.filter((c) => c !== crop) : [...draft.crops, crop]
@@ -58,6 +62,9 @@ export function Step2Farm({ draft, update, errors }: StepProps) {
           ))}
         </div>
       </fieldset>
+
+      <ChoiceChips legend="profile.soilType" options={PROFILE_OPTIONS.soilType} prefix="profile.soil" value={profile.soilType} onChange={(v) => setProfile({ soilType: v as FarmerProfile['soilType'] })} />
+      <ChoiceChips legend="profile.seasons" hint="reg.cropsHint" options={PROFILE_OPTIONS.seasons} prefix="profile.season" value={profile.seasons} onChange={(v) => setProfile({ seasons: v as FarmerProfile['seasons'] })} />
     </div>
   )
 }

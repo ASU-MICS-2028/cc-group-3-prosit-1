@@ -4,6 +4,7 @@ import { splitPhone } from '../domain/phone'
 import { parseFarmSize } from '../domain/validation'
 import { RejectedError } from '../lib/http'
 import { jsonPost, send, sendJson } from './send'
+import { EMPTY_PROFILE } from '../domain/profile'
 
 export { NetworkError, RejectedError, ServerError, UnauthorizedError } from '../lib/http'
 
@@ -24,6 +25,7 @@ function toPayload(farmer: Farmer) {
     crops: farmer.crops,
     gps: farmer.gps && { ...farmer.gps, capturedAt: new Date(farmer.gps.capturedAt).toISOString() },
     consent: farmer.consent,
+    profile: farmer.profile ?? EMPTY_PROFILE,
     registeredAt: new Date(farmer.createdAt).toISOString(),
   }
 }

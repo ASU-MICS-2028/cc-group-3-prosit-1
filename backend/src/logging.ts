@@ -1,4 +1,4 @@
-import { pino, type Logger } from 'pino'
+import { pino, type DestinationStream, type Logger } from 'pino'
 
 /**
  * JSON logs for CloudWatch. The level comes from LOG_LEVEL, defaulting to "silent" under test so the
@@ -10,12 +10,13 @@ export function defaultLogLevel(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /** Authorization headers and cookies never belong in a log line; everything else is structured JSON. */
-export function createLogger(level: string = defaultLogLevel()): Logger {
-  return pino({
+export function createLogger(level: string = defaultLogLevel(), destination?: DestinationStream): Logger {
+  const options = {
     level,
     base: { service: 'agroconnect-api' },
     redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], remove: true },
-  })
+  }
+  return destination ? pino(options, destination) : pino(options)
 }
 
 export const logger = createLogger()

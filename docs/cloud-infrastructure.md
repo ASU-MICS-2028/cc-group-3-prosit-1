@@ -10,7 +10,7 @@
 
 ## 1. Architectural Overview & Design Philosophy
 
-AgroConnect Ghana runs a dual-AZ, highly available cloud infrastructure managed 100% declaratively through HashiCorp Terraform (`>= 1.6`).
+AgroConnect Ghana runs a dual-AZ, highly available cloud infrastructure managed 100% declaratively through HashiCorp Terraform (`>= 1.10`).
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -34,13 +34,13 @@ AgroConnect Ghana runs a dual-AZ, highly available cloud infrastructure managed 
 │     └── PostgreSQL / Amazon RDS (db.t4g.micro, isolated, no IGW route)│
 │                                                                        │
 │   [Storage & Security & Observability (Regional Services)]             │
-│     ├── Amazon S3: Media Bucket (agroconnect-media-*, encrypted)       │
+│     ├── Amazon S3: Media Bucket (agroconnect-dev-media, encrypted)     │
 │     ├── AWS Secrets Manager: DB master creds & Arkesel SMS key         │
 │     ├── CloudWatch Logs: /agroconnect-dev/app log group                │
 │     ├── CloudWatch Alarms: ALB (5xx, latency, health), ASG, RDS, EC2   │
 │     ├── SNS Topic: agroconnect-dev-alarms (fan-out email alerts)       │
-│     ├── CloudWatch Dashboard: agroconnect-dev-operational              │
-│     └── AWS Budgets: $10/mo guardrail (80% forecast, 100% actual)      │
+│     ├── CloudWatch Dashboard: agroconnect-dev-overview                 │
+│     └── AWS Budgets: $100/mo guardrail (50% forecast, 100% actual)     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -138,13 +138,13 @@ State is stored centrally in Amazon S3 (`agroconnect-tfstate-<account-id>`, key 
 * Ingress is restricted via `data-sg` to accept port 5432 exclusively from `app-sg`.
 
 #### 7. `modules/storage` (Amazon S3 Media Bucket)
-* Provisions `agroconnect-media-<account-id>` for offloading farmer identification photos and field verification media.
+* Provisions `agroconnect-dev-media` for offloading farmer identification photos and field verification media.
 * Enforces AES256 server-side encryption and bucket versioning.
 * Blocks all public access (4/4 S3 block public access settings enabled).
 * Implements a lifecycle rule automatically aborting incomplete multipart uploads after 7 days.
 
 #### 8. `modules/secrets` (AWS Secrets Manager)
-* Manages sensitive third-party integration secrets, including Arkesel SMS API credentials (`agroconnect/dev/arkesel`), populated out-of-band.
+* Manages sensitive third-party integration secrets, including Arkesel SMS API credentials (`agroconnect-dev-arkesel-sms`), populated out-of-band.
 * Grants least-privilege read access strictly to the EC2 application instance role.
 
 #### 9. `modules/observability` (CloudWatch & Alerts)
@@ -160,8 +160,8 @@ State is stored centrally in Amazon S3 (`agroconnect-tfstate-<account-id>`, key 
 * **EC2 Host Alarms:**
   * `nat_status_check`: Alerts on `fck-nat` system status check failures (private egress failure).
   * `asg_status_check`: Alerts if any ASG EC2 instance fails host checks.
-* **Operational Dashboard:** Provisions CloudWatch Dashboard `agroconnect-dev-operational` visualizing ALB request volume, latency, HTTP status codes, EC2 CPU, ASG capacity, RDS memory/connections/IOPS, and live container logs.
-* **Monthly Budget Guardrail:** Provisions an AWS Budget ($10/month) with dual alerts: a warning at 80% forecasted spend and a critical alert at 100% actual spend dispatched to SNS and email.
+* **Operational Dashboard:** Provisions CloudWatch Dashboard `agroconnect-dev-overview` visualizing ALB request volume, latency, HTTP status codes, EC2 CPU, ASG capacity, RDS memory/connections/IOPS, and live container logs.
+* **Monthly Budget Guardrail:** Provisions an AWS Budget ($100/month) with dual alerts: a warning at 50% forecasted spend and a critical alert at 100% actual spend dispatched to SNS and email.
 
 #### 10. `modules/cicd`
 * Establishes an AWS IAM OpenID Connect (OIDC) identity provider for GitHub Actions (`token.actions.githubusercontent.com`).
@@ -214,7 +214,7 @@ AgroConnect is architected to operate well within student and smallholder agricu
 | Public IPv4 Address | 1× In-use public IPv4 on NAT ENI (\$0.005/hr) | ~\$3.60 |
 | **Total Baseline Cost** | | **~\$27.00 – \$51.60 / month** |
 
-*Cost Protection:* AWS Budgets is configured with a strict **\$10/month guardrail** (`agroconnect-dev-monthly-budget`) triggering automated warning emails at 80% forecasted spend and critical alerts at 100% actual spend via Amazon SNS.
+*Cost Protection:* AWS Budgets is configured with a strict **\$100/month guardrail** (`agroconnect-dev-monthly-budget`) triggering automated warning emails at 50% forecasted spend and critical alerts at 100% actual spend via Amazon SNS.
 
 ---
 
