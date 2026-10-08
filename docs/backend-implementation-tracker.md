@@ -35,20 +35,20 @@ against the code on `main`**, not against intentions.
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Requirements & Architecture Baseline | 🟡 | Contracts + ADRs recorded; pagination and rate-limit conventions still open |
-| 1 — Backend Project Foundation | 🟡 | App/errors/CORS/health done; headers, structured logs, request IDs, `/ready`, `.env.example` left |
-| 2 — Database & Migration | 🟡 | Schema + triggers + migration runner done; extra indexes, delete policy, rollback strategy left |
-| 3 — Authentication | 🟢 | Full RS256 auth, OTP, PIN, lockout, JWKS, test mode; two minor decisions open (🔴) |
-| 4 — Authorization & Access Control | 🟡 | Role gates done; per-association scoping of `GET /farmers/:id` + photo left |
-| 5 — Farmer Profile API | 🟡 | Registration + read done; in-route enum validation left |
+| 1 — Backend Project Foundation | 🟢 | Complete (PR #34) |
+| 2 — Database & Migration | 🟢 | Complete (PR #35) |
+| 3 — Authentication | 🟢 | Complete (PR #37); logout/revocation and password change stay out of contract |
+| 4 — Authorization & Access Control | 🟢 | Complete (PR #38) |
+| 5 — Farmer Profile API | 🟢 | Complete (PR #39) |
 | 6 — Offline Sync & Idempotency | 🟢 | `client_id NOT NULL UNIQUE` insert-and-catch everywhere, concurrency tested |
-| 7 — Photo Storage | 🟡 | S3 + size limits done; JPEG content validation + ownership scoping left |
-| 8 — Rate Limiting & Abuse Protection | 🟡 | OTP + account lockout done; global/IP limits left |
-| 9 — Admin & Coordinator API | 🟡 | Whole surface done except `GET /admin/farmers/:id` |
+| 7 — Photo Storage | 🟡 | JPEG validation + ownership done (PR #44, in review) |
+| 8 — Rate Limiting & Abuse Protection | 🟡 | Global + auth per-IP limits done (PR #41, in review) |
+| 9 — Admin & Coordinator API | 🟡 | `GET /admin/farmers/:id` done (PR #43, in review) |
 | 10 — Pagination, Filtering & Query Performance | 🟡 | Farmers + audit paginate (in memory); uniform pagination/sorting left |
 | 11 — Feedback API | 🟡 | Endpoint done; audit trail left |
-| 12 — Audit & Observability | 🟡 | DB audit + CloudWatch done; structured logs, request/error IDs, log levels left |
+| 12 — Audit & Observability | 🟡 | DB audit + CloudWatch + structured logs/IDs done; log levels left |
 | 13 — AWS Infrastructure | 🟢 | Everything live is `af-south-1`; only Amplify stays `eu-west-1` (ADR-009). Some docs stale |
-| 14 — Production Deployment | 🟡 | HTTPS, domain, rollback, OIDC deploy done; `/ready` and post-deploy smoke left |
+| 14 — Production Deployment | 🟡 | HTTPS, domain, rollback, OIDC deploy done; post-deploy smoke left |
 | 15 — Testing & Production Readiness | 🟡 | Strong integration tests; unit, pagination, rate-limit, backup/restore left |
 
 ---
@@ -78,23 +78,23 @@ against the code on `main`**, not against intentions.
 
 - [x] Node.js/Express application structure
 - [x] Environment configuration
-- [ ] `.env.example`
-- [~] Configuration validation _(loads config; fail-fast validation left)_
+- [x] `.env.example`
+- [x] Configuration validation _(fail-fast before the first connection)_
 - [x] Centralized error-handling middleware
 - [x] 404/not-found handling
 - [x] Request validation middleware _(per-route; no shared schema library)_
-- [ ] Security headers
+- [x] Security headers _(helmet)_
 - [x] CORS configuration
 - [x] Request/body size limits
-- [ ] Structured logging
-- [ ] Request/correlation ID
-- [~] Graceful shutdown _(SIGTERM only; SIGINT + force-exit timeout left)_
+- [x] Structured logging _(pino JSON)_
+- [x] Request/correlation ID _(`X-Request-Id`)_
+- [x] Graceful shutdown _(SIGTERM + SIGINT, force-exit timeout)_
 - [x] `/health`
-- [ ] `/ready` or readiness check
-- [x] Production error responses _(error IDs left)_
+- [x] `/ready` or readiness check
+- [x] Production error responses _(with error IDs)_
 - [x] Ensure sensitive information is not exposed in errors/logs
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #34)
 
 ---
 
@@ -121,13 +121,13 @@ against the code on `main`**, not against intentions.
 - [x] `updated_by`
 - [x] `audit_log`
 - [x] Audit triggers
-- [~] Required indexes _(only `farmers_created_by_idx`, `payments_farmer_idx`; more left)_
+- [x] Required indexes _(migration 003 adds the audit, list and join indexes)_
 - [x] Foreign keys
-- [~] Delete/update behaviour _(only two `ON DELETE CASCADE`; explicit policy left)_
+- [x] Delete/update behaviour _(user/association FKs are ON DELETE RESTRICT; the two intentional CASCADEs remain)_
 - [x] Database migration testing
-- [ ] Rollback strategy
+- [x] Rollback strategy _(forward-only; documented in `db/README.md`)_
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #35)
 
 ---
 
@@ -156,11 +156,11 @@ against the code on `main`**, not against intentions.
 - [x] Account status handling
 - [x] `AUTH_TEST_MODE`
 - [x] Ensure test codes never appear in production
-- [ ] Staff login returns `attemptsLeft` / `retryAfterSeconds` (parity with farmer login)
-- 🔴 Decision: farmer suspension on `/auth/refresh` (staff are blocked, farmers are not)
+- [x] Staff login returns `attemptsLeft` / `retryAfterSeconds` (parity with farmer login)
+- [x] Farmer suspension enforced on `/auth/refresh` (any non-approved account is refused)
 - 🔴 Decision: logout / token revocation and PIN/password change — **not in AUTH-CONTRACT**
 
-**Status:** 🟢 Verified (two open decisions above)
+**Status:** 🟢 Verified (PR #37)
 
 ---
 
@@ -176,13 +176,13 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Farmer permissions
 - [x] Coordinator permissions
 - [x] Admin permissions
-- [~] Association scoping _(lists scoped; `GET /farmers/:id` and photo upload are not)_
+- [x] Association scoping _(lists, `GET /farmers/:id` and photo upload)_
 - [x] 403 handling
 - [x] 404-forbidden-resource behaviour where required
 - [x] Prevent privilege escalation
 - [x] Ensure `registeredBy` comes from the token, not the PWA
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #38)
 
 ---
 
@@ -194,8 +194,8 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Request validation
 - [x] `clientId`
 - [x] Phone handling
-- [~] Gender _(stored + DB CHECK; in-route validation left)_
-- [~] Language _(stored + DB CHECK; in-route validation left)_
+- [x] Gender
+- [x] Language
 - [x] Community/region
 - [x] Farm size
 - [x] Crops
@@ -211,7 +211,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] `GET /farmers/me`
 - 🔴 Decision: `PATCH /farmers/:id` (update) is **not in API-CONTRACT**
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #39)
 
 ---
 
