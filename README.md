@@ -6,6 +6,14 @@
 
 AgroConnect Ghana is an offline-first agricultural profiling and registration platform designed for field extension agents operating in rural communities across Ghana where cellular connectivity is intermittent or unavailable.
 
+## Walkthrough Video
+
+A 2½-minute recording of the live app at [`app.agroconnect.space`](https://app.agroconnect.space), as a farmer, a field agent, an admin and a coordinator. Click to watch:
+
+[![AgroConnect Ghana: live system walkthrough](./docs/assets/walkthrough-video-poster.png)](./scripts/demo-video/agroconnect-demo.mp4)
+
+How it is recorded (Playwright against the live site) and rebuilt: [`scripts/demo-video/`](./scripts/demo-video).
+
 ---
 
 ## Documentation Hub (`docs/`)
