@@ -160,6 +160,12 @@ CMD ["node", "dist/server.js"]
 * **Unprivileged Execution:** Runs as `USER node` instead of `root`, preventing container escape vulnerabilities.
 * **Lean Runtime Image:** Development dependencies (`typescript`, `@types/*`, `tsx`) are discarded after compilation; only compiled JavaScript in `dist/` and production dependencies ship in the runtime image (~120 MB).
 * **Deterministic Tagging:** Automated GitHub Actions workflows push dual tags (`:latest` and `:${{ github.sha }}`) to Amazon ECR (`agroconnect-dev-backend`) in `af-south-1`.
+* **Centralized CloudWatch Logging:** The container runs under Docker's native `awslogs` driver (`--log-driver=awslogs`), streaming stdout/stderr directly to CloudWatch log group `/${name_prefix}/app` under individual EC2 `INSTANCE_ID` streams. No logs are stored on ephemeral EC2 disk.
+* **Dynamic Secret & Environment Injection:**
+  * `DATABASE_URL`: Assembled on instance boot via EC2 user-data by pulling master credentials from AWS Secrets Manager.
+  * `PHOTO_BUCKET`: Injected with the Terraform-provisioned S3 media bucket name (`agroconnect-media-<account-id>`).
+  * `SMS_SECRET_ARN`: Injected with the AWS Secrets Manager ARN storing Arkesel SMS gateway credentials.
+  * `AWS_REGION`: Defaults to `af-south-1`.
 
 ---
 

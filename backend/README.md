@@ -22,6 +22,7 @@ Migrated from Python/FastAPI to **Node.js 24**, **Express 5**, and **TypeScript*
 * **Language:** TypeScript 7 (`^7.0.2`) with `NodeNext` module resolution
 * **Dev Runner:** `tsx` for live-reloading watch mode
 * **Containerization:** Multi-stage Alpine Dockerfile (`node:24-alpine`) running unprivileged as `USER node`
+* **Logging:** Native Docker `awslogs` driver shipping container stdout/stderr to Amazon CloudWatch Logs (`/agroconnect-dev/app`)
 
 ---
 
@@ -107,6 +108,6 @@ curl http://localhost:8000/health
 ## CI/CD Deployment Workflow
 
 1. **Pull Requests:** Evaluated by [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Installs dependencies (`npm ci`), builds TypeScript (`npm run build`), starts the compiled server, and verifies the `/health` endpoint.
-2. **Merge to `main`:** Deployed via [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml). Builds Docker image, pushes dual tags (`:latest` and `:${{ github.sha }}`) to Amazon ECR (`agroconnect-dev-backend`), and initiates an automated rolling instance refresh across the Auto Scaling Group in `af-south-1`.
+2. **Merge to `main`:** Deployed via [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml). Builds Docker image, pushes dual tags (`:latest` and `:${{ github.sha }}`) to Amazon ECR (`agroconnect-dev-backend`), and initiates an automated rolling instance refresh with concurrency retry protection (`InstanceRefreshInProgress`) across the Auto Scaling Group in `af-south-1`.
 
 *Full deep dive:* See [`../docs/api-tier.md`](../docs/api-tier.md) and [`../docs/ci-cd-and-operations.md`](../docs/ci-cd-and-operations.md).
