@@ -16,8 +16,11 @@
     "@aws-sdk/client-s3": "^3.1147.0",
     "@aws-sdk/client-secrets-manager": "^3.1147.0",
     "express": "^5.2.1",
+    "helmet": "^8.3.0",
     "jose": "^6.2.12",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

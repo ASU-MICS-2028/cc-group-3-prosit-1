@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, RequestHandler, Response } from 'express'
 import { pgError } from './db.js'
+import { logger } from './logging.js'
 
 /** Becomes `{ error: code, message, ...details }` with `status`, the error shape every contract uses. */
 export class HttpError extends Error {
@@ -44,7 +46,7 @@ export const jsonBody = (req: Request): Record<string, any> =>
 /** SQLSTATEs that mean "the request carried a bad value", whatever constraint caught it. */
 const BAD_VALUE_CODES = new Set(['23502', '23514', '22P02', '22003', '22007', '22008', '22023'])
 
-export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(error: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (error instanceof HttpError) {
     res.status(error.status).json({ error: error.code, message: error.message, ...error.details })
     return
@@ -63,6 +65,8 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     res.status(400).json({ error: 'invalid_request', message: 'Some of the data is not valid', ...(db.constraint && { constraint: db.constraint }) })
     return
   }
-  console.error('[http] unexpected error', error)
-  res.status(500).json({ error: 'server_error', message: 'Unexpected error' })
+  const errorId = randomUUID()
+  const requestId = (req as Request & { id?: string }).id
+  logger.error({ err: error, errorId, requestId }, 'unexpected error')
+  res.status(500).json({ error: 'server_error', message: 'Unexpected error', errorId, ...(requestId && { requestId }) })
 }

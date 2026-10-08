@@ -1,6 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
+import helmet from 'helmet'
+import { pinoHttp } from 'pino-http'
 import type { Ctx } from './context.js'
 import { errorHandler } from './http.js'
+import { logger } from './logging.js'
 import { adminRoutes } from './routes/admin.js'
 import { authRoutes } from './routes/auth.js'
 import { contentRoutes } from './routes/content.js'
@@ -27,13 +31,11 @@ function cors(origins: string[]) {
   }
 }
 
-/** One line per request to stdout (CloudWatch Logs). Never bodies: they hold phone numbers and PINs. */
-function requestLog(req: Request, res: Response, next: NextFunction) {
-  const started = performance.now()
-  res.on('finish', () => {
-    if (req.path === '/health') return
-    console.log(`${req.method} ${req.path} -> ${res.statusCode} ${Math.round(performance.now() - started)}ms`)
-  })
+/** Give every request an id (ours, or the caller's) and hand it back, so logs and errors can be correlated. */
+function requestId(req: Request, res: Response, next: NextFunction) {
+  const id = req.get('x-request-id') || randomUUID()
+  ;(req as Request & { id: string }).id = id
+  res.set('X-Request-Id', id)
   next()
 }
 
@@ -41,13 +43,33 @@ export function createApp(ctx: Ctx): Express {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', true)
-  app.use(requestLog)
+  app.use(requestId)
+  // One structured line per request (CloudWatch Logs). Bodies are never logged: they hold phone numbers and PINs.
+  app.use(
+    pinoHttp({
+      logger,
+      genReqId: (req) => (req as Request & { id?: string }).id ?? randomUUID(),
+      autoLogging: { ignore: (req) => req.url === '/health' || req.url === '/ready' },
+    }),
+  )
+  // The PWA calls this API cross-origin, so keep the resource policy open; there is no HTML to protect.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }))
   app.use(cors(ctx.settings.pwaOrigins))
   // Webhooks are verified against their raw bytes, so they must not be parsed as JSON here.
   const json = express.json({ limit: '100kb' })
   app.use((req, res, next) => (req.path.startsWith('/webhooks/') ? next() : json(req, res, next)))
 
   app.get('/', (_req, res) => void res.json({ service: 'agroconnect-api', status: 'ok' }))
+  // Liveness: the process is up (the ALB target group checks it). Readiness: the database answers too.
+  app.get('/ready', async (_req, res) => {
+    try {
+      await ctx.db.query('SELECT 1')
+      res.json({ status: 'ready' })
+    } catch (error) {
+      logger.error({ err: error }, 'readiness check failed')
+      res.status(503).json({ status: 'unavailable' })
+    }
+  })
   authRoutes(app, ctx)
   farmerRoutes(app, ctx)
   adminRoutes(app, ctx)
