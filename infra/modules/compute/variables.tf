@@ -167,6 +167,6 @@ variable "vapid_secret_arn" {
 
 variable "ussd_user_id" {
   type        = string
-  description = "Arkesel's userID for the USSD code (not a secret: it identifies the account). Empty turns POST /ussd off."
+  description = "USSD gateway userID (Nalo Solutions or Arkesel) for the USSD code (not a secret: it identifies the account). Empty turns POST /ussd off."
   default     = ""
 }

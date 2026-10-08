@@ -20,10 +20,10 @@ Prices and advice are the ones admins and coordinators enter (`CONTENT-CONTRACT.
 
 ## `POST /ussd` (gateway callback)
 
-Arkesel's USSD format: one POST per key press, JSON in and out.
+One POST per key press, JSON in and out. Two gateway formats are accepted, and the reply matches the one used:
 
-Request: `{ "sessionID", "userID", "newSession": true|false, "msisdn": "233241234567", "userData": "1", "network" }`
-Response: `{ "sessionID", "userID", "msisdn", "message", "continueSession": true|false }`
+- **Nalo Solutions:** request `{ "USERID", "SESSIONID", "MSISDN": "233241234567", "USERDATA": "1", "MSGTYPE": true|false }` (`MSGTYPE` true = the first dial); response `{ "USERID", "MSISDN", "MSG", "MSGTYPE": true|false }` (`MSGTYPE` true = keep the session open).
+- **Arkesel:** request `{ "sessionID", "userID", "newSession": true|false, "msisdn": "233241234567", "userData": "1", "network" }`; response `{ "sessionID", "userID", "msisdn", "message", "continueSession": true|false }`.
 
 - **Off unless configured.** The API answers 404 until `USSD_USER_ID` is set (Terraform variable `ussd_user_id`).
 - **Only our gateway account.** A request whose `userID` is not ours gets 403. The gateway does not sign requests, so this check is the protection, and `/ussd` is exempt from the per-IP rate limit (all sessions arrive from the gateway's few IPs).
@@ -35,6 +35,6 @@ Roles: `admin`, `coordinator`. A coordinator sees requests from their associatio
 
 ## Setting it up
 
-1. Ask Arkesel for a USSD code (shared codes like `*928*NN#` are cheapest) and give them the endpoint `https://api.agroconnect.space/ussd`.
-2. Put the `userID` they assign in `infra/terraform.tfvars` as `ussd_user_id = "…"` and `terraform apply`.
-3. Test with Arkesel's USSD simulator app, or with `curl` (see `backend/test/ussd.test.mjs` for the request shape).
+1. Ask the gateway (Nalo Solutions or Arkesel) for a USSD code — Nalo shared codes are cheapest — and give them the endpoint `https://api.agroconnect.space/ussd` (POST, JSON).
+2. Put the `USERID` they assign in `infra/terraform.tfvars` as `ussd_user_id = "…"` and `terraform apply`.
+3. Test with the gateway's USSD simulator, or with `curl` (see `backend/test/ussd.test.mjs` for both request shapes).
