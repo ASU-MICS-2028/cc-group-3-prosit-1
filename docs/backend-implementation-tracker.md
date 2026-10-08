@@ -51,6 +51,9 @@ against the code on `main`**, not against intentions.
 | 14 — Production Deployment | 🟢 | Complete (PR #52) |
 | 15 — Testing & Production Readiness | 🟢 | Complete (PR #54); see Remaining |
 
+Phase **16**, further down, covers four features added after this tracker was drafted (farmer profile
+extension, USSD access for feature phones, extension visit log, push notifications).
+
 ---
 
 # Phase 0 — Requirements & Architecture Baseline
@@ -430,6 +433,92 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 
 ---
 
+# Phase 16 — Post-plan features (added after this tracker was drafted)
+
+Four features merged onto `main` after the phase list above was written. The original tracker did not
+cover them; they are recorded here so the tracker stays the single source of truth. All are 🟢 and
+covered by tests.
+
+| Feature | Status | PR | Migration |
+|---|---|---|---|
+| Farmer profile extension | 🟢 | #46 | `004_farmer_profile.sql` |
+| USSD access for feature phones | 🟢 | #50 | `005_ussd_and_support_requests.sql` |
+| Extension visit log | 🟢 | #53 | `006_extension_visits.sql` |
+| Push notifications | 🟢 | #58 | `007_push_subscriptions.sql` |
+
+## 16a — Farmer profile extension (🟢 #46)
+
+Optional farmer attributes the Prosit brief asks for: farm/soil, seasons, technology access, financial
+profile, and extension history/needs. Every field is optional, so records created before the migration
+stay valid.
+
+- **Schema:** adds columns to `farmers` (no new table) — `soil_type`, `seasons[]`, `phone_type`,
+  `data_plan`, `contact_channel`, `income_sources[]`, `has_bank_account`, `mobile_money_use`, `needs[]`,
+  `last_extension_visit`.
+- **API:** `POST /farmers` takes an optional `profile` object; `GET /farmers/:id` and `GET /farmers/me`
+  return it; `GET /admin/stats` adds `byPhoneType`, `byContactChannel`, `byMobileMoney`, `byNeed`,
+  `bySoilType`, `byExtensionVisit` and `bankAccount`; the farmers CSV appends the ten fields.
+- **Code:** `backend/src/profile.ts` (one spec drives validation, the INSERT, the view and the CSV),
+  wired through `routes/farmers.ts` and `routes/admin.ts`.
+- **Tests:** `backend/test/profile.test.mjs`.
+
+## 16b — USSD access for feature phones (🟢 #50)
+
+A farmer on a basic phone, with no app and no data, dials our USSD code (e.g. `*928*77#`) and uses a text
+menu. The telco sends every key press to `POST /ussd`; our text reply is the next screen.
+
+- **How a session works:** each key press is a separate request carrying `sessionID`, `msisdn` and only
+  the latest `userData`. The menu position is kept in `ussd_sessions` (`state` JSONB) between requests,
+  and deleted when the session ends; stale rows are cleaned after 24h. There is no token — the caller is
+  whoever the gateway says owns the phone number.
+- **Gate:** the route answers **404** unless `USSD_USER_ID` is set, and **403** for a request whose
+  `userID` is not ours.
+- **Menu:** language first (English / Twi / Ewe, or the language on the farmer's record), then
+  `1` market prices · `2` farming advice · `3` my registration · `4` ask for an agent visit ·
+  `5` today's weather · `0` exit.
+  - Prices come from `market_prices` with the week-on-week change; advice from `advice_cards`;
+    registration reads the caller's `farmers` row by phone; weather is Open-Meteo for the farm's GPS
+    (3s timeout, and a friendly message when it is unavailable or the farm has no GPS).
+- **Agent-visit requests** are stored in `support_requests` (`channel='ussd'`, `kind='agent_visit'`) and
+  worked with `GET /admin/requests` (admin/coordinator; scoped — admins see all, a coordinator their
+  association's farmers and unregistered callers) and `POST /admin/requests/:id/done`.
+- **Text:** `backend/src/ussdText.ts` holds the screens in the three languages (about 160 characters per
+  screen); Twi and Ewe follow the PWA translations and still need a native-speaker review.
+- **Config:** `USSD_USER_ID` (Arkesel's account id for our code).
+- **Tests:** `backend/test/ussd.test.mjs` — off by default; wrong gateway 403; language flow; registration
+  read-out; prices with the weekly change; advice list and read; a visit request created and closed by a
+  coordinator; weather; invalid key repeats the menu and `0` exits.
+
+## 16c — Extension visit log (🟢 #53)
+
+Field agents record each visit to a farmer — the topics discussed, notes and the next visit — queued on
+the phone and synced later.
+
+- **Schema:** `extension_visits` — `client_id` unique (offline idempotency), `farmer_id`, `agent_id`,
+  `visited_at`, `topics[]` (`advice|inputs|pests|market|training|credit|records|follow_up`), `notes`
+  (≤500), `next_visit`, plus audit and touch triggers.
+- **API:** `POST /farmers/:id/visits` and `GET /farmers/:id/visits` (agent/coordinator; admin may read
+  but not write), scoped like the farmer record. A repeated `clientId` returns 200 with the same row.
+- **Code:** `backend/src/routes/farmers.ts`.
+- **Tests:** `backend/test/visits.test.mjs`.
+
+## 16d — Push notifications (🟢 #58)
+
+Web Push so users hear about an event with the app closed: a crop check answered, a payment settled, new
+advice, or an agent approved. Best-effort — a failed push never fails the request, and a subscription the
+push service reports gone (404/410) is deleted.
+
+- **Schema:** `push_subscriptions` (`endpoint` primary key, `user_id`, `p256dh`, `auth`, `last_used_at`).
+- **API:** `GET /push/key` (public; 404 when push is off), `POST /push/subscriptions` (any signed-in
+  user; upserts by endpoint), `POST /push/subscriptions/delete` (removes the caller's endpoint).
+- **Delivery:** `backend/src/push.ts` (`web-push`, 24h TTL, 5s timeout) with localized copy
+  (`en|tw|ee`), triggered from the agent-approve, crop-check advice, new-advice and votex365 webhook
+  paths.
+- **Config:** `VAPID_SECRET_ARN` — `{ public_key, private_key, subject }`. Unset: push off.
+- **Tests:** `backend/test/push.test.mjs`.
+
+---
+
 # Remaining work (optional / needs a decision)
 
 All 15 phases above are implemented and verified against `main`. What is left is either optional
@@ -452,19 +541,10 @@ hardening, a contract change, or work that arrived after this tracker was writte
   contract change, not a backend gap.
 - **`PATCH /farmers/:id` (update a farmer)** — not in API-CONTRACT.
 
-## Added after this tracker was written (not in the original plan)
+## Added after this tracker was written
 
-Features merged onto `main` since this tracker was drafted, which this phase list does not cover:
-
-- **Farmer profile extension** — `backend/migrations/004_farmer_profile.sql`, `backend/src/profile.ts`,
-  and an admin route (#46).
-- **USSD menu for basic phones** — `backend/src/routes/ussd.ts`, `backend/src/ussdText.ts`, migration `005` (#50).
-- **Extension visit log** — `backend/migrations/006_extension_visits.sql`, `backend/src/routes/farmers.ts` (#53).
-- **Push notifications** — `backend/src/push.ts`, `backend/src/routes/push.ts`, migration `007` (#58).
-
-They carry their own endpoints, migrations and tests (the backend suite is now 168 tests over 14 files),
-but were not written against this tracker — they deserve their own contract/coverage review if we want
-this tracker to remain the single source of truth.
+Now recorded in **Phase 16** above: farmer profile extension (#46), USSD access for feature phones
+(#50), extension visit log (#53) and push notifications (#58).
 
 ## Housekeeping
 
