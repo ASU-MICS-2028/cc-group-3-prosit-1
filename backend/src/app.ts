@@ -14,6 +14,7 @@ import { paymentRoutes } from './routes/payments.js'
 import { pushRoutes } from './routes/push.js'
 import { serviceRoutes } from './routes/services.js'
 import { ussdRoutes } from './routes/ussd.js'
+import { resolveSession } from './session.js'
 
 /** Only the hosted PWA (and local dev) may call the API from a browser, with the Authorization header. */
 function cors(origins: string[]) {
@@ -23,7 +24,7 @@ function cors(origins: string[]) {
     if (origin && allowed.has(origin)) {
       res.set({
         'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '600',
       })
@@ -43,7 +44,11 @@ function requestId(req: Request, res: Response, next: NextFunction) {
 }
 
 /** The sign-in / sign-up routes get a stricter per-IP limit than the rest of the API. */
-const AUTH_PATHS = ['/auth/farmer/start', '/auth/farmer/verify-otp', '/auth/farmer/login', '/auth/staff/signup', '/auth/staff/verify-phone', '/auth/staff/login']
+const AUTH_PATHS = [
+  '/auth/farmer/start', '/auth/farmer/verify-otp', '/auth/farmer/login', '/auth/farmer/pin',
+  '/auth/staff/signup', '/auth/staff/verify-phone', '/auth/staff/login', '/auth/staff/password',
+  '/auth/logout',
+]
 
 function ipLimiter({ windowMs, limit }: { windowMs: number; limit: number }) {
   return rateLimit({
@@ -82,6 +87,8 @@ export function createApp(ctx: Ctx): Express {
   // Webhooks are verified against their raw bytes, so they must not be parsed as JSON here.
   const json = express.json({ limit: '100kb' })
   app.use((req, res, next) => (req.path.startsWith('/webhooks/') ? next() : json(req, res, next)))
+  // Resolve the account once per request, so a logged-out or suspended token is refused from its next call.
+  app.use(resolveSession(ctx))
 
   app.get('/', (_req, res) => void res.json({ service: 'agroconnect-api', status: 'ok' }))
   // Liveness: the process is up (the ALB target group checks it). Readiness: the database answers too.

@@ -64,6 +64,7 @@ export interface UserRow extends Row {
   password_hash: string | null
   failed_attempts: number
   locked_until: Date | null
+  token_version: number
 }
 
 export const publicUser = (user: UserRow) => ({
@@ -76,7 +77,7 @@ export const publicUser = (user: UserRow) => ({
   status: user.status,
 })
 
-export const tokenUser = (user: UserRow) => ({ id: user.id, role: user.role, name: user.name, phone: user.phone_e164, assoc: user.association_id })
+export const tokenUser = (user: UserRow) => ({ id: user.id, role: user.role, name: user.name, phone: user.phone_e164, assoc: user.association_id, ver: user.token_version ?? 1 })
 
 export async function findUser(q: Queryable, id: string): Promise<UserRow | undefined> {
   return (await q.query<UserRow>('SELECT * FROM users WHERE id = $1', [id])).rows[0]

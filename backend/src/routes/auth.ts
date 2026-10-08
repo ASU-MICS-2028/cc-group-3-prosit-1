@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto'
 import type { Express } from 'express'
-import { ASSOCIATIONS, findUser, publicUser, tokenUser, type Ctx, type UserRow } from '../context.js'
+import { actorOf, ASSOCIATIONS, findUser, publicUser, tokenUser, type Ctx, type UserRow } from '../context.js'
 import { pgError, type Queryable } from '../db.js'
 import { HttpError, jsonBody, route } from '../http.js'
 import { logger } from '../logging.js'
@@ -231,6 +231,8 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       const claims = await signer.verify(token, { graceSeconds: REFRESH_GRACE_SECONDS })
       const user = await findUser(db, claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
+      // A logged-out or password-changed token cannot refresh either.
+      if (Number(claims.ver ?? 1) !== Number(user.token_version ?? 1)) throw new HttpError(401, 'token_revoked', 'This session has ended. Sign in again.')
       // An admin's suspension reaches the phone here, for farmers and staff alike.
       if (user.status !== 'approved') {
         logger.warn({ actor: user.id, role: user.role, status: user.status }, 'token refresh refused: account not approved')
@@ -247,6 +249,54 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       const user = await findUser(db, claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
       return [200, publicUser(user)]
+    }),
+  )
+
+  /** Ends every session for this account: bumping the version makes each outstanding token fail the check. */
+  app.post(
+    '/auth/logout',
+    route(async ({ req }) => {
+      const claims = await requireAuth(signer, req)
+      await db.tx(actorOf(claims), (q) => q.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [claims.sub]))
+      return [204]
+    }),
+  )
+
+  /** Staff change their own password; the other sessions end and a fresh token keeps this device signed in. */
+  app.post(
+    '/auth/staff/password',
+    route(async ({ req }) => {
+      const claims = await requireAuth(signer, req, ['agent', 'coordinator', 'admin'])
+      const body = jsonBody(req)
+      const user = await findUser(db, claims.sub)
+      if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
+      if (!(await verifySecret(String(body.currentPassword ?? ''), user.password_hash))) throw new HttpError(401, 'wrong_password', 'That password is not right.')
+      if (String(body.newPassword ?? '').length < 8) throw new HttpError(400, 'invalid_request', 'The password needs at least 8 characters.', { field: 'newPassword' })
+      const passwordHash = await hashSecret(String(body.newPassword))
+      const updated = await db.tx(actorOf(claims), async (q) => {
+        const { rows } = await q.query<UserRow>('UPDATE users SET password_hash = $2, token_version = token_version + 1 WHERE id = $1 RETURNING *', [user.id, passwordHash])
+        return rows[0] as UserRow
+      })
+      return [200, { token: await signer.sign(tokenUser(updated)) }]
+    }),
+  )
+
+  /** A farmer changes their own PIN; the other sessions end and a fresh token keeps this device signed in. */
+  app.post(
+    '/auth/farmer/pin',
+    route(async ({ req }) => {
+      const claims = await requireAuth(signer, req, ['farmer'])
+      const body = jsonBody(req)
+      const user = await findUser(db, claims.sub)
+      if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
+      if (!(await verifySecret(String(body.pin ?? ''), user.pin_hash))) throw new HttpError(401, 'wrong_pin', 'That PIN is not right.')
+      if (!/^\d{4}$/.test(String(body.newPin ?? ''))) throw new HttpError(422, 'invalid_pin', 'The PIN must be exactly 4 digits.')
+      const pinHash = await hashSecret(String(body.newPin))
+      const updated = await db.tx(actorOf(claims), async (q) => {
+        const { rows } = await q.query<UserRow>('UPDATE users SET pin_hash = $2, token_version = token_version + 1 WHERE id = $1 RETURNING *', [user.id, pinHash])
+        return rows[0] as UserRow
+      })
+      return [200, { token: await signer.sign(tokenUser(updated)) }]
     }),
   )
 }

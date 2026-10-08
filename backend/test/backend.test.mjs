@@ -351,3 +351,55 @@ describe('admin farmer detail', () => {
     expect((await t.call('GET', `/admin/farmers/${id}`, { token: other })).status).toBe(404)
   })
 })
+
+describe('sessions and credentials', () => {
+  it('ends every session when the phone logs out', async () => {
+    const t = await start()
+    const token = await t.agent()
+    expect((await t.call('GET', '/auth/me', { token })).status).toBe(200)
+
+    expect((await t.call('POST', '/auth/logout', { token })).status).toBe(204)
+    expect(await t.call('GET', '/auth/me', { token })).toMatchObject({ status: 401, body: { error: 'token_revoked' } })
+    expect((await t.call('POST', '/auth/refresh', { token })).status).toBe(401)
+  })
+
+  it('cuts off a suspended account on its next request, not just the refresh', async () => {
+    const t = await start()
+    const token = await t.agent()
+    await t.call('POST', '/admin/agents/U-agent/suspend', { token: await t.admin(), body: { reason: 'test' } })
+    expect(await t.call('GET', '/auth/me', { token })).toMatchObject({ status: 403, body: { error: 'suspended' } })
+  })
+
+  it('changes a staff password, keeping the current device signed in', async () => {
+    const t = await start()
+    const token = await t.staff(DEMO_ACCOUNTS.agent)
+
+    expect(await t.call('POST', '/auth/staff/password', { token, body: { currentPassword: 'nope', newPassword: 'brand-new-pw' } })).toMatchObject({
+      status: 401,
+      body: { error: 'wrong_password' },
+    })
+    expect(await t.call('POST', '/auth/staff/password', { token, body: { currentPassword: DEMO_ACCOUNTS.agent.password, newPassword: 'short' } })).toMatchObject({
+      status: 400,
+      body: { field: 'newPassword' },
+    })
+
+    const changed = await t.call('POST', '/auth/staff/password', { token, body: { currentPassword: DEMO_ACCOUNTS.agent.password, newPassword: 'brand-new-pw' } })
+    expect(changed.status).toBe(200)
+    expect((await t.call('GET', '/auth/me', { token })).status).toBe(401) // the old token is gone
+    expect((await t.call('GET', '/auth/me', { token: changed.body.token })).status).toBe(200) // the fresh one works
+    expect((await t.call('POST', '/auth/staff/login', { body: { identifier: DEMO_ACCOUNTS.agent.loginId, password: 'brand-new-pw' } })).status).toBe(200)
+  })
+
+  it('changes a farmer PIN', async () => {
+    const t = await start()
+    const token = await t.farmerToken('+233241234567')
+
+    expect(await t.call('POST', '/auth/farmer/pin', { token, body: { pin: '0000', newPin: '4321' } })).toMatchObject({ status: 401, body: { error: 'wrong_pin' } })
+    expect(await t.call('POST', '/auth/farmer/pin', { token, body: { pin: '1234', newPin: '12' } })).toMatchObject({ status: 422, body: { error: 'invalid_pin' } })
+
+    const changed = await t.call('POST', '/auth/farmer/pin', { token, body: { pin: '1234', newPin: '4321' } })
+    expect(changed.status).toBe(200)
+    expect((await t.call('GET', '/auth/me', { token })).status).toBe(401)
+    expect((await t.call('POST', '/auth/farmer/login', { body: { phone: '+233241234567', pin: '4321' } })).status).toBe(200)
+  })
+})
