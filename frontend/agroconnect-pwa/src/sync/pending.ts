@@ -5,7 +5,7 @@ import { SYNC_STATUS } from '../domain/farmer'
 /** Anything a later sync could still send. "Needs attention" items are left out: retrying them cannot help. */
 export async function hasUnsent(): Promise<boolean> {
   const [farmers, outbox, photos] = await Promise.all([
-    db.farmers.where('status').anyOf(SYNC_STATUS.SAVED, SYNC_STATUS.SENDING).count(),
+    db.farmers.where('status').anyOf(SYNC_STATUS.SAVED, SYNC_STATUS.SENDING, SYNC_STATUS.EDITED).count(),
     db.outbox.filter((item) => item.status === 'saved').count(),
     listPhotosToSend(),
   ])
