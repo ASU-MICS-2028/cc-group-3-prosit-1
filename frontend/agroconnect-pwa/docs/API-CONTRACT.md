@@ -201,6 +201,8 @@ An oversized body makes `express.raw` raise a 413 on its own; make sure your err
 
 ## Open items for the backend
 
+**Status (8 Oct 2026): all ten are resolved** in `backend/migrations/001_initial.sql` and `backend/src/`. The backend's test suite (`backend/test/`) runs the mock server's contract tests against the real API on Postgres.
+
 | # | Item | Why it is needed |
 |---|------|------------------|
 | 1 | Add a `gender` column to `farmers` (`female`, `male`, `undisclosed`, nullable, with a CHECK) | The PWA sends it; the brief asks for gender-disaggregated reporting |

@@ -80,7 +80,7 @@ The end-to-end architecture is depicted below:
 The system is organized into decoupled layers:
 1. [**Client Tier (`frontend/`)**](./client-tier.md): Progressive Web App built with React 19, Vite, TypeScript, and Dexie for client-side persistence, hosted on AWS Amplify (`https://app.agroconnect.space`).
 2. [**API Tier (`backend/`)**](./api-tier.md): Node.js 24 / Express 5 TypeScript service running in Docker on EC2, exposing REST endpoints for profile creation, health checks, and discovery (`https://api.agroconnect.space`).
-3. [**Data Tier (`db/`)**](./data-tier.md): Normalized relational schema (`schema.sql`) for PostgreSQL 16 on Amazon RDS (`infra/modules/database`), with S3 object storage offloading for binary media (`infra/modules/storage`).
+3. [**Data Tier (`db/`)**](./data-tier.md): Schema and migrations (`backend/migrations/`) for PostgreSQL 16 on Amazon RDS (`infra/modules/database`), with S3 object storage offloading for binary media (`infra/modules/storage`).
 4. [**Cloud Infrastructure (`infra/`)**](./cloud-infrastructure.md): Modular Terraform IaC across 11 modules in `af-south-1` (and `eu-west-1` for Amplify) with native S3 state locking.
 5. [**CI/CD & Operations (`.github/`, `amplify.yml`, `scripts/`)**](./ci-cd-and-operations.md): GitHub Actions utilizing AWS IAM OIDC federation for automated backend deployments and AWS Amplify for automated frontend deployments.
 

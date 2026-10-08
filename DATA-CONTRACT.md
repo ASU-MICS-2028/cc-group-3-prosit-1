@@ -1,5 +1,12 @@
 # Data contract: farmer-profile-service ↔ Postgres
 
+> **Status (8 Oct 2026): implemented** in [`backend/migrations/001_initial.sql`](backend/migrations/001_initial.sql). RDS was empty, so the schema is created directly rather than through the incremental C1–C7 steps in §8, and the three defects found in this document are fixed there:
+> - `client_id` is `UUID NOT NULL UNIQUE` (not nullable), so every request goes through the idempotency check.
+> - The acting user reaches the audit trigger through `SELECT set_config('app.actor', $1, true)`, never a string-built `SET LOCAL`.
+> - There is no old `phone` column to copy, so the leading-0 problem in C1 cannot occur; the `phone_national` CHECK also rejects a leading 0.
+>
+> The trigger (`audit_row()`) also covers `users`, `payments`, `loan_requests`, `crop_checks` and `listings`, strips PIN and password hashes, and skips login bookkeeping (`failed_attempts`, `locked_until`).
+
 Reply to `API-CONTRACT.md`. What the database stores, what it enforces, and the five things the PWA needs to change or confirm.
 
 ## The short version
@@ -129,13 +136,13 @@ Every insert, update and delete on `farmers`, `farms` and `farmer_crops` writes 
 
 The database knows the connection is the PostgreSQL user; it cannot automatically know which registerer made the change.
 
-Before each write, the Node.js/Express service should set:
+Before each write, the Node.js/Express service sets, inside the transaction:
 
 ```sql
-SET LOCAL app.actor = '<agent id or username>';
+SELECT set_config('app.actor', $1, true);  -- $1 = the token's sub; true = local to this transaction
 ```
 
-inside the transaction.
+(`SET LOCAL app.actor = '…'` cannot take a parameter, so building it from a string would invite SQL injection.)
 
 The audit trigger reads this value.
 
@@ -285,7 +292,7 @@ The trigger automatically records every INSERT, UPDATE and DELETE.
 ### Create a farmer
 
 ```sql
-SET LOCAL app.actor = 'agent-demo';
+SELECT set_config('app.actor', 'agent-demo', true);
 
 INSERT INTO farmers (
   name,

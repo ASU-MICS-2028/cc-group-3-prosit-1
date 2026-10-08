@@ -1,79 +1,43 @@
-import express from "express";
+import { createApp } from './app.js'
+import { loadConfig } from './config.js'
+import { DEFAULT_SETTINGS } from './context.js'
+import { createPgDb } from './db.js'
+import { arkeselSms, memoryStorage, s3Storage, votexProvider } from './integrations.js'
+import { migrate } from './migrate.js'
+import { optionalSecret } from './secrets.js'
+import { createSigner } from './security.js'
+import { seedAdmin, seedDemoAccounts, type AdminSeed } from './seed.js'
 
-const app = express();
+const config = loadConfig()
+const db = await createPgDb(config)
 
-const PORT = Number(process.env.PORT) || 3001;
+// Schema first: every instance runs this, and the advisory lock lets only one apply each migration.
+const applied = await migrate(db)
+if (applied.length > 0) console.log(`[db] applied migrations: ${applied.join(', ')}`)
 
-app.use(express.json());
+const adminSeed = await optionalSecret<AdminSeed>(config, config.adminSeedSecretArn)
+if (adminSeed) await seedAdmin(db, adminSeed)
+if (config.seedDemoAccounts) {
+  await seedDemoAccounts(db)
+  console.warn('[seed] demo accounts with public passwords are enabled (SEED_DEMO_ACCOUNTS=true)')
+}
 
-type Farmer = {
-  id: number;
-  name: string;
-  phone: string;
-  region: string | null;
-  language: string | null;
-  farm_size: number | null;
-  created_at: string;
-};
+if (!config.photoBucket) console.warn('[storage] PHOTO_BUCKET not set: photos are kept in memory and lost on restart')
+if (config.authTestMode) console.warn('[auth] AUTH_TEST_MODE=true: sign-in codes are returned in responses')
 
-// In-memory store until Week 4 swaps in RDS.
-const farmers = new Map<number, Farmer>();
-let nextId = 1;
+const app = createApp({
+  db,
+  signer: await createSigner(config),
+  sms: arkeselSms(config),
+  storage: config.photoBucket ? s3Storage({ ...config, photoBucket: config.photoBucket }) : memoryStorage(),
+  checkout: config.votexSecretArn ? votexProvider(config) : null,
+  settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins },
+  now: Date.now,
+})
 
-app.get("/", (_req, res) => {
-  res.json({
-    service: "farmer-profile-service",
-    version: "0.1.0",
-    description: "AgroConnect Ghana — farmer profile API (ICS 534, Group 3)",
-    endpoints: [
-      { method: "GET", path: "/", description: "service metadata" },
-      { method: "GET", path: "/health", description: "liveness probe" },
-      { method: "POST", path: "/farmers", description: "create a farmer" },
-      { method: "GET", path: "/farmers/{farmer_id}", description: "fetch a farmer" },
-    ],
-  });
-});
+const server = app.listen(config.port, () => console.log(`agroconnect-api listening on :${config.port}`))
 
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
-  });
-});
-
-app.post("/farmers", (req, res) => {
-  const { name, phone, region, language, farm_size } = req.body ?? {};
-
-  if (typeof name !== "string" || name.trim() === "") {
-    return res.status(400).json({ error: "name is required" });
-  }
-  if (typeof phone !== "string" || phone.trim() === "") {
-    return res.status(400).json({ error: "phone is required" });
-  }
-
-  const id = nextId++;
-  const farmer: Farmer = {
-    id,
-    name,
-    phone,
-    region: region ?? null,
-    language: language ?? null,
-    farm_size: farm_size ?? null,
-    created_at: new Date().toISOString(),
-  };
-  farmers.set(id, farmer);
-
-  return res.status(201).json(farmer);
-});
-
-app.get("/farmers/:farmer_id", (req, res) => {
-  const farmer = farmers.get(Number(req.params.farmer_id));
-  if (!farmer) {
-    return res.status(404).json({ error: "farmer not found" });
-  }
-
-  return res.json(farmer);
-});
-
-app.listen(PORT, () => {
-  console.log(`AgroConnect API running on port ${PORT}`);
-});
+// The ASG replaces instances during a deploy: finish in-flight requests, then close the pool.
+process.on('SIGTERM', () => {
+  server.close(() => void db.close().finally(() => process.exit(0)))
+})

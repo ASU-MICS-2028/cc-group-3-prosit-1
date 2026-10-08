@@ -23,6 +23,12 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
+# Applied on boot by src/migrate.ts (one instance at a time, under an advisory lock).
+COPY migrations ./migrations
+
+# RDS CA bundle for af-south-1, so the connection to Postgres verifies the server's certificate.
+ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/af-south-1/af-south-1-bundle.pem /app/rds-ca.pem
+ENV DB_CA_FILE=/app/rds-ca.pem
 
 USER node
 

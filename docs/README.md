@@ -44,7 +44,7 @@ docs/
 | [**3. Empirical Research**](./empirical-research.md) | Cloud Benchmarks | Network latency testing from Ghana (AWS vs Azure vs GCP) & provider service comparison |
 | [**4. Client Tier (PWA)**](./client-tier.md) | Frontend & Edge | Offline-first design, Dexie IndexedDB, Background Sync & Web Locks, GPS polling, photo compression, Twi/Ewe translations |
 | [**5. API Tier**](./api-tier.md) | Application Backend | Node.js 24 / Express 5 TypeScript API, unprivileged Docker, health probes, client UUIDs |
-| [**6. Data Tier**](./data-tier.md) | Persistence Layer | PostgreSQL schema (`db/schema.sql`), cascading relationships, S3 object pointers |
+| [**6. Data Tier**](./data-tier.md) | Persistence Layer | PostgreSQL schema & migrations, idempotency constraints, audit trigger, S3 object keys |
 | [**7. Cloud Infrastructure**](./cloud-infrastructure.md) | AWS & Terraform | Dual-AZ VPC in `af-south-1`, 11 modules, S3 native remote state, RDS Postgres, S3 media, CloudWatch alarms & dashboard |
 | [**8. CI/CD & Operations**](./ci-cd-and-operations.md) | Automation & Security | GitHub Actions OIDC deployment, ASG rolling refresh with concurrency retry protection, Node 24 smoke tests, team IAM |
 

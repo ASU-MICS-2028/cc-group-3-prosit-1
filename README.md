@@ -22,7 +22,7 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |
 | [**4. Client Tier (PWA)**](./docs/client-tier.md) | Offline-first architecture, Dexie IndexedDB, sync queue & hardware hooks |
 | [**5. API Tier**](./docs/api-tier.md) | Containerized Node.js/Express TypeScript `farmer-profile-service`, endpoints & health probes |
-| [**6. Data Tier**](./docs/data-tier.md) | PostgreSQL relational schema (`db/schema.sql`) & S3 media offloading |
+| [**6. Data Tier**](./docs/data-tier.md) | PostgreSQL schema & migrations (`backend/migrations/`), audit trigger, S3 media |
 | [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform modular IaC (7 modules), `af-south-1` VPC, `fck-nat`, ALB TLS & ASG |
 | [**8. CI/CD & Operations**](./docs/ci-cd-and-operations.md) | GitHub Actions OIDC deployment, ASG rolling refresh & team IAM governance |
 
@@ -133,12 +133,8 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details & run instructions:* See [`docs/api-tier.md`](./docs/api-tier.md) and [`backend/README.md`](./backend/README.md).
 
 ### 3. Database Tier ([`db/`](./db))
-* **Engine:** PostgreSQL relational model designed for Week 4 Amazon RDS deployment.
-* **Schema ([`db/schema.sql`](./db/schema.sql)):**
-  * `farmers`: Unique phone constraint (`phone UNIQUE`), personal details, language preference, timestamps.
-  * `farms`: Parcel plots per farmer (`farmer_id REFERENCES farmers(id) ON DELETE CASCADE`), soil types, hectare sizing.
-  * `farm_crops`: Many-to-one crop allocations per farm plot.
-  * `farm_media`: S3 object keys and metadata for farm images (keeping relational tables lightweight).
+* **Engine:** PostgreSQL 16 on Amazon RDS, migrated by the API on boot ([`db/README.md`](./db/README.md)).
+* **Schema ([`backend/migrations/001_initial.sql`](./backend/migrations/001_initial.sql)):** accounts for all four roles, farmer records with crops, payments, loan requests, crop checks, listings and feedback. Every offline-created row has `client_id UUID NOT NULL UNIQUE`; an audit trigger records who changed what, without PIN or password hashes.
 * *Details:* See [`docs/data-tier.md`](./docs/data-tier.md).
 
 ### 4. Cloud Infrastructure as Code ([`infra/`](./infra))
