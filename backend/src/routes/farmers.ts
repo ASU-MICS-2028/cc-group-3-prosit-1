@@ -2,13 +2,15 @@ import express, { type Express } from 'express'
 import { actorOf, nowDate, type Ctx } from '../context.js'
 import { iso, num, pgError, type Queryable, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
-import { isUuid, requireAuth } from '../security.js'
+import { isUuid, requireAuth, type Claims } from '../security.js'
 
 const STAFF = ['agent', 'coordinator'] as const
 const ACRES_TO_HECTARES = 0.404686
 export const MAX_PHOTO_BYTES = 500 * 1024
 const COUNTRY_CODE = /^\+[1-9]\d{0,2}$/
 const NATIONAL_NUMBER = /^[1-9]\d{6,13}$/
+const LANGUAGES = ['en', 'tw', 'ee', 'dag']
+const GENDERS = ['female', 'male', 'undisclosed']
 
 export const rawPhoto = express.raw({ type: () => true, limit: MAX_PHOTO_BYTES })
 
@@ -49,6 +51,23 @@ export async function getFarmer(q: Queryable, where: string, params: unknown[]) 
 export function farmerRoutes(app: Express, ctx: Ctx): void {
   const { db, signer } = ctx
 
+  /**
+   * A farmer the caller may see: an agent only the records they registered, a coordinator only their
+   * association's, an admin any. Anything else looks like it does not exist (404), like the other
+   * 404-for-forbidden paths.
+   */
+  async function visibleFarmer(claims: Claims, id: string): Promise<Row> {
+    const row = await getFarmer(db, 'f.id = $1', [id])
+    if (!row) throw notFound('farmer')
+    if (claims.role === 'admin') return row
+    if (claims.role === 'agent' && row.created_by === claims.sub) return row
+    if (claims.role === 'coordinator') {
+      const { rows } = await db.query('SELECT association_id FROM users WHERE id = $1', [row.created_by])
+      if (rows[0]?.association_id === claims.assoc) return row
+    }
+    throw notFound('farmer')
+  }
+
   app.get('/health', route(async () => [200, { status: 'ok' }]))
 
   /** API-CONTRACT: insert, catch the constraint, never search first. */
@@ -62,6 +81,9 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
       if (!COUNTRY_CODE.test(f.countryCode) || !NATIONAL_NUMBER.test(f.phoneNational)) {
         throw new HttpError(400, 'invalid_request', 'countryCode must look like +233, and phoneNational must be digits without a leading 0')
       }
+      // Check the enums here so the caller gets a field to fix, rather than a raw constraint name.
+      if (f.gender != null && !GENDERS.includes(f.gender)) throw invalid('gender', 'gender must be female, male or undisclosed')
+      if (f.preferredLanguage != null && !LANGUAGES.includes(f.preferredLanguage)) throw invalid('preferredLanguage', 'preferredLanguage must be en, tw, ee or dag')
       const acres = typeof f.farmSizeAcres === 'number' ? f.farmSizeAcres : null
       const crops: unknown[] = Array.isArray(f.crops) ? f.crops : []
       const registeredAt = f.registeredAt ?? nowDate(ctx).toISOString()
@@ -125,10 +147,10 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
     route(async ({ req, params }) => {
       const claims = await requireAuth(signer, req, STAFF)
       if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      // Only the agent who registered the farmer (or their coordinator) may attach a photo.
+      await visibleFarmer(claims, params.id ?? '')
       const photo: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
       if (photo.length === 0) throw invalid('photo', 'Send the photo as the request body')
-      const { rows } = await db.query('SELECT id FROM farmers WHERE id = $1', [params.id])
-      if (rows.length === 0) throw notFound('farmer')
 
       const key = `farmers/${params.id}/photo.jpg`
       await ctx.storage.put(key, photo, req.get('content-type') || 'image/jpeg')
@@ -142,11 +164,9 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
   app.get(
     '/farmers/:id',
     route(async ({ req, params }) => {
-      await requireAuth(signer, req, [...STAFF, 'admin'])
+      const claims = await requireAuth(signer, req, [...STAFF, 'admin'])
       if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
-      const row = await getFarmer(db, 'f.id = $1', [params.id])
-      if (!row) throw notFound('farmer')
-      return [200, farmerView(row)]
+      return [200, farmerView(await visibleFarmer(claims, params.id ?? ''))]
     }),
   )
 }
