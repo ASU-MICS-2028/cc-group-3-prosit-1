@@ -19,7 +19,9 @@ export const isCropId = (value: string): value is CropId => (CROP_IDS as readonl
 export const isFarmerLanguage = (value: string): value is FarmerLanguage => (FARMER_LANGUAGES as readonly string[]).includes(value)
 export const isGender = (value: string): value is Gender => (GENDERS as readonly string[]).includes(value)
 
-export type RegistrationStep = 1 | 2 | 3
+import type { FarmerProfile } from './profile'
+
+export type RegistrationStep = 1 | 2 | 3 | 4
 
 export interface GpsFix {
   lat: number
@@ -42,6 +44,8 @@ export interface RegistrationFields {
   crops: CropId[]
   gps: GpsFix | null
   consent: boolean
+  /** Optional answers about farm, phone, money and needs. Records saved before it existed have none. */
+  profile?: FarmerProfile
 }
 
 export interface Draft extends RegistrationFields {

@@ -3,6 +3,7 @@ import { actorOf, auditEvent, CURRENCIES, nowDate, type Ctx } from '../context.j
 import { iso, num, pgError, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { isE164, isUuid, requireAuth, type Claims } from '../security.js'
+import { pageParams, totalOf } from '../pagination.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
 
 const NETWORKS: Record<string, string[]> = { GHS: ['mtn', 'telecel', 'airteltigo'], KES: ['mpesa'], NGN: ['bank_transfer'] }
@@ -165,11 +166,14 @@ export function paymentRoutes(app: Express, ctx: Ctx): void {
 
   app.get(
     '/payments/me',
-    route(async ({ req }) => {
+    route(async ({ req, query }) => {
       const claims = await requireAuth(signer, req, ['farmer'])
       await tools.settleSimulated()
-      const { rows } = await db.query('SELECT * FROM payments WHERE farmer_user_id = $1 ORDER BY seq DESC', [claims.sub])
-      return [200, { balance: tools.balanceOf(rows), items: rows.map(tools.view) }]
+      const { limit, offset } = pageParams(query)
+      const { rows } = await db.query('SELECT *, count(*) OVER() AS total FROM payments WHERE farmer_user_id = $1 ORDER BY seq DESC LIMIT $2 OFFSET $3', [claims.sub, limit, offset])
+      // The balance is over every payment, not just this page.
+      const all = (await db.query('SELECT direction, amount, currency, status FROM payments WHERE farmer_user_id = $1', [claims.sub])).rows
+      return [200, { balance: tools.balanceOf(all), items: rows.map(tools.view), total: totalOf(rows) }]
     }),
   )
 
@@ -187,7 +191,7 @@ export function paymentRoutes(app: Express, ctx: Ctx): void {
 
   app.get(
     '/farmers/:id/payments',
-    route(async ({ req, params }) => {
+    route(async ({ req, params, query }) => {
       const claims = await requireAuth(signer, req, STAFF)
       if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
       const record = (
@@ -199,11 +203,20 @@ export function paymentRoutes(app: Express, ctx: Ctx): void {
       if (!record || !allowed) throw new HttpError(404, 'not_found', 'Unknown farmer')
       await tools.settleSimulated()
       // No login account yet means no payments, not an error.
+      const { limit, offset } = pageParams(query)
       const { rows } = await db.query(
-        `SELECT p.* FROM payments p JOIN users u ON u.id = p.farmer_user_id WHERE u.role = 'farmer' AND u.phone_e164 = $1 ORDER BY p.seq DESC`,
-        [record.phone_e164],
+        `SELECT p.*, count(*) OVER() AS total FROM payments p JOIN users u ON u.id = p.farmer_user_id
+          WHERE u.role = 'farmer' AND u.phone_e164 = $1 ORDER BY p.seq DESC LIMIT $2 OFFSET $3`,
+        [record.phone_e164, limit, offset],
       )
-      return [200, { balance: tools.balanceOf(rows), items: rows.map(tools.view) }]
+      const all = (
+        await db.query(
+          `SELECT p.direction, p.amount, p.currency, p.status FROM payments p JOIN users u ON u.id = p.farmer_user_id
+            WHERE u.role = 'farmer' AND u.phone_e164 = $1`,
+          [record.phone_e164],
+        )
+      ).rows
+      return [200, { balance: tools.balanceOf(all), items: rows.map(tools.view), total: totalOf(rows) }]
     }),
   )
 

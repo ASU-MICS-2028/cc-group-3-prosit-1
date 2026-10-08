@@ -10,6 +10,7 @@ import { getFarmer, getPhoto, setStatus } from '../../db/repository'
 import { SYNC_STATUS } from '../../domain/farmer'
 import { useT } from '../../i18n/context'
 import { requestSync } from '../../sync/syncQueue'
+import { ProfileRows } from '../../components/ProfileRows'
 
 interface FarmerDetailProps {
   clientId: string
@@ -102,6 +103,7 @@ export function FarmerDetail({ clientId, onClose }: FarmerDetailProps) {
                 ? `${t('reg.gpsAccuracy', { m: farmer.gps.accuracy })} · ${farmer.gps.lat.toFixed(5)}, ${farmer.gps.lng.toFixed(5)}`
                 : t('detail.noGps')}
             </DetailRow>
+            <ProfileRows profile={farmer.profile} />
             <DetailRow label={t('detail.consent')}>{t('detail.consentGiven')}</DetailRow>
           </dl>
         </section>
