@@ -63,10 +63,10 @@ The end-to-end architecture is depicted below:
 │     └── PostgreSQL / Amazon RDS (db.t4g.micro, isolated data subnets)   │
 │                                                                         │
 │   [Storage & Observability Platform]                                    │
-│     ├── S3 Media Bucket (agroconnect-media-*, AES256, versioned)        │
+│     ├── S3 Media Bucket (agroconnect-dev-media, AES256, versioned)      │
 │     ├── AWS Secrets Manager (DB master credentials & Arkesel SMS key)   │
-│     ├── CloudWatch Operational Dashboard (agroconnect-dev-operational)  │
-│     └── CloudWatch Alarms & SNS (ALB, ASG, RDS, EC2, $10/mo Budget)     │
+│     ├── CloudWatch Operational Dashboard (agroconnect-dev-overview)     │
+│     └── CloudWatch Alarms & SNS (ALB, ASG, RDS, EC2, $100/mo Budget)    │
 └────────────────────────────────────▲────────────────────────────────────┘
                                      │
 ┌────────────────────────────────────┴────────────────────────────────────┐
@@ -93,7 +93,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 ### 1. Operational Excellence
 * **Infrastructure as Code (IaC):** 100% of AWS cloud resources are defined declaratively across 11 modules in Terraform ([`infra/`](../infra)) backed by S3 remote state with native locking. Environments are reproducible with zero manual console drift.
 * **Automated GitOps Workflows:** Changes to code or infrastructure land via pull requests validated by automated smoke tests and Terraform format/validation checks across all 11 modules ([`ci.yml`](../.github/workflows/ci.yml)). Backend deployments in [`deploy.yml`](../.github/workflows/deploy.yml) include concurrency retry synchronization against in-flight launch template refreshes.
-* **Unified Observability & Alerting:** Docker containers stream logs directly to CloudWatch Logs via the `awslogs` driver. The ALB probes `/health` every 15s. A single CloudWatch operational dashboard (`agroconnect-dev-operational`) aggregates metrics across ALB, EC2, ASG, and RDS, while an SNS topic (`agroconnect-dev-alarms`) dispatches automated email alerts on threshold breaches.
+* **Unified Observability & Alerting:** Docker containers stream logs directly to CloudWatch Logs via the `awslogs` driver. The ALB probes `/health` every 15s. A single CloudWatch operational dashboard (`agroconnect-dev-overview`) aggregates metrics across ALB, EC2, ASG, and RDS, while an SNS topic (`agroconnect-dev-alarms`) dispatches automated email alerts on threshold breaches.
 * **Consistent Tagging Schema:** Every resource carries standardized tags: `Project = agroconnect`, `Env = dev`, `Team = highlanders`, `ManagedBy = terraform`.
 
 ### 2. Security
@@ -122,7 +122,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 ### 5. Cost Optimization
 * **`fck-nat` Architecture:** Standard AWS NAT Gateways incur a flat charge of ~$32/month per gateway plus data processing fees. AgroConnect deploys `fck-nat` on an ARM64 `t4g.nano` instance (~$3/month), cutting NAT costs by over 90%.
 * **Free-Tier Leverage & Aggressive Scale-In:** Compute instances leverage AWS Free Tier credits; the ASG scales down to 1 instance during off-peak hours (monthly baseline compute cost ~$10/mo).
-* **Cost Controls & Anomaly Detection:** AWS Budgets is configured with a strict **\$10/month guardrail** (`agroconnect-dev-monthly-budget`) dispatching automated warning emails at 80% forecasted spend and critical alerts at 100% actual spend via Amazon SNS.
+* **Cost Controls & Anomaly Detection:** AWS Budgets is configured with a strict **\$100/month guardrail** (`agroconnect-dev-monthly-budget`) dispatching automated warning emails at 50% forecasted spend and critical alerts at 100% actual spend via Amazon SNS.
 
 ### 6. Sustainability
 * **Payload Minimization:** The offline-first PWA sends compressed, batched JSON payloads and optimized images, minimizing cellular radio uptime and battery drain on low-end farmer phones.

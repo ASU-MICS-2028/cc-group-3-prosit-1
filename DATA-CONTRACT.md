@@ -375,14 +375,10 @@ AWS Region: af-south-1
 Region: Africa (Cape Town)
 ```
 
-The current RDS PostgreSQL instance and S3 bucket were initially created in:
-
-```text
-AWS Region: eu-west-1
-Region: Europe (Ireland)
-```
-
-These resources will need to be recreated/migrated to `af-south-1` as part of the infrastructure correction.
+The RDS PostgreSQL instance and the S3 media bucket are provisioned in `af-south-1` by the Terraform
+configuration (the `database` and `storage` modules inherit the default `af-south-1` provider), so no
+recreation is outstanding. Only the frontend's AWS Amplify Hosting stays in `eu-west-1`, because Amplify
+is not offered in `af-south-1` (ADR-009).
 
 This is an **AWS infrastructure decision**, not a farmer data-contract requirement.
 
