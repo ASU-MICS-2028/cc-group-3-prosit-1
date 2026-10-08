@@ -3,6 +3,7 @@ import { actorOf, CROPS, CURRENCIES, nowDate, type Ctx } from '../context.js'
 import { iso, num, pgError, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { isUuid, requireAuth, type Claims } from '../security.js'
+import { pageParams, totalOf } from '../pagination.js'
 import { isJpeg, rawPhoto } from './farmers.js'
 
 const FIELD_STAFF = ['agent', 'coordinator'] as const
@@ -126,10 +127,12 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
 
   app.get(
     '/crop-checks/me',
-    route(async ({ req }) => {
+    route(async ({ req, query }) => {
       const claims = await requireAuth(signer, req, ['farmer'])
-      const { rows } = await db.query(`${CHECK_SELECT} WHERE c.farmer_user_id = $1 ORDER BY c.seq DESC`, [claims.sub])
-      return [200, { items: rows.map(checks.view) }]
+      const { limit, offset } = pageParams(query)
+      const { rows } = await db.query(`${CHECK_SELECT} WHERE c.farmer_user_id = $1 ORDER BY c.seq DESC LIMIT $2 OFFSET $3`, [claims.sub, limit, offset])
+      const total = Number((await db.query('SELECT count(*)::int AS n FROM crop_checks WHERE farmer_user_id = $1', [claims.sub])).rows[0]?.n ?? 0)
+      return [200, { items: rows.map(checks.view), total }]
     }),
   )
 
@@ -139,8 +142,10 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
       const claims = await requireAuth(signer, req, [...FIELD_STAFF, 'admin'])
       const status = query.get('status')
       if (status && !['open', 'answered'].includes(status)) throw invalid('status', 'status must be open or answered')
+      const { limit, offset } = pageParams(query)
       const { rows } = await db.query(`${CHECK_SELECT} WHERE ($1::text IS NULL OR c.status = $1) ORDER BY c.seq DESC`, [status])
-      return [200, { items: rows.filter((check) => checks.canSee(claims, check)).map(checks.view) }]
+      const visible = rows.filter((check) => checks.canSee(claims, check))
+      return [200, { items: visible.slice(offset, offset + limit).map(checks.view), total: visible.length }]
     }),
   )
 
@@ -212,12 +217,13 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
       const claims = await requireAuth(signer, req)
       const crop = query.get('crop')
       if (crop && !CROPS.includes(crop)) throw invalid('crop', 'Choose one of the listed crops')
+      const { limit, offset } = pageParams(query)
       const { rows } = await db.query(
-        `SELECT l.*, u.phone_e164 AS seller_phone, coalesce(nullif(f.name, ''), u.name, '') AS seller_name
+        `SELECT l.*, u.phone_e164 AS seller_phone, coalesce(nullif(f.name, ''), u.name, '') AS seller_name, count(*) OVER() AS total
            FROM listings l JOIN users u ON u.id = l.seller_user_id LEFT JOIN farmers f ON f.phone_e164 = u.phone_e164
           WHERE l.status = 'open' AND ($1::text IS NULL OR l.crop = $1)
-          ORDER BY l.seq DESC`,
-        [crop],
+          ORDER BY l.seq DESC LIMIT $2 OFFSET $3`,
+        [crop, limit, offset],
       )
       const items = rows.map((listing) => ({
         id: listing.id,
@@ -231,7 +237,7 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
         sellerPhone: listing.seller_phone,
         mine: listing.seller_user_id === claims.sub,
       }))
-      return [200, { items }]
+      return [200, { items, total: totalOf(rows) }]
     }),
   )
 
@@ -280,13 +286,15 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
       const claims = await requireAuth(signer, req, ['admin'])
       const type = query.get('type')
       if (type !== 'feedback' && type !== 'cropcheck') throw invalid('type', 'type must be feedback or cropcheck')
+      const { limit, offset } = pageParams(query)
       if (type === 'cropcheck') {
         const { rows } = await db.query(`${CHECK_SELECT} ORDER BY c.seq DESC`)
-        return [200, { items: rows.filter((check) => checks.canSee(claims, check)).map(checks.view) }]
+        const visible = rows.filter((check) => checks.canSee(claims, check))
+        return [200, { items: visible.slice(offset, offset + limit).map(checks.view), total: visible.length }]
       }
-      const { rows } = await db.query('SELECT * FROM feedback ORDER BY seq DESC')
+      const { rows } = await db.query('SELECT *, count(*) OVER() AS total FROM feedback ORDER BY seq DESC LIMIT $1 OFFSET $2', [limit, offset])
       const items = rows.map((entry) => ({ id: entry.id, at: iso(entry.created_at), name: entry.name, role: entry.role, screen: entry.screen, message: entry.message, rating: entry.rating }))
-      return [200, { items }]
+      return [200, { items, total: totalOf(rows) }]
     }),
   )
 }

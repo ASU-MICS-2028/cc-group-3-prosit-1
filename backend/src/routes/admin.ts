@@ -4,6 +4,7 @@ import { iso, num, pgError, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { PROFILE_FIELDS, profileView, type ProfileField } from '../profile.js'
 import { hashSecret, isE164, requireAuth, type Claims } from '../security.js'
+import { orderBy, pageParams, totalOf } from '../pagination.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
 import { farmerView, getFarmer } from './farmers.js'
 import { paymentTools } from './payments.js'
@@ -11,7 +12,6 @@ import { paymentTools } from './payments.js'
 const AGENT_STATUSES = ['pending_verification', 'pending', 'approved', 'rejected', 'suspended']
 const REPORTERS = ['admin', 'coordinator'] as const
 const ACRES_TO_HECTARES = 0.404686
-const PAGE_SIZE = 100
 
 const inScope = (claims: Claims, assoc: string | null | undefined) => claims.role === 'admin' || assoc === claims.assoc
 
@@ -109,11 +109,15 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
       const claims = await requireAuth(signer, req, REPORTERS)
       const status = query.get('status')
       if (status && !AGENT_STATUSES.includes(status)) throw invalid('status', 'Unknown status')
+      const { limit, offset } = pageParams(query)
+      const order = orderBy(query, { createdAt: 'u.created_at', name: 'u.name', status: 'u.status' }, 'u.created_at', 'asc')
       const { rows } = await db.query<UserRow>(
-        `SELECT * FROM users WHERE role = 'agent' AND ($1 = 'admin' OR association_id = $2) AND ($3::text IS NULL OR status = $3) ORDER BY created_at, id`,
-        [claims.role, claims.assoc ?? null, status],
+        `SELECT u.*, count(*) OVER() AS total FROM users u
+          WHERE u.role = 'agent' AND ($1 = 'admin' OR u.association_id = $2) AND ($3::text IS NULL OR u.status = $3)
+          ORDER BY ${order}, u.id LIMIT $4 OFFSET $5`,
+        [claims.role, claims.assoc ?? null, status, limit, offset],
       )
-      return [200, { items: rows.map(publicUser) }]
+      return [200, { items: rows.map(publicUser), total: totalOf(rows) }]
     }),
   )
 
@@ -124,10 +128,12 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
 
   app.get(
     '/admin/coordinators',
-    route(async ({ req }) => {
+    route(async ({ req, query }) => {
       await requireAuth(signer, req, ['admin'])
-      const { rows } = await db.query<UserRow>("SELECT * FROM users WHERE role = 'coordinator' ORDER BY created_at, id")
-      return [200, { items: rows.map(publicUser) }]
+      const { limit, offset } = pageParams(query)
+      const order = orderBy(query, { createdAt: 'created_at', name: 'name' }, 'created_at', 'asc')
+      const { rows } = await db.query<UserRow>(`SELECT *, count(*) OVER() AS total FROM users WHERE role = 'coordinator' ORDER BY ${order}, id LIMIT $1 OFFSET $2`, [limit, offset])
+      return [200, { items: rows.map(publicUser), total: totalOf(rows) }]
     }),
   )
 
@@ -163,22 +169,27 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
     }),
   )
 
-  /** ADMIN-CONTRACT: ?query=&community=&crop=&page=1 → { items, total }. */
+  /** ADMIN-CONTRACT: ?query=&community=&crop=&page=1 → { items, total }. Paged in SQL, not in memory. */
   app.get(
     '/admin/farmers',
     route(async ({ req, query }) => {
       const claims = await requireAuth(signer, req, REPORTERS)
-      const text = (query.get('query') ?? '').trim().toLowerCase()
+      const text = (query.get('query') ?? '').trim()
       const community = (query.get('community') ?? '').trim().toLowerCase()
-      const crop = query.get('crop')
-      const page = Math.max(1, Number(query.get('page')) || 1)
-      const matches = (await scopedFarmers(claims)).filter(
-        (row: Row) =>
-          (!text || `${row.name} ${row.phone_e164}`.toLowerCase().includes(text)) &&
-          (!community || String(row.community ?? '').toLowerCase() === community) &&
-          (!crop || (row.crops as string[]).includes(crop)),
+      const crop = query.get('crop') ?? ''
+      const { limit, offset } = pageParams(query)
+      const order = orderBy(query, { name: 'f.name', community: 'f.community', registeredAt: 'f.registered_at' }, 'f.id')
+      const { rows } = await db.query(
+        `SELECT f.id, f.name, f.phone_e164, f.community, f.region, agent.name AS agent_name, count(*) OVER() AS total
+           FROM farmers f JOIN users agent ON agent.id = f.created_by
+          WHERE ($1 = 'admin' OR agent.association_id = $2)
+            AND ($3 = '' OR f.name ILIKE '%' || $3 || '%' OR f.phone_e164 ILIKE '%' || $3 || '%')
+            AND ($4 = '' OR lower(coalesce(f.community, '')) = $4)
+            AND ($5 = '' OR EXISTS (SELECT 1 FROM farmer_crops c WHERE c.farmer_id = f.id AND c.crop_type = $5))
+          ORDER BY ${order}, f.id DESC LIMIT $6 OFFSET $7`,
+        [claims.role, claims.assoc ?? null, text, community, crop, limit, offset],
       )
-      const items = matches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((row: Row) => ({
+      const items = rows.map((row: Row) => ({
         id: String(row.id),
         name: row.name,
         phone: row.phone_e164,
@@ -186,7 +197,7 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
         region: row.region,
         registeredByName: row.agent_name,
       }))
-      return [200, { items, total: matches.length }]
+      return [200, { items, total: totalOf(rows) }]
     }),
   )
 
@@ -215,12 +226,12 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
     '/admin/audit',
     route(async ({ req, query }) => {
       await requireAuth(signer, req, ['admin'])
-      const page = Math.max(1, Number(query.get('page')) || 1)
+      const { limit, offset } = pageParams(query)
       const { rows } = await db.query(
-        `SELECT a.changed_at, coalesce(u.login_id, a.app_actor) AS actor_id, a.actor_role, a.event, a.record_id, a.detail
+        `SELECT a.changed_at, coalesce(u.login_id, a.app_actor) AS actor_id, a.actor_role, a.event, a.record_id, a.detail, count(*) OVER() AS total
            FROM audit_log a LEFT JOIN users u ON u.id = a.app_actor
           ORDER BY a.id DESC LIMIT $1 OFFSET $2`,
-        [PAGE_SIZE, (page - 1) * PAGE_SIZE],
+        [limit, offset],
       )
       const items = rows.map((row) => ({
         at: iso(row.changed_at),
@@ -230,7 +241,7 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
         targetId: row.record_id,
         detail: row.detail,
       }))
-      return [200, { items }]
+      return [200, { items, total: totalOf(rows) }]
     }),
   )
 
