@@ -161,7 +161,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
   * Triggered exclusively on merges to `main`.
   * Authenticates to AWS via **IAM OIDC Web Identity Federation** (no long-lived credentials stored in GitHub).
   * Builds and pushes versioned + `:latest` Docker images to Amazon ECR (`agroconnect-dev-backend`).
-  * Triggers an automated rolling instance refresh (`MinHealthyPercentage: 50%`) with concurrency retry handling (`InstanceRefreshInProgress`) waiting for in-flight launch template refreshes before starting.
+  * Triggers an automated rolling instance refresh (launch-before-terminate: `MinHealthyPercentage: 100%`, `MaxHealthyPercentage: 200%`) with concurrency retry handling (`InstanceRefreshInProgress`) waiting for in-flight launch template refreshes before starting.
 * **Frontend Continuous Deployment ([`amplify.yml`](./amplify.yml)):**
   * AWS Amplify Hosting pipeline building the React PWA on push to `main` with automatic edge invalidation.
 * *Details:* See [`docs/ci-cd-and-operations.md`](./docs/ci-cd-and-operations.md).
