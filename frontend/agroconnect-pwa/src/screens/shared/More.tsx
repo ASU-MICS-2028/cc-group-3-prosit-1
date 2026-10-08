@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../components/Button'
+import { useNavOverflow } from '../../components/navOverflow'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
@@ -26,6 +27,7 @@ const LABELS: Record<MoreEntry, TranslationKey> = {
 
 export function More({ entries }: { entries: readonly MoreEntry[] }) {
   const { t } = useT()
+  const overflow = useNavOverflow()
   const [view, setView] = useState<MoreEntry | null>(null)
   const back = () => setView(null)
 
@@ -59,6 +61,14 @@ export function More({ entries }: { entries: readonly MoreEntry[] }) {
           <ScreenHeader title={t('more.title')} />
           <main className="screen-body">
             <ul className="plain-list menu">
+              {overflow.tabs.map((tab) => (
+                <li key={tab.id}>
+                  <button type="button" className="card menu-row" onClick={() => overflow.open(tab.id)}>
+                    {t(tab.label)}
+                    <span aria-hidden="true">›</span>
+                  </button>
+                </li>
+              ))}
               {entries.map((entry) => (
                 <li key={entry}>
                   <button type="button" className="card menu-row" onClick={() => setView(entry)}>

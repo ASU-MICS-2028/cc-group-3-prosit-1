@@ -1,8 +1,9 @@
 import { RemoteView } from '../../components/RemoteView'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { WeatherIcon } from '../../components/WeatherIcon'
-import { placesIn, weatherAdvice } from '../../domain/weather'
+import { HERE_ID, placesIn, weatherAdvice } from '../../domain/weather'
 import { useT } from '../../i18n/context'
+import { placeName } from '../../lib/placeName'
 import { useSettings } from '../../settings/context'
 import { useForecast } from '../../weather/useForecast'
 
@@ -10,17 +11,20 @@ const weekday = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateStrin
 
 export function Weather({ onBack }: { onBack?: () => void }) {
   const { t } = useT()
-  const { country, setPlace } = useSettings()
+  const { country, setPlace, followsLocation, locationStatus } = useSettings()
   const { place, state, reload, stale } = useForecast()
 
   return (
     <>
-      <ScreenHeader title={t('weather.title')} subtitle={place.name} onBack={onBack} />
+      <ScreenHeader title={t('weather.title')} subtitle={placeName(place, t)} onBack={onBack} />
       <main className="screen-body">
         <section className="card">
           <fieldset className="language-picker">
             <legend className="label">{t('weather.place')}</legend>
             <div className="pill-row">
+              <button type="button" className={place.id === HERE_ID ? 'pill is-selected' : 'pill'} aria-pressed={place.id === HERE_ID} onClick={() => setPlace(HERE_ID)}>
+                {t('weather.here')}
+              </button>
               {placesIn(country).map((option) => (
                 <button key={option.id} type="button" className={option.id === place.id ? 'pill is-selected' : 'pill'} aria-pressed={option.id === place.id} onClick={() => setPlace(option.id)}>
                   {option.name}
@@ -28,6 +32,11 @@ export function Weather({ onBack }: { onBack?: () => void }) {
               ))}
             </div>
           </fieldset>
+          {followsLocation && place.id !== HERE_ID && (locationStatus === 'denied' || locationStatus === 'failed') && (
+            <p className="note" role="status">
+              {t('weather.locationOff', { place: place.name })}
+            </p>
+          )}
         </section>
 
         <RemoteView state={state} onRetry={reload}>

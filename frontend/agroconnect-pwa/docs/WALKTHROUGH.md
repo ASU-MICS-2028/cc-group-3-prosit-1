@@ -127,12 +127,21 @@ Everything here is **test mode, no real money**. On the live site a cedi payment
 
 Weather comes from Open-Meteo, a free service that needs no key. The app sends only the town's coordinates.
 
-1. Sign in as the demo farmer. The **Home** weather card shows the real temperature and conditions for **Ashaiman**, today's chance of rain, and (when rain is 60% or more likely, or it is 34° or hotter) a one-line tip.
-2. Tap **5-day forecast**. You see the current weather with humidity and wind, and five days with icons, temperature range and rain chance. Tap another place (Accra, Kumasi, Tamale) and the forecast changes.
+1. Sign in as the demo farmer. The browser asks to use your location once; allow it. The **Home** weather card shows the real temperature and conditions with the name of where you are (for example "Ashaiman, Greater Accra Region", looked up once from OpenStreetMap and kept on the phone for offline use). If you refuse (or the phone has no GPS), it shows **Ashaiman**, today's chance of rain, and (when rain is 60% or more likely, or it is 34° or hotter) a one-line tip.
+2. Tap **5-day forecast**. You see the current weather with humidity and wind, and five days with icons, temperature range and rain chance. The place row starts with **My location**; tap another place (Accra, Kumasi, Tamale) and the forecast changes, then tap **My location** to come back. Only coordinates rounded to about 1 km are sent and kept on the phone.
 3. **Offline:** with a forecast loaded, set DevTools to Offline and reload. The saved forecast shows with "No signal. Showing the forecast saved at …".
 4. In **Me**, switch the country to Nigeria or Kenya. The places change (Lagos, Kano, Abuja; Nairobi, Kisumu, Mombasa).
 5. As the agent, **More**, then **Weather** shows the same screen.
 6. **Market:** each crop now shows an arrow with its change this week (▲ up, ▼ down, – no change) and the update date. The prices are still labelled **Sample prices** until a market-info service exists.
+
+### Batch 7: a steadier bottom bar in Twi and Ewe
+
+English keeps all five tabs. In Twi or Ewe the bar shows each role's three most-used tabs plus **More** (Nkaeɛ / Bubuwo), so labels never wrap or overlap.
+
+1. As the demo farmer, switch the language to **Twi**. The bar shows Home, Market, Wallet and More. Open **More**: Advice, Me and Settings (language, country, sign out) are listed.
+2. Open **Advice** from More. The More icon stays highlighted; tap it again to return to the list. Switch back to English and the five tabs return.
+3. Agents and coordinators keep Home, Register and Farmers; admins keep Overview, Agents and Farmers. Crop checks, Stats or Activity move into More, above the existing entries.
+4. The shortened bar labels (Sika, Kyerɛw, Kpɔkpɔ, Agbledela) need checking by a native speaker.
 
 ### Batch 6: crop checks and produce for sale
 
@@ -169,6 +178,7 @@ Screenshots: the weather card and the 5-day forecast, a crop check with its phot
 
 | Batch | Date | What was added | Automated tests |
 |-------|------|----------------|-----------------|
+| Nav + weather | 2026-10-08 | In Twi and Ewe the bottom bar keeps three tabs plus **More**, which holds the rest, with the sign-out and language in Settings; the weather defaults to the phone's own location, with the towns still one tap away | 281 |
 | Core | earlier | Registration, GPS, photo, offline sync, farmers list and detail | 39 |
 | 1 | 2026-10-05 | Sign-in, offline PIN, agent approval flow | 70 |
 | 2 | 2026-10-05 | A separate app for each role, admin Agents screen, feedback, settings | 84 |

@@ -6,6 +6,8 @@ export interface NavItem<T extends string> {
   id: T
   label: TranslationKey
   icon: IconName
+  /** Only in the compact bar (Twi and Ewe), where it stands for the tabs moved into it. */
+  compactOnly?: boolean
 }
 
 interface BottomNavProps<T extends string> {

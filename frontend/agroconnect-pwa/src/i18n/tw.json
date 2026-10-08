@@ -1,7 +1,7 @@
 {
   "app.name": "AgroConnect Ghana",
   "nav.home": "Fie",
-  "nav.register": "Kyerɛw din",
+  "nav.register": "Kyerɛw",
   "nav.farmers": "Akuafoɔ",
   "net.online": "Network wɔ hɔ",
   "net.offline": "Network nni hɔ",
@@ -169,7 +169,7 @@
   "common.loading": "Ɛrebue…",
   "common.close": "To mu",
   "nav.market": "Gua",
-  "nav.wallet": "Sika kotoku",
+  "nav.wallet": "Sika",
   "nav.advice": "Afotuo",
   "nav.me": "Me",
   "nav.checks": "Nhwehwɛmu",
@@ -539,5 +539,7 @@
   "visits.topic.training": "Ntetee",
   "visits.topic.credit": "Bosea",
   "visits.topic.records": "Nsɛm foforɔ kyerɛw",
-  "visits.topic.follow_up": "Nsrahwɛ foforɔ"
+  "visits.topic.follow_up": "Nsrahwɛ foforɔ",
+  "weather.here": "Me beaeɛ",
+  "weather.locationOff": "Beaeɛ nkyerɛaseɛ ayɛ den, enti yɛkyerɛ {place} wim tebea. Ma kwan ma beaeɛ wɔ browser no mu na woahu w'ankasa wim tebea."
 }

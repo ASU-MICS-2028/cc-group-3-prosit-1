@@ -2,7 +2,7 @@
   "app.name": "AgroConnect Ghana",
   "nav.home": "Aƒeme",
   "nav.register": "Ŋlɔ ŋkɔ",
-  "nav.farmers": "Agbledelawo",
+  "nav.farmers": "Agbledela",
   "net.online": "Network li",
   "net.offline": "Network meli o",
   "home.title": "Egbe ƒe dɔwɔwɔ",
@@ -175,7 +175,7 @@
   "nav.checks": "Dodokpɔwo",
   "nav.more": "Bubuwo",
   "nav.stats": "Xexlẽmewo",
-  "nav.overview": "Kpɔkpɔ blibo",
+  "nav.overview": "Kpɔkpɔ",
   "nav.agents": "Agents",
   "nav.activity": "Nuwɔwɔwo",
   "role.farmer": "Agbledela",
@@ -539,5 +539,7 @@
   "visits.topic.training": "Hehe",
   "visits.topic.credit": "Fenyinyi",
   "visits.topic.records": "Nyatakakawo ŋɔŋlɔ yeye",
-  "visits.topic.follow_up": "Gbugbɔgadzi"
+  "visits.topic.follow_up": "Gbugbɔgadzi",
+  "weather.here": "Nye teƒe",
+  "weather.locationOff": "Teƒeɖoɖo mele dzi o, eyata {place} ƒe yame nɔnɔme mekpɔ. Na mɔ teƒeɖoɖo le browser me bene nàkpɔ wò ŋutɔ wò teƒe ƒe yame nɔnɔme."
 }

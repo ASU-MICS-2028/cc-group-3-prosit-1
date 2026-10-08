@@ -554,5 +554,7 @@
   "visits.topic.training": "Training",
   "visits.topic.credit": "Credit",
   "visits.topic.records": "Updating records",
-  "visits.topic.follow_up": "Follow-up"
+  "visits.topic.follow_up": "Follow-up",
+  "weather.here": "My location",
+  "weather.locationOff": "Location is off, so this is the forecast for {place}. Allow location in your browser to see your own weather."
 }

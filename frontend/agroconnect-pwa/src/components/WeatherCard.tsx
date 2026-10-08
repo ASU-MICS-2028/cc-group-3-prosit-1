@@ -1,5 +1,6 @@
 import { weatherAdvice } from '../domain/weather'
 import { useT } from '../i18n/context'
+import { placeName } from '../lib/placeName'
 import { useForecast } from '../weather/useForecast'
 import { Button } from './Button'
 import { RemoteView } from './RemoteView'
@@ -13,7 +14,7 @@ export function WeatherCard({ onOpen }: { onOpen: () => void }) {
   return (
     <section className="card">
       <h2 className="card-title">
-        {t('farmer.weather')} · {place.name}
+        {t('farmer.weather')} · {placeName(place, t)}
       </h2>
       <RemoteView state={state} onRetry={reload}>
         {(forecast) => {
