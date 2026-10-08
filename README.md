@@ -135,16 +135,16 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details:* See [`docs/data-tier.md`](./docs/data-tier.md).
 
 ### 4. Cloud Infrastructure as Code ([`infra/`](./infra))
-* **Orchestration:** HashiCorp Terraform (`>= 1.6`) structured into 11 modular components under [`infra/modules/`](./infra/modules):
+* **Orchestration:** HashiCorp Terraform (`>= 1.10`) structured into 11 modular components under [`infra/modules/`](./infra/modules):
   * `network` — VPC, 6 subnets across 2 AZs, IGW, routing tables.
   * `nat` — ARM64 `fck-nat` (`t4g.nano`) cutting NAT costs by >90%.
   * `alb` — Application Load Balancer, ACM TLS certificate for `api.agroconnect.space`, HTTP-to-HTTPS redirect.
   * `compute` — EC2 IAM role, launch template, ASG, `awslogs` Docker logging driver, target-tracking scaling policy.
   * `ecr` — Container registry (`agroconnect-dev-backend`).
   * `database` — Amazon RDS PostgreSQL 16 on `db.t4g.micro` in isolated subnets with KMS encryption.
-  * `storage` — S3 media bucket (`agroconnect-media-*`) with versioning, AES256, and multipart lifecycle rules.
-  * `secrets` — AWS Secrets Manager container for Arkesel SMS API credentials (`agroconnect/dev/arkesel`).
-  * `observability` — SNS alerts topic, CloudWatch operational dashboard, alarms for ALB/ASG/RDS/EC2, and $10 monthly budget.
+  * `storage` — S3 media bucket (`agroconnect-dev-media`) with versioning, AES256, and multipart lifecycle rules.
+  * `secrets` — AWS Secrets Manager container for Arkesel SMS API credentials (`agroconnect-dev-arkesel-sms`).
+  * `observability` — SNS alerts topic, CloudWatch operational dashboard, alarms for ALB/ASG/RDS/EC2, and a $100 monthly budget.
   * `cicd` — AWS IAM OIDC federation for GitHub Actions.
   * `frontend` — AWS Amplify App in `eu-west-1` with custom domain `app.agroconnect.space`.
 * **Remote State:** Centralized in Amazon S3 (`af-south-1`) with Terraform 1.10+ native state locking (`use_lockfile = true`), completely eliminating external DynamoDB dependencies.
@@ -176,11 +176,11 @@ Each tier is decoupled and maintained in its respective subdirectory:
 
 | Pillar | Architectural Implementation in AgroConnect |
 |---|---|
-| **Operational Excellence** | Infrastructure 100% codified across 11 Terraform modules (`infra/modules/`) with native S3 state locking. Immutable container deployments through ECR and ASG rolling refreshes with concurrency retry protection. Docker `awslogs` container log streaming to CloudWatch Logs. Unified CloudWatch operational dashboard (`agroconnect-dev-operational`) and automated SNS email alarm dispatches. |
+| **Operational Excellence** | Infrastructure 100% codified across 11 Terraform modules (`infra/modules/`) with native S3 state locking. Immutable container deployments through ECR and ASG rolling refreshes with concurrency retry protection. Docker `awslogs` container log streaming to CloudWatch Logs. Unified CloudWatch operational dashboard (`agroconnect-dev-overview`) and automated SNS email alarm dispatches. |
 | **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. Database credentials and third-party SMS tokens secured in AWS Secrets Manager. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
 | **Reliability** | ALB and app instances across `af-south-1a` and `af-south-1b` (RDS single-AZ for the lab). Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Automated RDS snapshots and S3 bucket versioning. |
 | **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Static PWA cached at CloudFront edge; client-side IndexedDB caching and photo compression reducing payload overhead by >95%. |
-| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$10/month AWS Budgets guardrail with 80% forecast warning and 100% actual spend alert to SNS. |
+| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$100/month AWS Budgets guardrail with a 50% forecast warning and a 100% actual spend alert to SNS. |
 | **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Adoption of ARM64 Graviton instances for NAT (`t4g.nano`) and RDS (`db.t4g.micro`), reducing power consumption and emissions. |
 
 *Full architectural deep-dive:* See [`docs/system-overview.md`](./docs/system-overview.md).
