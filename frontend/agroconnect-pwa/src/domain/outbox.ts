@@ -52,6 +52,8 @@ export type OutboxKind = keyof PayloadByKind
 export interface RemoteRef {
   id: string
   status: string
+  /** For a payment: the provider's checkout page, while it is pending. */
+  checkoutUrl?: string | null
 }
 
 /** Something the user created offline that will be sent to the server later. */

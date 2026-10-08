@@ -18,6 +18,8 @@ export interface HistoryRow {
   state: HistoryState
   at: number
   message?: string
+  /** Where the farmer finishes a pending payment (the provider's checkout page). */
+  checkoutUrl?: string
 }
 
 function fromServer(payment: PaymentView): HistoryRow {
@@ -29,6 +31,7 @@ function fromServer(payment: PaymentView): HistoryRow {
     network: payment.network,
     state: payment.status,
     at: Date.parse(payment.createdAt),
+    ...(payment.status === 'pending' && payment.checkoutUrl && { checkoutUrl: payment.checkoutUrl }),
   }
 }
 
@@ -36,7 +39,10 @@ function fromPhone(item: OutboxItem<'payment'>): HistoryRow {
   const { direction, amount, currency, network } = item.payload
   const base = { clientId: item.clientId, direction, amount, currency, network, at: item.createdAt }
   if (item.status === 'attention') return { ...base, state: 'attention', message: item.errorMessage }
-  if (item.status === 'sent') return { ...base, state: item.remote?.status === 'pending' || !item.remote ? 'pending' : (item.remote.status as HistoryState) }
+  if (item.status === 'sent') {
+    const pending = item.remote?.status === 'pending' || !item.remote
+    return { ...base, state: pending ? 'pending' : (item.remote?.status as HistoryState), ...(pending && item.remote?.checkoutUrl && { checkoutUrl: item.remote.checkoutUrl }) }
+  }
   return { ...base, state: 'queued' }
 }
 

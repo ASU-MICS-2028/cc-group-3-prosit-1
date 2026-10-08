@@ -52,4 +52,14 @@ describe('buildHistory', () => {
     const rows = buildHistory([local('new', { createdAt: 9_000 })], [server('old')])
     expect(rows.map((row) => row.clientId)).toEqual(['new', 'old'])
   })
+
+  it('offers the checkout page only while a payment is pending', () => {
+    const rows = buildHistory(
+      [local('queued-one', { status: 'sent', remote: { id: 'P-9', status: 'pending', checkoutUrl: 'https://pay.example/9' } })],
+      [server('a', { status: 'pending', checkoutUrl: 'https://pay.example/1' }), server('b', { checkoutUrl: 'https://pay.example/2' })],
+    )
+    expect(rows.find((row) => row.clientId === 'a')?.checkoutUrl).toBe('https://pay.example/1')
+    expect(rows.find((row) => row.clientId === 'b')?.checkoutUrl).toBeUndefined()
+    expect(rows.find((row) => row.clientId === 'queued-one')?.checkoutUrl).toBe('https://pay.example/9')
+  })
 })

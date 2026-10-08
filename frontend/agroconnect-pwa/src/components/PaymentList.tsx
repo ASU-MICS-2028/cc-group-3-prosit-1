@@ -29,6 +29,11 @@ export function PaymentList({ rows }: { rows: readonly HistoryRow[] }) {
           </span>
           <SyncBadge status={BADGE_FOR[row.state]} label={t(`wallet.state.${row.state}`)} />
           {row.message && <span className="error">{row.message}</span>}
+          {row.checkoutUrl && (
+            <a className="btn btn-secondary" href={row.checkoutUrl}>
+              {t('wallet.completePayment')}
+            </a>
+          )}
         </li>
       ))}
     </ul>
