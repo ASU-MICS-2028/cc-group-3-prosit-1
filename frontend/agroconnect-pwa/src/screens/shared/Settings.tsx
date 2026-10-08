@@ -3,6 +3,7 @@ import { LanguagePicker } from '../../components/LanguagePicker'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
+import { InstallButton } from '../../components/InstallButton'
 
 export function Settings({ onBack }: { onBack?: () => void }) {
   const { t } = useT()
@@ -14,6 +15,7 @@ export function Settings({ onBack }: { onBack?: () => void }) {
           <LanguagePicker />
           <CountryPicker />
         </section>
+        <InstallButton />
         <SignOutButton />
       </main>
     </>
