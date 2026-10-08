@@ -314,3 +314,14 @@ describe('votex365 payments', () => {
     expect(rows).toEqual([{ status: 'pending', checkout_url: null }])
   })
 })
+
+describe('token refresh and account status', () => {
+  it('stops a suspended farmer from refreshing, like a suspended agent', async () => {
+    const t = await start()
+    const token = await t.farmerToken('+233241234567')
+    expect((await t.call('POST', '/auth/refresh', { token })).status).toBe(200)
+
+    await t.db.query("UPDATE users SET status = 'suspended' WHERE role = 'farmer' AND phone_e164 = $1", ['+233241234567'])
+    expect(await t.call('POST', '/auth/refresh', { token })).toMatchObject({ status: 403, body: { error: 'suspended' } })
+  })
+})

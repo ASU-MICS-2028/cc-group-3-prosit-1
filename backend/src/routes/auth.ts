@@ -204,8 +204,8 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       if (!user) throw new HttpError(401, 'invalid_credentials', 'Wrong ID or password.')
       assertNotLocked(user)
       if (!(await verifySecret(String(body.password ?? ''), user.password_hash))) {
-        await recordFailure(user)
-        throw new HttpError(401, 'invalid_credentials', 'Wrong ID or password.')
+        // Same shape as the farmer PIN login, so the phone can show how many tries are left.
+        throw new HttpError(401, 'invalid_credentials', 'Wrong ID or password.', { attemptsLeft: await recordFailure(user) })
       }
       await clearFailures(user)
       if (BLOCKED_STAFF_STATUSES.includes(user.status)) {
@@ -223,8 +223,8 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       const claims = await signer.verify(token, { graceSeconds: REFRESH_GRACE_SECONDS })
       const user = await findUser(db, claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
-      // An admin's suspension reaches the phone here.
-      if (user.role !== 'farmer' && user.status !== 'approved') throw new HttpError(403, user.status, `Account is ${user.status}.`)
+      // An admin's suspension reaches the phone here, for farmers and staff alike.
+      if (user.status !== 'approved') throw new HttpError(403, user.status, `Account is ${user.status}.`)
       return [200, { token: await signer.sign(tokenUser(user), ttlSecondsFor(user.role)) }]
     }),
   )
