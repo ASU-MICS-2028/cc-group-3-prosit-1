@@ -1,3 +1,6 @@
+
+
+
 # AgroConnect Ghana — Group 3 (Highlanders)
 
 **Course:** ICS 534 Cloud Computing | **Milestone:** PROSIT 1  
@@ -5,6 +8,14 @@
 **Live Frontend:** [`https://app.agroconnect.space`](https://app.agroconnect.space) | **API Endpoint:** [`https://api.agroconnect.space`](https://api.agroconnect.space)
 
 AgroConnect Ghana is an offline-first agricultural profiling and registration platform designed for field extension agents operating in rural communities across Ghana where cellular connectivity is intermittent or unavailable.
+
+## Walkthrough Video
+
+A 2½-minute recording of the live app at [`app.agroconnect.space`](https://app.agroconnect.space), as a farmer, a field agent, an admin and a coordinator. Click to watch:
+
+https://github.com/user-attachments/assets/9f130db7-3a16-4d7d-97ba-011fa4d73795
+
+How it is recorded (Playwright against the live site) and rebuilt: [`scripts/demo-video/`](./scripts/demo-video).
 
 ---
 

@@ -184,23 +184,38 @@ export function ussdRoutes(app: Express, ctx: Ctx): void {
     return mainMenu(lang)
   }
 
-  /** Arkesel USSD callback. 404 unless USSD is configured; refuses requests not meant for our account. */
+  /**
+   * USSD gateway callback. Two formats are accepted:
+   *  - Nalo Solutions: USERID, MSISDN, USERDATA, MSGTYPE (true = first dial), SESSIONID — upper-case.
+   *  - Arkesel: userID, msisdn, userData, newSession, sessionID — camelCase.
+   * Replies in the same shape it was called with. 404 unless USSD is configured.
+   */
   app.post(
     '/ussd',
     route(async ({ req }) => {
       const expectedUser = ctx.settings.ussdUserId
       if (!expectedUser) throw notFound('route')
       const body = jsonBody(req)
-      if (body.userID !== expectedUser) throw new HttpError(403, 'forbidden', 'Unknown USSD account')
-      const sessionID = String(body.sessionID ?? '')
-      const msisdn = String(body.msisdn ?? '').replace(/^\+/, '')
+
+      // Nalo upper-cases its fields; Arkesel uses camelCase. Detect and normalise.
+      const nalo = body.USERID !== undefined || body.SESSIONID !== undefined || body.MSGTYPE !== undefined
+      const account = String((nalo ? body.USERID : body.userID) ?? '')
+      const sessionID = String((nalo ? body.SESSIONID : body.sessionID) ?? '')
+      const rawMsisdn = String((nalo ? body.MSISDN : body.msisdn) ?? '')
+      const userData = String((nalo ? body.USERDATA : body.userData) ?? '')
+      const newSession = nalo
+        ? body.MSGTYPE === true || body.MSGTYPE === 1 || body.MSGTYPE === '1' || body.MSGTYPE === 'true'
+        : body.newSession === true
+
+      if (account !== expectedUser) throw new HttpError(403, 'forbidden', 'Unknown USSD account')
+      const msisdn = rawMsisdn.replace(/^\+/, '')
       if (!sessionID || !/^[1-9]\d{7,14}$/.test(msisdn)) throw invalid('msisdn', 'sessionID and msisdn are required')
       const phone = `+${msisdn}`
-      const input = String(body.userData ?? '').trim()
+      const input = userData.trim()
 
       let state: UssdState
       let screen: Screen
-      if (body.newSession === true) {
+      if (newSession) {
         await db.query(`DELETE FROM ussd_sessions WHERE updated_at < now() - interval '${SESSION_TTL_HOURS} hours'`)
         const farmer = await farmerByPhone(db, phone)
         const lang = asLang(farmer?.language)
@@ -221,7 +236,12 @@ export function ussdRoutes(app: Express, ctx: Ctx): void {
       } else {
         await db.query('DELETE FROM ussd_sessions WHERE session_id = $1', [sessionID])
       }
-      return [200, { sessionID, userID: body.userID, msisdn: body.msisdn, message: screen.message, continueSession: screen.continueSession }]
+      return [
+        200,
+        nalo
+          ? { USERID: account, MSISDN: rawMsisdn, MSG: screen.message, MSGTYPE: screen.continueSession }
+          : { sessionID, userID: account, msisdn: rawMsisdn, message: screen.message, continueSession: screen.continueSession },
+      ]
     }),
   )
 
