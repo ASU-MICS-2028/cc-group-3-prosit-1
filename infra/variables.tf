@@ -103,3 +103,9 @@ variable "seed_demo_accounts" {
   description = "Seed the public demo accounts from WALKTHROUGH.md (SEED_DEMO_ACCOUNTS). Never with real data."
   default     = false
 }
+
+variable "ussd_user_id" {
+  type        = string
+  description = "Arkesel USSD userID, given when the USSD code is set up (USSD-CONTRACT.md). Empty keeps USSD off."
+  default     = ""
+}

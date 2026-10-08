@@ -167,6 +167,7 @@ locals {
       -e PAYMENT_RETURN_URL="${var.payment_return_url}" \
       -e AUTH_TEST_MODE="${var.auth_test_mode}" \
       -e SEED_DEMO_ACCOUNTS="${var.seed_demo_accounts}" \
+      -e USSD_USER_ID="${var.ussd_user_id}" \
       "$IMAGE"
   EOT
 }

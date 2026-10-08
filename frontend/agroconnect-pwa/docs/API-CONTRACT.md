@@ -16,6 +16,7 @@ The PWA saves everything on the phone first and sends later, sometimes hours lat
 | `ADVICE-CONTRACT.md` | Crop checks: a farmer's photo and question, the extension officer's answer | same folder |
 | `LISTINGS-CONTRACT.md` | Produce for sale, browsed by buyers | same folder |
 | `CONTENT-CONTRACT.md` | Market prices and advice cards entered by admins and coordinators | same folder |
+| `USSD-CONTRACT.md` | Feature-phone access over USSD, and the follow-up requests it creates | same folder |
 
 **If two documents disagree:** `DATA-CONTRACT.md` wins on how data is *stored*; these three win on what is *sent over the wire*. Anything not settled by either is listed under "Open items" at the end.
 

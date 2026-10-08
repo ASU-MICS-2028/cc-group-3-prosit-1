@@ -5,19 +5,21 @@ import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
 import type { TranslationKey } from '../../i18n/translate'
 import { ContentAdmin } from '../admin/ContentAdmin'
+import { Requests } from '../admin/Requests'
 import { CropChecks } from '../staff/CropChecks'
 import { FeedbackScreen } from './FeedbackScreen'
 import { MarketPrices } from './MarketPrices'
 import { Settings } from './Settings'
 import { Weather } from './Weather'
 
-export type MoreEntry = 'weather' | 'market' | 'checks' | 'content' | 'feedback' | 'settings'
+export type MoreEntry = 'weather' | 'market' | 'checks' | 'content' | 'requests' | 'feedback' | 'settings'
 
 const LABELS: Record<MoreEntry, TranslationKey> = {
   weather: 'more.weather',
   market: 'more.market',
   checks: 'more.checks',
   content: 'more.content',
+  requests: 'more.requests',
   feedback: 'more.feedback',
   settings: 'more.settings',
 }
@@ -45,6 +47,8 @@ export function More({ entries }: { entries: readonly MoreEntry[] }) {
       return <CropChecks onBack={back} />
     case 'content':
       return <ContentAdmin onBack={back} />
+    case 'requests':
+      return <Requests onBack={back} />
     case 'feedback':
       return <FeedbackScreen onBack={back} />
     case 'settings':
