@@ -440,5 +440,8 @@
   "content.adviceInvalid": "Yi nnɔbae na kyerɛw asɛmti ne afotuo no.",
   "content.published": "Afotuo a wɔde ato dwa",
   "content.archive": "Yi fi",
-  "content.none": "Wɔmmfaa biribiara nto dwa nnya. Akuafoɔ hunu nhwɛsoɔ afotuo kosi sɛ wobɛfa bi ato dwa."
+  "content.none": "Wɔmmfaa biribiara nto dwa nnya. Akuafoɔ hunu nhwɛsoɔ afotuo kosi sɛ wobɛfa bi ato dwa.",
+  "audio.listen": "Tie",
+  "audio.stop": "Gyae",
+  "audio.price": "{crop}, {price} kilo baako"
 }

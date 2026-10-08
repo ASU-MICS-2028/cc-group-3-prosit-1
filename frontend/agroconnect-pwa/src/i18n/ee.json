@@ -440,5 +440,8 @@
   "content.adviceInvalid": "Tia nuku eye nàŋlɔ tanya kple aɖaŋuɖoɖo la.",
   "content.published": "Aɖaŋuɖoɖo siwo woɖe ɖe go",
   "content.archive": "Ɖee ɖa",
-  "content.none": "Woɖe naneke ɖe go haɖe o. Agbledelawo kpɔa kpɔɖeŋu aɖaŋuɖoɖo va se ɖe esime nàɖe aɖewo ɖe go."
+  "content.none": "Woɖe naneke ɖe go haɖe o. Agbledelawo kpɔa kpɔɖeŋu aɖaŋuɖoɖo va se ɖe esime nàɖe aɖewo ɖe go.",
+  "audio.listen": "Se",
+  "audio.stop": "Tɔ te",
+  "audio.price": "{crop}, {price} le kilo ɖeka"
 }

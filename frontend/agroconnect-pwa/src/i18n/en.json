@@ -440,5 +440,8 @@
   "content.adviceInvalid": "Choose a crop and write a title and the advice.",
   "content.published": "Published advice",
   "content.archive": "Remove",
-  "content.none": "Nothing published yet. Farmers see sample advice until you publish some."
+  "content.none": "Nothing published yet. Farmers see sample advice until you publish some.",
+  "audio.listen": "Listen",
+  "audio.stop": "Stop",
+  "audio.price": "{crop}, {price} per kilo"
 }
