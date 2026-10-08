@@ -65,6 +65,36 @@ describe('schema and migrations', () => {
     expect(await migrate(db)).toEqual([])
     await db.close()
   })
+
+  it('has the indexes the list endpoints rely on', async () => {
+    const db = pgliteDb(new PGlite())
+    await migrate(db)
+    const { rows } = await db.query("SELECT indexname FROM pg_indexes WHERE schemaname = 'public'")
+    const names = rows.map((row) => row.indexname)
+    for (const index of [
+      'audit_log_target_idx',
+      'audit_log_changed_at_idx',
+      'farmers_registered_at_idx',
+      'feedback_created_at_idx',
+      'crop_checks_farmer_user_idx',
+      'crop_checks_status_idx',
+      'loan_requests_farmer_idx',
+      'listings_status_crop_idx',
+    ]) {
+      expect(names).toContain(index)
+    }
+    await db.close()
+  })
+
+  it('makes the user references RESTRICT, so history cannot be orphaned', async () => {
+    const db = pgliteDb(new PGlite())
+    await migrate(db)
+    const { rows } = await db.query("SELECT conname, confdeltype FROM pg_constraint WHERE conname IN ('farmers_created_by_fkey', 'payments_farmer_user_id_fkey')")
+    const modes = Object.fromEntries(rows.map((row) => [row.conname, row.confdeltype]))
+    expect(modes.farmers_created_by_fkey).toBe('r')
+    expect(modes.payments_farmer_user_id_fkey).toBe('r')
+    await db.close()
+  })
 })
 
 describe('farmer records in Postgres', () => {
