@@ -46,6 +46,21 @@ resource "aws_iam_role_policy" "ec2_db_secret" {
   policy = data.aws_iam_policy_document.db_secret_read.json
 }
 
+# Secrets Manager read for the Arkesel SMS credentials only.
+data "aws_iam_policy_document" "sms_secret_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.sms_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_sms_secret" {
+  name   = "${var.name_prefix}-ec2-sms-secret"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.sms_secret_read.json
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.name_prefix}-ec2-profile"
   role = aws_iam_role.ec2.name
@@ -103,6 +118,7 @@ locals {
       -p ${var.app_port}:${var.app_port} \
       -e DATABASE_URL="$DB_URL" \
       -e PHOTO_BUCKET="${var.media_bucket_name}" \
+      -e SMS_SECRET_ARN="${var.sms_secret_arn}" \
       -e AWS_REGION="$REGION" \
       "$IMAGE"
   EOT

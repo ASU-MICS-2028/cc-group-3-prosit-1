@@ -88,3 +88,8 @@ output "alarm_topic_arn" {
 output "observability_dashboard_url" {
   value = module.observability.dashboard_url
 }
+
+output "sms_secret_arn" {
+  description = "Secrets Manager secret for Arkesel SMS. Set its value with aws secretsmanager put-secret-value."
+  value       = module.secrets.arkesel_sms_secret_arn
+}

@@ -72,6 +72,7 @@ module "compute" {
   db_master_user_secret_arn = module.database.master_user_secret_arn
   media_bucket_name         = module.storage.bucket_name
   media_bucket_policy_json  = module.storage.app_access_policy_json
+  sms_secret_arn            = module.secrets.arkesel_sms_secret_arn
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------
@@ -117,6 +118,13 @@ module "database" {
 # ---------- storage (S3 bucket for farmer + crop-check photos) ----------
 module "storage" {
   source = "./modules/storage"
+
+  name_prefix = local.name
+}
+
+# ---------- secrets (application credentials; values set out-of-band) ----------
+module "secrets" {
+  source = "./modules/secrets"
 
   name_prefix = local.name
 }

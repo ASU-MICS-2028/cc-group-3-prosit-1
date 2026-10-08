@@ -94,3 +94,9 @@ variable "media_bucket_policy_json" {
   description = "Inline IAM policy JSON from the storage module, attached to the EC2 role for S3 read/write"
   default     = ""
 }
+
+variable "sms_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN holding the Arkesel SMS credentials. EC2 role gets GetSecretValue on just this ARN; passed to the container as SMS_SECRET_ARN."
+  default     = ""
+}
