@@ -61,8 +61,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "media" {
 # Scoped to this bucket only — no wildcard.
 data "aws_iam_policy_document" "app_access" {
   statement {
-    sid     = "ReadWriteOwnBucket"
-    effect  = "Allow"
+    sid    = "ReadWriteOwnBucket"
+    effect = "Allow"
     actions = [
       "s3:PutObject",
       "s3:GetObject",
