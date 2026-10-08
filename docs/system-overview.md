@@ -133,7 +133,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 
 ## Next Steps & Further Reading
 
-* [Architectural Decision Records (ADR-001 through ADR-013)](./architecture-decisions.md)
+* [Architectural Decision Records (ADR-001 through ADR-016)](./architecture-decisions.md)
 * [Engineering Learnings Journal](./learnings.md)
 * [AI Tools Usage & Academic Integrity Disclosure](./ai-tools-usage.md)
 * [Empirical Latency & Provider Benchmark Results](./empirical-research.md)

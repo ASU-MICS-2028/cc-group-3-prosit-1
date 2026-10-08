@@ -38,12 +38,28 @@ export interface LoanRequestPayload {
   purpose: string
 }
 
+export const VISIT_TOPICS = ['advice', 'inputs', 'pests', 'market', 'training', 'credit', 'records', 'follow_up'] as const
+export type VisitTopic = (typeof VISIT_TOPICS)[number]
+
+/** An extension agent's visit to a farmer the server already has (API-CONTRACT "Extension visits"). */
+export interface VisitPayload {
+  /** The farmer's server id. */
+  farmerId: string
+  /** ISO 8601, when the visit happened on the phone. */
+  visitedAt: string
+  topics: VisitTopic[]
+  notes: string
+  /** YYYY-MM-DD, or null. */
+  nextVisit: string | null
+}
+
 export interface PayloadByKind {
   feedback: FeedbackPayload
   listing: ListingPayload
   cropCheck: CropCheckPayload
   payment: PaymentPayload
   loanRequest: LoanRequestPayload
+  visit: VisitPayload
 }
 
 export type OutboxKind = keyof PayloadByKind
@@ -70,4 +86,4 @@ export interface OutboxItem<K extends OutboxKind = OutboxKind> {
 /** The same item as a union, so a `switch` on `kind` knows which payload it holds. */
 export type AnyOutboxItem = { [K in OutboxKind]: OutboxItem<K> }[OutboxKind]
 
-export const SENDABLE_KINDS = ['feedback', 'payment', 'loanRequest', 'listing', 'cropCheck'] as const satisfies readonly OutboxKind[]
+export const SENDABLE_KINDS = ['feedback', 'payment', 'loanRequest', 'listing', 'cropCheck', 'visit'] as const satisfies readonly OutboxKind[]

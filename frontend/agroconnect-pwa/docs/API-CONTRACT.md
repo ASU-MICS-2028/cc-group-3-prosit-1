@@ -16,6 +16,7 @@ The PWA saves everything on the phone first and sends later, sometimes hours lat
 | `ADVICE-CONTRACT.md` | Crop checks: a farmer's photo and question, the extension officer's answer | same folder |
 | `LISTINGS-CONTRACT.md` | Produce for sale, browsed by buyers | same folder |
 | `CONTENT-CONTRACT.md` | Market prices and advice cards entered by admins and coordinators | same folder |
+| `USSD-CONTRACT.md` | Feature-phone access over USSD, and the follow-up requests it creates | same folder |
 
 **If two documents disagree:** `DATA-CONTRACT.md` wins on how data is *stored*; these three win on what is *sent over the wire*. Anything not settled by either is listed under "Open items" at the end.
 
@@ -119,6 +120,28 @@ The API stores the image in S3 and writes the key to `photo_object_key`. This is
 | 200 `{ "bytes": n }` | Photo marked sent. |
 | 404 unknown id, 413 over 500 KB, other 4xx | Not retried. |
 | 408, 429, 5xx, no response | Retried later. |
+
+## Extension visits
+
+The brief requires extension agents to "track farmer interactions and progress". An agent logs a visit on the farmer's screen; it is saved on the phone and sent with the outbox, like everything else created offline.
+
+### `POST /farmers/:id/visits`
+
+Roles: `agent`, `coordinator`, for a farmer they may see (an agent: farmers they registered; a coordinator: their association's). Otherwise 404.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `clientId` | UUID | Required. A repeat answers 200 with the same `id`; 409 `client_id_taken` if it is another account's. |
+| `visitedAt` | ISO 8601 | When it happened on the phone. Defaults to now. |
+| `topics` | list | At least one of `advice`, `inputs`, `pests`, `market`, `training`, `credit`, `records`, `follow_up`. |
+| `notes` | string | Optional, at most 500 characters. |
+| `nextVisit` | `YYYY-MM-DD` \| null | Optional. |
+
+201 `{ "id": "EV-12" }`. Bad values are 400 with `field`. Stored in `extension_visits` (migration 006), audited.
+
+### `GET /farmers/:id/visits`
+
+Roles: `agent`, `coordinator`, `admin`, scoped as above. `{ "items": [{ "id", "clientId", "farmerId", "visitedAt", "topics", "notes", "nextVisit", "agentName" }] }`, newest first.
 
 ## `GET /farmers/me`
 

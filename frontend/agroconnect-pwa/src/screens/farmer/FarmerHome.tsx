@@ -13,11 +13,13 @@ import { useT } from '../../i18n/context'
 import { useSettings } from '../../settings/context'
 import type { FarmerTab } from '../../apps/tabs'
 import { Weather } from '../shared/Weather'
+import { ListenButton } from '../../audio/ListenButton'
+import { isAppLanguage } from '../../i18n/translate'
 
 const FEATURED_COUNT = 3
 
 export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
-  const { t } = useT()
+  const { t, language } = useT()
   const { country } = useSettings()
   const user = useCurrentUser()
   const name = user?.name.trim()
@@ -37,6 +39,12 @@ export function FarmerHome({ onGo }: { onGo: (tab: FarmerTab) => void }) {
         <section className="card">
           <h2 className="card-title">{t('farmer.prices')}</h2>
           {prices?.sample && <SampleBadge label="common.samplePrices" />}
+          {prices && (
+            <ListenButton
+              lang={isAppLanguage(language) ? language : 'en'}
+              text={prices.rows.slice(0, FEATURED_COUNT).map(({ crop, price }) => t('audio.price', { crop: t(`crop.${crop}`), price: formatMoney(price, country) })).join('. ')}
+            />
+          )}
           <ul className="price-list">
             {prices?.rows.slice(0, FEATURED_COUNT).map(({ crop, price, change }) => (
               <li key={crop} className="price-row">

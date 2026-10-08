@@ -72,6 +72,67 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
     throw notFound('farmer')
   }
 
+  // Extension visits (VISITS in API-CONTRACT): what an agent did with a farmer, logged on the phone, sent later.
+  const VISIT_TOPICS = ['advice', 'inputs', 'pests', 'market', 'training', 'credit', 'records', 'follow_up']
+  const DATE = /^\d{4}-\d{2}-\d{2}$/
+  const visitView = (row: Row) => ({
+    id: row.id,
+    clientId: row.client_id,
+    farmerId: String(row.farmer_id),
+    visitedAt: iso(row.visited_at),
+    topics: row.topics,
+    notes: row.notes,
+    nextVisit: row.next_visit === null ? null : row.next_visit instanceof Date ? row.next_visit.toISOString().slice(0, 10) : String(row.next_visit).slice(0, 10),
+    agentName: row.agent_name ?? null,
+  })
+
+  app.post(
+    '/farmers/:id/visits',
+    route(async ({ req, params }) => {
+      const claims = await requireAuth(signer, req, STAFF)
+      if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      const farmer = await visibleFarmer(claims, params.id as string)
+      const v = jsonBody(req)
+      if (!isUuid(v.clientId)) throw invalid('clientId', 'clientId must be a UUID')
+      const topics: unknown[] = Array.isArray(v.topics) ? v.topics : []
+      if (topics.length === 0 || !topics.every((topic) => VISIT_TOPICS.includes(String(topic)))) throw invalid('topics', `topics must be a non-empty list from: ${VISIT_TOPICS.join(', ')}`)
+      const notes = String(v.notes ?? '').trim()
+      if (notes.length > 500) throw invalid('notes', 'notes must be at most 500 characters')
+      if (v.nextVisit != null && !(typeof v.nextVisit === 'string' && DATE.test(v.nextVisit))) throw invalid('nextVisit', 'nextVisit must be a date like 2026-10-20')
+      const visitedAt = v.visitedAt && !Number.isNaN(Date.parse(v.visitedAt)) ? v.visitedAt : nowDate(ctx).toISOString()
+      try {
+        const { rows } = await db.tx(actorOf(claims), (q) =>
+          q.query(
+            `INSERT INTO extension_visits (client_id, farmer_id, agent_id, visited_at, topics, notes, next_visit, created_by, updated_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $3, $3) RETURNING id`,
+            [v.clientId, farmer.id, claims.sub, visitedAt, [...new Set(topics.map(String))], notes, v.nextVisit ?? null],
+          ),
+        )
+        return [201, { id: rows[0]?.id }]
+      } catch (error) {
+        if (pgError(error)?.constraint !== 'extension_visits_client_id_key') throw error
+        const existing = (await db.query('SELECT id, agent_id FROM extension_visits WHERE client_id = $1', [v.clientId])).rows[0] as Row
+        if (existing.agent_id !== claims.sub) throw new HttpError(409, 'client_id_taken', 'That clientId belongs to another account')
+        return [200, { id: existing.id }]
+      }
+    }),
+  )
+
+  app.get(
+    '/farmers/:id/visits',
+    route(async ({ req, params }) => {
+      const claims = await requireAuth(signer, req, [...STAFF, 'admin'])
+      if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      const farmer = await visibleFarmer(claims, params.id as string)
+      const { rows } = await db.query(
+        `SELECT v.*, u.name AS agent_name FROM extension_visits v JOIN users u ON u.id = v.agent_id
+          WHERE v.farmer_id = $1 ORDER BY v.visited_at DESC, v.seq DESC`,
+        [farmer.id],
+      )
+      return [200, { items: rows.map(visitView) }]
+    }),
+  )
+
   app.get('/health', route(async () => [200, { status: 'ok' }]))
 
   /** API-CONTRACT: insert, catch the constraint, never search first. */

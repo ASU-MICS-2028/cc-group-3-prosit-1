@@ -7,6 +7,7 @@ import { ScreenHeader } from '../../components/ScreenHeader'
 import { useAdvice } from '../../content/useContent'
 import { useT } from '../../i18n/context'
 import { CropCheckForm } from './CropCheckForm'
+import { ListenButton } from '../../audio/ListenButton'
 
 export function Advice() {
   const { t } = useT()
@@ -29,6 +30,8 @@ export function Advice() {
             <div>
               <p className="card-title">{card.title}</p>
               <p>{card.body}</p>
+              {/* Advice is entered in English; read it in English for farmers who cannot read it. */}
+              <ListenButton text={`${card.title}. ${card.body}`} lang="en" />
             </div>
           </article>
         ))}
