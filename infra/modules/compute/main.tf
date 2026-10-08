@@ -95,7 +95,7 @@ resource "aws_iam_instance_profile" "ec2" {
 }
 
 # ---------- Launch Template + ASG ----------
-# ponytail: `:latest` tag + instance refresh is the simplest working CI loop.
+# `:latest` tag + instance refresh is the simplest working CI loop.
 # Swap to immutable SHA tags + SSM parameter when a rollback story is needed.
 locals {
   user_data = <<-EOT

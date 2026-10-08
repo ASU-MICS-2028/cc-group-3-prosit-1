@@ -92,7 +92,7 @@ before applying — the OIDC trust condition is pinned to it.
 terraform destroy
 ```
 
-## Known shortcuts (ponytail debt)
+## Known shortcuts (technical debt)
 
 - Single `fck-nat` instance in `af-south-1a`, no HA. If it or its AZ fails,
   egress breaks until recovery. Mitigation path: wrap it in a 1-instance ASG for
