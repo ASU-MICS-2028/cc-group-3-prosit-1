@@ -231,3 +231,134 @@ resource "aws_budgets_budget" "monthly" {
     }
   }
 }
+
+# ---------- CloudWatch dashboard ----------
+# One pane of glass for every tier we run: ALB traffic/latency/errors/health,
+# RDS CPU/memory/storage/connections/IO, ASG capacity, and the fck-nat host.
+data "aws_region" "current" {}
+
+locals {
+  dashboard_widgets = [
+    # ---- ALB ----
+    {
+      type = "metric", x = 0, y = 0, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "ALB — request volume & latency"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "Requests (sum)", stat = "Sum" }],
+          ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "Latency avg (s)", stat = "Average", yAxis = "right" }],
+        ]
+      }
+    },
+    {
+      type = "metric", x = 12, y = 0, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "ALB — HTTP status codes"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "2xx", stat = "Sum", color = "#2ca02c" }],
+          ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "4xx", stat = "Sum", color = "#ff7f0e" }],
+          ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "5xx", stat = "Sum", color = "#d62728" }],
+        ]
+      }
+    },
+    {
+      type = "metric", x = 0, y = 6, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "ALB — target health"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "Healthy", stat = "Average", color = "#2ca02c" }],
+          ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix, { label = "Unhealthy", stat = "Maximum", color = "#d62728" }],
+        ]
+      }
+    },
+    # ---- RDS ----
+    {
+      type = "metric", x = 12, y = 6, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "RDS — CPU & freeable memory"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_identifier, { label = "CPU %", stat = "Average" }],
+          ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", var.db_instance_identifier, { label = "Freeable memory", stat = "Average", yAxis = "right" }],
+        ]
+      }
+    },
+    {
+      type = "metric", x = 0, y = 12, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "RDS — storage & connections"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.db_instance_identifier, { label = "Free storage", stat = "Average" }],
+          ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_instance_identifier, { label = "Connections", stat = "Average", yAxis = "right" }],
+        ]
+      }
+    },
+    {
+      type = "metric", x = 12, y = 12, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "RDS — disk read/write latency"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/RDS", "ReadLatency", "DBInstanceIdentifier", var.db_instance_identifier, { label = "Read (s)", stat = "Average" }],
+          ["AWS/RDS", "WriteLatency", "DBInstanceIdentifier", var.db_instance_identifier, { label = "Write (s)", stat = "Average" }],
+        ]
+      }
+    },
+    # ---- ASG + EC2 ----
+    {
+      type = "metric", x = 0, y = 18, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "ASG — capacity"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.asg_name, { label = "In service", stat = "Average" }],
+          ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", var.asg_name, { label = "Desired", stat = "Average" }],
+        ]
+      }
+    },
+    {
+      type = "metric", x = 12, y = 18, width = 12, height = 6
+      properties = {
+        region      = data.aws_region.current.name
+        annotations = { horizontal = [], vertical = [] }
+        title       = "fck-nat host — CPU & status"
+        view        = "timeSeries"
+        period      = 60
+        metrics = [
+          ["AWS/EC2", "CPUUtilization", "InstanceId", var.nat_instance_id, { label = "CPU %", stat = "Average" }],
+          ["AWS/EC2", "StatusCheckFailed", "InstanceId", var.nat_instance_id, { label = "Status check failed", stat = "Maximum", yAxis = "right", color = "#d62728" }],
+        ]
+      }
+    },
+  ]
+}
+
+resource "aws_cloudwatch_dashboard" "main" {
+  dashboard_name = "${var.name_prefix}-overview"
+  dashboard_body = jsonencode({ widgets = local.dashboard_widgets })
+}

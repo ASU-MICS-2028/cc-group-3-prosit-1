@@ -84,3 +84,7 @@ output "alarm_topic_arn" {
   description = "SNS topic for CloudWatch alarms. Add email/Slack subscriptions here."
   value       = module.observability.alarm_topic_arn
 }
+
+output "observability_dashboard_url" {
+  value = module.observability.dashboard_url
+}
