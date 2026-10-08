@@ -351,3 +351,47 @@ describe('admin farmer detail', () => {
     expect((await t.call('GET', `/admin/farmers/${id}`, { token: other })).status).toBe(404)
   })
 })
+
+describe('editing a farmer', () => {
+  it('updates the editable fields and audits the change', async () => {
+    const t = await start()
+    const token = await t.agent()
+    const { body } = await t.call('POST', '/farmers', { token, body: registration() })
+
+    const patched = await t.call('PATCH', `/farmers/${body.id}`, {
+      token,
+      body: { name: 'Ama Mensah', community: 'Ashaiman', crops: ['maize'], gender: 'female', profile: { soilType: 'loamy' } },
+    })
+    expect(patched).toMatchObject({
+      status: 200,
+      body: { name: 'Ama Mensah', community: 'Ashaiman', crops: ['maize'], gender: 'female', profile: { soilType: 'loamy' } },
+    })
+
+    const audit = await t.call('GET', '/admin/audit', { token: await t.admin() })
+    expect(audit.body.items.find((item) => item.action === 'farmers.update')).toMatchObject({ targetId: body.id })
+  })
+
+  it('refuses a phone or clientId change, and a bad enum', async () => {
+    const t = await start()
+    const token = await t.agent()
+    const { body } = await t.call('POST', '/farmers', { token, body: registration() })
+    expect(await t.call('PATCH', `/farmers/${body.id}`, { token, body: { phoneNational: '200000000' } })).toMatchObject({ status: 400, body: { field: 'phone' } })
+    expect(await t.call('PATCH', `/farmers/${body.id}`, { token, body: { clientId: 'x' } })).toMatchObject({ status: 400, body: { field: 'clientId' } })
+    expect(await t.call('PATCH', `/farmers/${body.id}`, { token, body: { gender: 'other' } })).toMatchObject({ status: 400, body: { field: 'gender' } })
+  })
+
+  it('replaces the crop list', async () => {
+    const t = await start()
+    const token = await t.agent()
+    const { body } = await t.call('POST', '/farmers', { token, body: registration({ crops: ['maize', 'tomato'] }) })
+    expect((await t.call('PATCH', `/farmers/${body.id}`, { token, body: { crops: ['yam'] } })).body.crops).toEqual(['yam'])
+  })
+
+  it('hides a farmer from an agent in another association', async () => {
+    const t = await start()
+    const { body } = await t.call('POST', '/farmers', { token: await t.agent(), body: registration() })
+    await t.db.query("INSERT INTO users (id, role, name, phone_e164, association_id, status) VALUES ('U-other', 'agent', 'Other', '+233200000125', 'ngfn', 'approved')")
+    const outsider = await signToken({ id: 'U-other', role: 'agent', name: 'Other', phone: '+233200000125', assoc: 'ngfn' })
+    expect((await t.call('PATCH', `/farmers/${body.id}`, { token: outsider, body: { name: 'X' } })).status).toBe(404)
+  })
+})
