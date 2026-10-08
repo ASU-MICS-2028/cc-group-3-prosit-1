@@ -38,4 +38,10 @@ export interface Session {
   failedPinAttempts: number
 }
 
-export type SignOutNotice = 'suspended' | 'rejected' | 'pinLockout' | 'expired'
+export type SignOutNotice = 'suspended' | 'rejected' | 'pinLockout' | 'expired' | 'revoked'
+
+/** A server error code that must end the session at once, in the app's notice vocabulary (the rest are shown). */
+export function blockingNotice(code: string): SignOutNotice | null {
+  if (code === 'suspended' || code === 'rejected') return code
+  return null
+}

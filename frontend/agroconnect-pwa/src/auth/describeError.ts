@@ -14,6 +14,7 @@ const MESSAGE_KEYS: Record<string, TranslationKey> = {
   rate_limited: 'auth.error.rate_limited',
   phone_taken: 'auth.error.phone_taken',
   pending_verification: 'auth.error.pending_verification',
+  wrong_password: 'auth.error.wrong_password',
   invalid_pin: 'auth.error.generic',
 }
 

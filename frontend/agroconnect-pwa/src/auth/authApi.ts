@@ -53,3 +53,14 @@ export const loginStaff = async (identifier: string, password: string) =>
 
 export const refreshToken = async (token: string): Promise<string> =>
   (await post<{ token: string }>('/auth/refresh', undefined, token)).token
+
+/** Ends every session for this account on the server (best-effort: local sign-out happens regardless). */
+export const logout = (token: string) => post<void>('/auth/logout', undefined, token)
+
+/** Staff change their password; the other sessions end, the returned token keeps this device signed in. */
+export const changePassword = (token: string, currentPassword: string, newPassword: string) =>
+  post<{ token: string }>('/auth/staff/password', { currentPassword, newPassword }, token)
+
+/** A farmer changes their PIN; the other sessions end, the returned token keeps this device signed in. */
+export const changePin = (token: string, pin: string, newPin: string) =>
+  post<{ token: string }>('/auth/farmer/pin', { pin, newPin }, token)

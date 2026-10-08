@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
 import { MAX_PIN_ATTEMPTS, type Session } from '../domain/auth'
 import { RejectedError } from '../lib/http'
-import { loginStaff, refreshToken, type AuthResult } from './authApi'
+import { loginStaff, logout, refreshToken, type AuthResult } from './authApi'
 import { authReducer, initialAuthState } from './authReducer'
 import { setTokenProvider } from './authedRequest'
 import { AuthContext, type Auth, type AuthActions } from './context'
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'signedOut', notice: blocked })
       } else if (error.status === 401) {
         await clearSession()
-        dispatch({ type: 'signedOut', notice: 'expired' })
+        dispatch({ type: 'signedOut', notice: error.code === 'token_revoked' ? 'revoked' : 'expired' })
       }
       return null
     }
@@ -68,6 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenProvider({
       getToken: () => (stateRef.current.status === 'signedIn' ? stateRef.current.session.token : null),
       refresh,
+      // A revocation or suspension from any request locks the user out here, without waiting for a refresh.
+      blocked: (notice) => {
+        void clearSession().then(() => dispatch({ type: 'signedOut', notice }))
+      },
     })
     return () => setTokenProvider(null)
   }, [refresh])
@@ -153,8 +157,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async signOut() {
+        const current = stateRef.current
+        // Best-effort: end the session on the server too, but never block the local sign-out on the network.
+        if ('session' in current) await logout(current.session.token).catch(() => {})
         await clearSession()
         dispatch({ type: 'signedOut' })
+      },
+
+      async applyCredentialChange(token, pin) {
+        const current = stateRef.current
+        if (!('session' in current)) return
+        const session = { ...current.session, token, ...(pin !== undefined && { pin: await hashPin(pin) }) }
+        await saveSession(session)
+        dispatch({ type: 'tokenRefreshed', token })
       },
     }),
     [],
