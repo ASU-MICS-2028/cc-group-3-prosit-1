@@ -55,3 +55,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     seedDemoAccounts: flag(env.SEED_DEMO_ACCOUNTS, false),
   }
 }
+
+/**
+ * Fails fast on a configuration the service cannot run with, before it tries to open a connection.
+ * Optional integrations (signing key, photo bucket, SMS, test mode) stay warnings in server.ts.
+ */
+export function validateConfig(config: Config): void {
+  const problems: string[] = []
+  if (!config.databaseUrl && !(config.dbHost && config.dbSecretArn)) {
+    problems.push('Set DATABASE_URL, or both DB_HOST and DB_SECRET_ARN')
+  }
+  if (!config.databaseUrl && config.dbHost && !config.dbCaFile) {
+    problems.push('Set DB_CA_FILE to the RDS CA bundle: the connection to RDS must verify TLS')
+  }
+  if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
+    problems.push('PORT must be a whole number between 1 and 65535')
+  }
+  if (config.pwaOrigins.length === 0) {
+    problems.push('Set PWA_ORIGINS to at least one allowed browser origin')
+  }
+  if (problems.length > 0) throw new Error(`Invalid configuration:\n- ${problems.join('\n- ')}`)
+}
