@@ -14,6 +14,8 @@ export interface Settings {
   pwaOrigins: string[]
   /** Per-IP rate limits. `max` covers the whole API, `authMax` the sign-in and sign-up routes. */
   rateLimit: { windowMs: number; max: number; authMax: number }
+  /** Arkesel's userID for our USSD code; null turns POST /ussd off (404). */
+  ussdUserId: string | null
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   paymentDelayMs: 4000,
   pwaOrigins: [],
   rateLimit: { windowMs: 60_000, max: 300, authMax: 20 },
+  ussdUserId: null,
 }
 
 export interface Ctx {
@@ -37,6 +40,8 @@ export interface Ctx {
   now: () => number
   /** Web Push sender, or null/absent when VAPID keys are not configured (notifications off). */
   push?: PushSender | null
+  /** Today's forecast for USSD; defaults to Open-Meteo. Tests replace it. */
+  weather?: (lat: number, lng: number) => Promise<{ min: number; max: number; rainChance: number } | null>
 }
 
 export const ASSOCIATIONS = ['ashaiman-ufa', 'ngfn']

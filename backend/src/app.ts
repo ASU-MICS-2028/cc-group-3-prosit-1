@@ -13,6 +13,7 @@ import { farmerRoutes } from './routes/farmers.js'
 import { paymentRoutes } from './routes/payments.js'
 import { pushRoutes } from './routes/push.js'
 import { serviceRoutes } from './routes/services.js'
+import { ussdRoutes } from './routes/ussd.js'
 
 /** Only the hosted PWA (and local dev) may call the API from a browser, with the Authorization header. */
 function cors(origins: string[]) {
@@ -52,7 +53,9 @@ function ipLimiter({ windowMs, limit }: { windowMs: number; limit: number }) {
     legacyHeaders: false,
     // The ALB is the only proxy in front of the app (trust proxy is on), so the X-Forwarded-For check is safe.
     validate: { trustProxy: false },
-    skip: (req) => req.path === '/health' || req.path === '/ready',
+    // USSD traffic all arrives from the gateway's few IPs, so a per-IP limit would throttle every farmer at
+    // once; that route checks the gateway's userID instead.
+    skip: (req) => req.path === '/health' || req.path === '/ready' || req.path === '/ussd',
     handler: (_req, res) => void res.status(429).json({ error: 'rate_limited', message: 'Too many requests. Try again later.' }),
   })
 }
@@ -98,6 +101,7 @@ export function createApp(ctx: Ctx): Express {
   serviceRoutes(app, ctx)
   contentRoutes(app, ctx)
   pushRoutes(app, ctx)
+  ussdRoutes(app, ctx)
 
   app.use((_req, res) => void res.status(404).json({ error: 'not_found', message: 'Not found' }))
   app.use(errorHandler)

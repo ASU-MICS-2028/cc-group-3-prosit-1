@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { LanguagePicker } from '../../components/LanguagePicker'
 import type { SignOutNotice } from '../../domain/auth'
 import { useT } from '../../i18n/context'
+import { InstallButton } from '../../components/InstallButton'
 
 interface RoleChoiceProps {
   notice?: SignOutNotice
@@ -59,6 +60,7 @@ export function RoleChoice({ notice, onFarmer, onStaff }: RoleChoiceProps) {
         <section className="card">
           <LanguagePicker />
         </section>
+        <InstallButton />
       </main>
     </div>
   )

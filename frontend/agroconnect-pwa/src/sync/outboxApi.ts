@@ -1,4 +1,4 @@
-import { ADMIN_URL, ADVICE_URL, LISTINGS_URL, PAYMENTS_URL } from '../config'
+import { ADMIN_URL, ADVICE_URL, API_URL, LISTINGS_URL, PAYMENTS_URL } from '../config'
 import type { OutboxItem, RemoteRef } from '../domain/outbox'
 import { jsonPost, send, sendJson } from './send'
 
@@ -33,4 +33,10 @@ export async function postCropCheck(item: OutboxItem<'cropCheck'>): Promise<Remo
     })
   }
   return remote
+}
+
+/** A visit logged on the phone (offline first). The clientId makes a repeated send harmless. */
+export function postVisit(item: OutboxItem<'visit'>): Promise<RemoteRef> {
+  const { farmerId, ...visit } = item.payload
+  return sendJson<RemoteRef>(`${API_URL}/farmers/${encodeURIComponent(farmerId)}/visits`, jsonPost({ clientId: item.clientId, ...visit }))
 }

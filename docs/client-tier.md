@@ -237,3 +237,22 @@ The PWA is hosted via **AWS Amplify Hosting** in `eu-west-1` and fronted by Amaz
   * Repeat visits load directly from the on-device Service Worker cache (**0 ms** network latency).
   * Sync API requests bypass Europe entirely, communicating directly with the ALB in **`af-south-1` (Cape Town)** over HTTPS at the empirically measured **74 ms median RTT**.
 
+
+---
+
+## 10. Installability & Low-Bandwidth Performance
+
+**Install.** The manifest declares `lang: en-GH`, `display: standalone`, portrait orientation and the `agriculture`, `education` and `finance` categories. Chrome's `beforeinstallprompt` event is captured at startup (`src/pwa/installPrompt.ts`), so an **Install AgroConnect on this phone** button appears on the sign-in screen and in Settings. On an iPhone, which has no such event, the same place shows "tap Share, then Add to Home Screen".
+
+**Code splitting.** Each role's app (farmer, field staff, admin) is a separate chunk, so a farmer downloads only the farmer app before first use. The service worker precaches every chunk afterwards, so all of them still work offline.
+
+**Measured (Lighthouse 12, local production build, mobile, simulated throttling):**
+
+| Network | Performance | First contentful paint | Largest contentful paint | Interactive | Transferred |
+|---|---|---|---|---|---|
+| Lighthouse default (slow 4G, 150 ms RTT, 1.6 Mbps) | 95 | 2.0 s | 2.0 s | 2.3 s | |
+| 2G-like (300 ms RTT, 250 kbps, 4× CPU slowdown) | 58 | 7.8 s | 8.1 s | 8.1 s | 163 KB |
+
+Accessibility and best practices both scored 100.
+
+**Reading the 2G figure honestly.** The very first visit on an EDGE-class link cannot meet the brief's "<3 s on 2G": 163 KB at 250 kbps is over 5 s of transfer before anything renders. What the offline-first design changes is every visit after that. The app shell, translations, fonts and recordings come from the service worker cache, so opening the app no longer waits on the network, and each API exchange is a few hundred bytes of JSON. In the field the first install is best done where signal is good (a district office or a market town), which is how agents already work.

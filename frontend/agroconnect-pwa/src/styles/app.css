@@ -544,3 +544,9 @@ button, input, select, textarea { font-family: inherit; }
 
 /* A status badge sits at its natural width inside a stacked card, not stretched across it. */
 .agent-card .sync-badge, .agent-line .sync-badge, .payment-row .sync-badge, .crop-check .sync-badge { align-self: flex-start; }
+
+/* "Listen" (read aloud) for low-literacy users: sits under the text it reads. */
+.listen-button {
+  margin-top: 8px;
+  align-self: flex-start;
+}

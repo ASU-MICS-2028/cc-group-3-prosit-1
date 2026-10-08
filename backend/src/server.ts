@@ -39,6 +39,7 @@ const app = createApp({
   sms: arkeselSms(config),
   storage: config.photoBucket ? s3Storage({ ...config, photoBucket: config.photoBucket }) : memoryStorage(),
   checkout: config.votexSecretArn ? votexProvider(config) : null,
+
   push: vapid?.public_key && vapid.private_key ? webPushSender({ ...vapid, subject: vapid.subject || 'mailto:admin@agroconnect.space' }) : null,
   settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins },
   now: Date.now,

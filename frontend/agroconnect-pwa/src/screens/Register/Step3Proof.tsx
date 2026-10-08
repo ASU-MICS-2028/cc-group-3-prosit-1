@@ -4,6 +4,8 @@ import { useGps } from '../../hooks/useGps'
 import { useT } from '../../i18n/context'
 import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import type { StepProps } from './stepProps'
+import { ListenButton } from '../../audio/ListenButton'
+import { isAppLanguage, translate } from '../../i18n/translate'
 
 const POOR_ACCURACY_METRES = 50
 
@@ -12,6 +14,8 @@ export function Step3Proof({ draft, update, errors }: StepProps) {
   const photo = usePhotoPicker(draft.photo, (picked) => update({ photo: picked }))
   const gps = useGps((gpsFix) => update({ gps: gpsFix }))
 
+  // Dagbani is not an app language yet (ADR-010), so its farmers hear English.
+  const consentLang = isAppLanguage(draft.preferredLanguage) ? draft.preferredLanguage : 'en'
   const accuracyIsPoor = draft.gps !== null && draft.gps.accuracy > POOR_ACCURACY_METRES
 
   return (
@@ -79,6 +83,8 @@ export function Step3Proof({ draft, update, errors }: StepProps) {
             {t('reg.consent')} <span aria-hidden="true">*</span>
           </span>
         </label>
+        {/* Read the statement to the farmer in their own language before they agree. */}
+        <ListenButton text={translate(consentLang, 'reg.consent')} lang={consentLang} clipKey="reg.consent" />
         {errors.consent && (
           <p className="error" role="alert">
             {errors.consent}

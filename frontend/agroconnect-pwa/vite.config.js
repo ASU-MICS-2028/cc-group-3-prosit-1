@@ -19,12 +19,18 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // mp3: recorded audio for low-literacy users (public/audio), so it plays offline too.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,mp3}'],
       },
       manifest: {
         name: 'AgroConnect Ghana',
         short_name: 'AgroConnect',
-        description: 'Register farmers, even with no signal.',
+        description: 'Farmer registration, market prices, weather, advice and mobile money for Ghanaian farmers, even with no signal.',
+        id: '/',
+        lang: 'en-GH',
+        dir: 'ltr',
+        orientation: 'portrait',
+        categories: ['agriculture', 'education', 'finance'],
         theme_color: '#1F3D2B',
         background_color: '#F4F1E6',
         display: 'standalone',
