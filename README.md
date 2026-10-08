@@ -49,10 +49,10 @@ The system is architected as an offline-first client syncing with a highly avail
 │   [Public Subnets (10.20.1.0/24, 10.20.2.0/24)]                         │
 │     ├── Internet Gateway (IGW)                                          │
 │     ├── Application Load Balancer (ALB) — ACM TLS Termination           │
-│     └── fck-nat (t4g.nano) — Cost-optimized outbound NAT gateway       │
+│     └── fck-nat (t4g.nano) — Cost-optimized outbound NAT gateway        │
 │                                                                         │
-│   [Private App Subnets (10.20.11.0/24, 10.20.12.0/24)]                 │
-│     └── Auto Scaling Group (min 1, des 1, max 3)                       │
+│   [Private App Subnets (10.20.11.0/24, 10.20.12.0/24)]                  │
+│     └── Auto Scaling Group (min 1, des 1, max 3)                        │
 │           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
 │           └── EC2 (t3.micro) + Docker running Express :8000 (Node/TS)   │
 │                                                                         │
