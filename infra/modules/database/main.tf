@@ -34,7 +34,7 @@ data "aws_subnet" "first_data" {
   id = var.data_subnet_ids[0]
 }
 
-# ponytail: Single-AZ, no read replicas, 7-day backups, default parameter group.
+# Single-AZ, no read replicas, 7-day backups, default parameter group.
 # For a lab/MVP this is correct. Upgrade path: multi_az=true (~2x cost),
 # add read replicas, or move to Aurora Serverless v2 if demand becomes bursty.
 resource "aws_db_instance" "main" {
