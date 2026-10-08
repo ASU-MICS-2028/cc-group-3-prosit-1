@@ -41,15 +41,15 @@ against the code on `main`**, not against intentions.
 | 4 — Authorization & Access Control | 🟢 | Complete (PR #38) |
 | 5 — Farmer Profile API | 🟢 | Complete (PR #39) |
 | 6 — Offline Sync & Idempotency | 🟢 | `client_id NOT NULL UNIQUE` insert-and-catch everywhere, concurrency tested |
-| 7 — Photo Storage | 🟡 | JPEG validation + ownership done (PR #44, in review) |
-| 8 — Rate Limiting & Abuse Protection | 🟡 | Global + auth per-IP limits done (PR #41, in review) |
-| 9 — Admin & Coordinator API | 🟡 | `GET /admin/farmers/:id` done (PR #43, in review) |
-| 10 — Pagination, Filtering & Query Performance | 🟡 | Farmers + audit paginate (in memory); uniform pagination/sorting left |
-| 11 — Feedback API | 🟡 | Endpoint done; audit trail left |
-| 12 — Audit & Observability | 🟡 | DB audit + CloudWatch + structured logs/IDs done; log levels left |
-| 13 — AWS Infrastructure | 🟢 | Everything live is `af-south-1`; only Amplify stays `eu-west-1` (ADR-009). Some docs stale |
-| 14 — Production Deployment | 🟡 | HTTPS, domain, rollback, OIDC deploy done; post-deploy smoke left |
-| 15 — Testing & Production Readiness | 🟡 | Strong integration tests; unit, pagination, rate-limit, backup/restore left |
+| 7 — Photo Storage | 🟢 | Complete (PR #44) |
+| 8 — Rate Limiting & Abuse Protection | 🟢 | Complete (PR #41) |
+| 9 — Admin & Coordinator API | 🟢 | Complete (PR #43) |
+| 10 — Pagination, Filtering & Query Performance | 🟡 | Uniform pagination + SQL paging (PR #47, in review) |
+| 11 — Feedback API | 🟡 | Feedback audit (PR #48, in review) |
+| 12 — Audit & Observability | 🟡 | Auth event logs + log policy (PR #49, in review) |
+| 13 — AWS Infrastructure | 🟢 | Complete; stale docs corrected (PR #51) |
+| 14 — Production Deployment | 🟡 | Post-deploy smoke test (PR #52, in review) |
+| 15 — Testing & Production Readiness | 🟡 | Unit tests + backup/restore check (PR #54, in review) |
 
 ---
 
@@ -241,16 +241,16 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Bucket security _(private, versioned, SSE-S3, scoped IAM)_
 - [x] Object naming strategy _(`farmers/<id>/photo.jpg`, `crop-checks/<id>/photo.jpg`)_
 - [x] `POST /farmers/:id/photo`
-- [ ] JPEG validation _(accepts any bytes with an `image/jpeg` label)_
+- [x] JPEG validation _(magic bytes; non-JPEG → 415, stored as image/jpeg)_
 - [x] File-size limit _(500 KB → 413)_
-- [~] Authorization _(requires staff token; association scope left)_
-- [~] Farmer ownership/permission checks _(not scoped to the caller's association)_
+- [x] Authorization _(staff token and association scope)_
+- [x] Farmer ownership/permission checks _(scoped to the caller)_
 - [x] S3 upload
 - [x] Store object key in PostgreSQL
 - [x] Handle failed uploads _(upload before DB write; no orphan cleanup)_
 - [x] Prevent unauthorized object access _(private bucket; crop-check photos served through the API)_
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #44)
 
 ---
 
@@ -258,18 +258,18 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 
 **Goal:** Protect production endpoints.
 
-- [ ] Global rate limiting strategy
-- [~] Authentication-specific limits
+- [x] Global rate limiting strategy _(per-IP, 300/min)_
+- [x] Authentication-specific limits _(20/min on the sign-in and sign-up routes)_
 - [x] OTP limits _(3 codes / phone / 15 min, DB-backed)_
-- [~] Login limits _(per-account lockout only, no per-IP)_
+- [x] Login limits _(account lockout + per-IP limiter)_
 - [x] PIN lockout
-- [ ] IP-based controls where appropriate
+- [x] IP-based controls where appropriate
 - [x] Phone/account-based controls where appropriate
 - [x] 429 responses
-- [~] Retry behaviour
-- [ ] Avoid blocking legitimate offline sync
+- [x] Retry behaviour _(Retry-After header)_
+- [x] Avoid blocking legitimate offline sync _(global limit is well above a sync batch)_
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #41)
 
 ---
 
@@ -280,7 +280,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] `/admin/stats`
 - [x] `/admin/income`
 - [x] Farmer listing
-- [ ] Farmer details _(`GET /admin/farmers/:id` — ADMIN-CONTRACT §86-87)_
+- [x] Farmer details _(`GET /admin/farmers/:id` — record plus payments, scoped)_
 - [x] Agent listing
 - [x] Agent approval
 - [x] Agent rejection
@@ -293,7 +293,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Heartbeat
 - [x] Correct admin/coordinator permissions
 
-**Status:** 🟡 In progress
+**Status:** 🟢 Verified (PR #43)
 
 ---
 
@@ -301,20 +301,20 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 
 **Goal:** Make list endpoints production-safe.
 
-- [~] Define pagination convention _(page-based; not uniform)_
-- [~] Default page size _(`PAGE_SIZE = 100`, hard-coded)_
-- [ ] Maximum page size
-- [ ] Sorting
+- [x] Define pagination convention _(?page=&pageSize=, capped, `{ items, total }`)_
+- [x] Default page size _(50)_
+- [x] Maximum page size _(100)_
+- [x] Sorting _(allow-listed `sort`/`dir`)_
 - [x] Farmer search
 - [x] Community filtering
 - [x] Crop filtering
 - [x] Agent status filtering
-- [~] Audit pagination _(page only, no `total`)_
-- [~] Database indexes _(Phase 2)_
-- [ ] Query performance testing
-- [ ] Avoid unbounded queries _(agents, coordinators, activity, listings, crop-checks, payments unbounded)_
+- [x] Audit pagination _(page + `total`)_
+- [x] Database indexes _(Phase 2)_
+- [~] Query performance testing _(indexes added; no load test yet)_
+- [x] Avoid unbounded queries _(every list endpoint is paged)_
 
-**Status:** 🟡 In progress
+**Status:** 🟡 In review (PR #47)
 
 ---
 
@@ -329,10 +329,10 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Authentication
 - [x] Role handling
 - [x] Database storage
-- [ ] Audit requirements
+- [x] Audit requirements _(audit trigger on feedback, actor set)_
 - [x] Duplicate submission testing
 
-**Status:** 🟡 In progress
+**Status:** 🟡 In review (PR #48)
 
 ---
 
@@ -342,20 +342,20 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 
 - [x] Database audit triggers
 - [x] Application actor
-- [~] Authentication events _(lockout/refresh exist; no structured auth event log)_
+- [x] Authentication events _(structured sign-in success/failure, lockout, refresh refusal)_
 - [x] Failed-login audit
 - [x] Admin actions
 - [x] Export events
-- [ ] Structured logs
-- [ ] Request IDs
-- [ ] Error IDs
-- [ ] Log levels
-- [~] Production log policy
+- [x] Structured logs _(pino JSON)_
+- [x] Request IDs _(`X-Request-Id`)_
+- [x] Error IDs
+- [x] Log levels _(`LOG_LEVEL`)_
+- [x] Production log policy _(documented in backend/README)_
 - [x] Sensitive-data protection
 - [x] Monitoring _(CloudWatch log group + dashboard)_
 - [x] Alerts _(8 CloudWatch alarms + SNS + budget)_
 
-**Status:** 🟡 In progress
+**Status:** 🟡 In review (PR #49)
 
 ---
 
@@ -378,7 +378,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Remove/retire incorrect EU resources only after verification _(nothing live in EU except the intentional Amplify alias)_
 - [x] Confirm AWS billing/budget protection
 
-**Status:** 🟢 Verified (some `docs/` still describe the old region — fix in Phase 13 docs PR)
+**Status:** 🟢 Verified (stale `docs/` corrected in PR #51)
 
 ---
 
@@ -394,13 +394,13 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Database connectivity
 - [x] S3 connectivity
 - [x] Health check
-- [ ] Readiness check
+- [x] Readiness check _(`GET /ready`)_
 - [x] CORS production origin
 - [x] Logging
 - [x] Deployment rollback _(SSM-pinned image tag, PR #27)_
-- [~] Smoke test _(CI image boot; post-deploy probe left)_
+- [x] Smoke test _(CI image boot + post-deploy probe in deploy.yml)_
 
-**Status:** 🟡 In progress
+**Status:** 🟡 In review (PR #52)
 
 ---
 
@@ -408,7 +408,7 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 
 **Goal:** Do not call this production until the critical paths are verified.
 
-- [ ] Unit tests _(integration exists; no backend unit tests)_
+- [x] Unit tests _(helper units: validation, time, CSV)_
 - [x] Integration tests
 - [x] Authentication tests
 - [x] Authorization tests
@@ -416,17 +416,17 @@ Roles: `farmer`, `agent`, `coordinator`, `admin`
 - [x] Duplicate tests
 - [~] Offline retry tests _(server side covered; frontend queue tested in the PWA)_
 - [x] Photo tests
-- [~] Rate-limit tests _(OTP + lockout covered; global limiter not yet)_
-- [ ] Pagination tests
+- [x] Rate-limit tests
+- [x] Pagination tests
 - [x] Admin tests
 - [x] Audit tests
 - [~] Security tests _(CORS, webhook HMAC, audit redaction, CSV injection; SQLi/XSS/brute-force left)_
 - [x] Database migration test
-- [ ] Backup/restore test
-- [~] Production smoke test _(image boot in CI; no post-deploy probe)_
+- [x] Backup/restore test _(`scripts/verify-backup-restore.sh`, green on Postgres 16)_
+- [x] Production smoke test _(post-deploy probe in deploy.yml)_
 - [~] Frontend integration test _(PWA unit + mock-contract tests; no shipped-PWA ↔ shipped-API e2e)_
 
-**Status:** 🟡 In progress
+**Status:** 🟡 In review (PR #54)
 
 ---
 
