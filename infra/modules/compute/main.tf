@@ -173,7 +173,11 @@ resource "aws_launch_template" "app" {
   vpc_security_group_ids = [var.app_security_group_id]
 
   metadata_options {
-    http_tokens = "required"
+    # The app runs in a Docker bridge network, one network hop beyond the instance. With the default
+    # limit of 1 the IMDSv2 token never reaches the container, so the AWS SDK there gets no credentials
+    # (S3 photos, Secrets Manager). 2 is the AWS-recommended value for containers on EC2.
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   user_data = base64encode(local.user_data)

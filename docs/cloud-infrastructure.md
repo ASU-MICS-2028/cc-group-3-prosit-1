@@ -193,7 +193,7 @@ Security groups are chained hierarchically so that each tier only accepts traffi
 ```
 
 * **No Open Port 22:** Ingress on port 22 is completely blocked. Shell access requires authenticated SSM sessions logged in AWS CloudTrail.
-* **IMDSv2 Enforced:** Instance metadata is configured with `http_tokens = "required"` and `http_put_response_hop_limit = 1`, blocking SSRF-based credential theft.
+* **IMDSv2 Enforced:** Instance metadata requires session tokens (`http_tokens = "required"`), which blocks the classic SSRF credential theft that IMDSv1 allowed. `http_put_response_hop_limit = 2` lets the token reach the app's Docker container, one hop beyond the instance, so the AWS SDK inside it can use the instance role for S3 and Secrets Manager.
 
 ---
 
