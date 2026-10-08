@@ -56,7 +56,7 @@ export const ttlSecondsFor = (role) => (role === 'farmer' ? 30 * DAY : 7 * DAY)
 export const REFRESH_GRACE_SECONDS = 30 * DAY
 
 export function signToken(user, ttlSeconds = ttlSecondsFor(user.role)) {
-  return new SignJWT({ role: user.role, name: user.name, phone: user.phone, assoc: user.assoc })
+  return new SignJWT({ role: user.role, name: user.name, phone: user.phone, assoc: user.assoc, ver: user.tokenVersion ?? 1 })
     .setProtectedHeader({ alg: 'RS256', kid: KEY_ID })
     .setSubject(user.id)
     .setIssuedAt()
@@ -74,11 +74,35 @@ export async function verifyToken(token, { graceSeconds = 0 } = {}) {
   }
 }
 
+/**
+ * Loads the account behind the bearer token and rejects a revoked or non-approved one, attaching the claims
+ * to the request. Unlike requireAuth it stays quiet when the token cannot be verified (expired), leaving that
+ * to requireAuth or to /auth/refresh, which accepts a token that expired recently on purpose.
+ */
+export async function resolveSession(req, store) {
+  const [scheme, token] = (req.headers.authorization ?? '').split(' ')
+  if (scheme !== 'Bearer' || !token) return
+  let claims
+  try {
+    claims = await verifyToken(token)
+  } catch {
+    return
+  }
+  const user = store.users.get(claims.sub)
+  if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
+  if (Number(claims.ver ?? 1) !== Number(user.tokenVersion ?? 1)) throw new HttpError(401, 'token_revoked', 'This session has ended. Sign in again.')
+  if (user.status !== 'approved') throw new HttpError(403, user.status === 'pending' ? 'pending_approval' : user.status, `Account is ${user.status}.`)
+  req.claims = claims
+}
+
 /** Returns the token's claims, or throws 401 (no valid token) / 403 (wrong role). */
 export async function requireAuth(req, roles) {
-  const [scheme, token] = (req.headers.authorization ?? '').split(' ')
-  if (scheme !== 'Bearer' || !token) throw new HttpError(401, 'unauthorized', 'Missing token')
-  const claims = await verifyToken(token)
+  let claims = req.claims
+  if (!claims) {
+    const [scheme, token] = (req.headers.authorization ?? '').split(' ')
+    if (scheme !== 'Bearer' || !token) throw new HttpError(401, 'unauthorized', 'Missing token')
+    claims = await verifyToken(token)
+  }
   if (roles && !roles.includes(claims.role)) throw new HttpError(403, 'forbidden', 'Not allowed for this role')
   return claims
 }

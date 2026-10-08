@@ -1,6 +1,7 @@
 import { HttpError, readBuffer, readJson } from '../http.mjs'
 import { normaliseProfile } from '../profile.mjs'
 import { requireAuth } from '../security.mjs'
+import { addAudit } from '../store.mjs'
 
 const STAFF = ['agent', 'coordinator']
 const MAX_PHOTO_BYTES = 500 * 1024
@@ -66,6 +67,43 @@ export function farmerRoutes({ store, config }) {
       await requireAuth(req, [...STAFF, 'admin'])
       const farmer = store.farmers.get(params.id)
       if (!farmer) throw new HttpError(404, 'not_found', 'Unknown farmer')
+      return [200, farmer]
+    }],
+
+    ['PATCH', '/farmers/:id', async ({ req, params }) => {
+      const claims = await requireAuth(req, [...STAFF, 'admin'])
+      const farmer = store.farmers.get(params.id)
+      const owner = farmer && store.users.get(farmer.registeredBy)
+      const allowed =
+        farmer && (claims.role === 'admin' || (claims.role === 'agent' && farmer.registeredBy === claims.sub) || (claims.role === 'coordinator' && owner?.assoc === claims.assoc))
+      if (!allowed) throw new HttpError(404, 'not_found', 'Unknown farmer')
+
+      const body = await readJson(req)
+      if (body.clientId !== undefined) throw new HttpError(400, 'invalid_request', 'clientId cannot be changed', { field: 'clientId' })
+      if (body.countryCode !== undefined || body.phoneNational !== undefined) throw new HttpError(400, 'invalid_request', 'A farmer phone number cannot be changed', { field: 'phone' })
+
+      const LANGUAGES = ['en', 'tw', 'ee', 'dag']
+      const GENDERS = ['female', 'male', 'undisclosed']
+      for (const key of ['name', 'community', 'region']) if (body[key] !== undefined) farmer[key] = body[key]
+      if (body.preferredLanguage !== undefined) {
+        if (body.preferredLanguage !== null && !LANGUAGES.includes(body.preferredLanguage)) throw new HttpError(400, 'invalid_request', 'preferredLanguage must be en, tw, ee or dag', { field: 'preferredLanguage' })
+        farmer.preferredLanguage = body.preferredLanguage
+      }
+      if (body.gender !== undefined) {
+        if (body.gender !== null && !GENDERS.includes(body.gender)) throw new HttpError(400, 'invalid_request', 'gender must be female, male or undisclosed', { field: 'gender' })
+        farmer.gender = body.gender
+      }
+      if (body.farmSizeAcres !== undefined) farmer.farmSizeAcres = body.farmSizeAcres
+      if (body.crops !== undefined) {
+        if (!Array.isArray(body.crops)) throw new HttpError(400, 'invalid_request', 'crops must be a list', { field: 'crops' })
+        farmer.crops = [...body.crops]
+      }
+      if (body.gps !== undefined) farmer.gps = body.gps
+      if (body.consent !== undefined) farmer.consent = body.consent === true
+      if (body.profile !== undefined) farmer.profile = normaliseProfile(body.profile)
+
+      farmer.updatedAt = new Date(config.now()).toISOString()
+      addAudit({ store, config }, claims, 'farmers.update', params.id, 'updated')
       return [200, farmer]
     }],
   ]

@@ -504,3 +504,86 @@ describe('coordinators', () => {
     expect((await call('POST', '/admin/coordinators', { token: coordinatorToken, body: coordinator() })).status).toBe(403)
   })
 })
+
+describe('session revocation', () => {
+  it('ends every session when the phone logs out', async () => {
+    const { call, agentToken } = await start()
+    const token = await agentToken()
+    expect((await call('GET', '/auth/me', { token })).status).toBe(200)
+
+    expect((await call('POST', '/auth/logout', { token })).status).toBe(204)
+    expect(await call('GET', '/auth/me', { token })).toMatchObject({ status: 401, body: { error: 'token_revoked' } })
+    expect((await call('POST', '/auth/refresh', { token })).status).toBe(401)
+  })
+
+  it('cuts off a suspended account on its next request, not just the refresh', async () => {
+    const { call, adminToken, agentToken } = await start()
+    const token = await agentToken()
+    await call('POST', '/admin/agents/U-agent/suspend', { token: await adminToken(), body: { reason: 'test' } })
+    expect(await call('GET', '/auth/me', { token })).toMatchObject({ status: 403, body: { error: 'suspended' } })
+  })
+})
+
+describe('changing credentials', () => {
+  it('changes a staff password, keeping the current device signed in', async () => {
+    const { call, staffLogin } = await start()
+    const token = (await staffLogin(DEMO_ACCOUNTS.agent.loginId, DEMO_ACCOUNTS.agent.password)).body.token
+
+    expect(await call('POST', '/auth/staff/password', { token, body: { currentPassword: 'nope', newPassword: 'brand-new-pw' } })).toMatchObject({
+      status: 401,
+      body: { error: 'wrong_password' },
+    })
+    const changed = await call('POST', '/auth/staff/password', { token, body: { currentPassword: DEMO_ACCOUNTS.agent.password, newPassword: 'brand-new-pw' } })
+    expect(changed.status).toBe(200)
+    expect((await call('GET', '/auth/me', { token })).status).toBe(401) // the old token is gone
+    expect((await call('GET', '/auth/me', { token: changed.body.token })).status).toBe(200) // the fresh one works
+    expect((await staffLogin(DEMO_ACCOUNTS.agent.loginId, 'brand-new-pw')).status).toBe(200)
+    expect((await staffLogin(DEMO_ACCOUNTS.agent.loginId, DEMO_ACCOUNTS.agent.password)).status).toBe(401)
+  })
+
+  it('changes a farmer PIN', async () => {
+    const { call, farmerToken } = await start()
+    const token = await farmerToken('+233241234567', '1234')
+
+    expect(await call('POST', '/auth/farmer/pin', { token, body: { pin: '0000', newPin: '4321' } })).toMatchObject({ status: 401, body: { error: 'wrong_pin' } })
+    expect(await call('POST', '/auth/farmer/pin', { token, body: { pin: '1234', newPin: '12' } })).toMatchObject({ status: 422, body: { error: 'invalid_pin' } })
+
+    const changed = await call('POST', '/auth/farmer/pin', { token, body: { pin: '1234', newPin: '4321' } })
+    expect(changed.status).toBe(200)
+    expect((await call('GET', '/auth/me', { token })).status).toBe(401)
+    expect((await call('POST', '/auth/farmer/login', { body: { phone: '+233241234567', pin: '4321' } })).status).toBe(200)
+  })
+})
+
+describe('editing a farmer', () => {
+  it('updates the editable fields and audits the change', async () => {
+    const { call, adminToken, agentToken } = await start()
+    const token = await agentToken()
+    const { body } = await call('POST', '/farmers', { token, body: registration() })
+
+    const patched = await call('PATCH', `/farmers/${body.id}`, { token, body: { name: 'Ama Mensah', community: 'Ashaiman', crops: ['maize'], gender: 'female' } })
+    expect(patched).toMatchObject({ status: 200, body: { name: 'Ama Mensah', community: 'Ashaiman', crops: ['maize'], gender: 'female' } })
+
+    const audit = await call('GET', '/admin/audit', { token: await adminToken() })
+    expect(audit.body.items[0]).toMatchObject({ action: 'farmers.update', targetId: body.id })
+  })
+
+  it('refuses a phone change and a bad enum', async () => {
+    const { call, agentToken } = await start()
+    const token = await agentToken()
+    const { body } = await call('POST', '/farmers', { token, body: registration() })
+    expect(await call('PATCH', `/farmers/${body.id}`, { token, body: { phoneNational: '200000000' } })).toMatchObject({ status: 400, body: { field: 'phone' } })
+    expect(await call('PATCH', `/farmers/${body.id}`, { token, body: { gender: 'other' } })).toMatchObject({ status: 400, body: { field: 'gender' } })
+  })
+
+  it('hides a farmer from a coordinator outside its association', async () => {
+    const { call, adminToken, agentToken } = await start()
+    const { body } = await call('POST', '/farmers', { token: await agentToken(), body: registration() })
+    await call('POST', '/admin/coordinators', {
+      token: await adminToken(),
+      body: { name: 'Ngfn Co', phone: '+233200000222', association: 'ngfn', password: 'long-enough-pw' },
+    })
+    const ngfn = (await call('POST', '/auth/staff/login', { body: { identifier: '+233200000222', password: 'long-enough-pw' } })).body.token
+    expect((await call('PATCH', `/farmers/${body.id}`, { token: ngfn, body: { name: 'X' } })).status).toBe(404)
+  })
+})

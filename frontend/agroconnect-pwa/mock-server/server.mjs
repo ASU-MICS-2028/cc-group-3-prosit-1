@@ -13,7 +13,7 @@ import { farmerRoutes } from './routes/farmers.mjs'
 import { feedbackRoutes } from './routes/feedback.mjs'
 import { paymentRoutes } from './routes/payments.mjs'
 import { serviceRoutes } from './routes/services.mjs'
-import { loadKeys } from './security.mjs'
+import { loadKeys, resolveSession } from './security.mjs'
 import { statsRoutes } from './routes/stats.mjs'
 import { DEMO_ACCOUNTS, SUGGESTED_PINS, createStore } from './store.mjs'
 
@@ -34,7 +34,13 @@ export async function createApp({ dataFile, ...options } = {}) {
   const store = await createStore(dataFile ? await readSnapshot(dataFile) : null)
   const ctx = { store, config: { ...DEFAULTS, ...options } }
   const saver = dataFile ? createSaver(dataFile, store) : null
-  const router = createRouter([...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx), ...requestRoutes(ctx), ...visitRoutes(ctx)])
+  const routes = [...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx), ...requestRoutes(ctx), ...visitRoutes(ctx)]
+  // Resolve the session once per request: a revoked or suspended account is refused before the route runs.
+  const guarded = routes.map(([method, path, handler]) => [method, path, async (input) => {
+    await resolveSession(input.req, store)
+    return handler(input)
+  }])
+  const router = createRouter(guarded)
 
   const server = createServer((req, res) => {
     if (saver && req.method !== 'GET' && req.method !== 'OPTIONS') res.on('finish', saver.schedule)
