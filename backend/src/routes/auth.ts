@@ -3,6 +3,7 @@ import type { Express } from 'express'
 import { ASSOCIATIONS, findUser, publicUser, tokenUser, type Ctx, type UserRow } from '../context.js'
 import { pgError, type Queryable } from '../db.js'
 import { HttpError, jsonBody, route } from '../http.js'
+import { logger } from '../logging.js'
 import { bearerToken, hashSecret, isE164, REFRESH_GRACE_SECONDS, requireAuth, sha256, ttlSecondsFor, verifySecret } from '../security.js'
 
 const OTP_RATE_LIMIT = 3
@@ -39,7 +40,7 @@ export function authRoutes(app: Express, ctx: Ctx): void {
         [phone, sha256(code), new Date(now + settings.otpTtlMs), OTP_ATTEMPTS, [...recent, new Date(now)]],
       )
       // Inside the transaction: if the SMS cannot go out, the code and the rate-limit slot are not spent.
-      if (settings.testMode) console.log(`[auth] Test mode: code for ${phone} is ${code}`)
+      if (settings.testMode) logger.debug({ phone }, 'test mode: sign-in code issued')
       else await ctx.sms.send(phone, `Your AgroConnect code is ${code}. It expires in ${Math.round(settings.otpTtlMs / 60_000)} minutes. Do not share it.`)
     })
     return code
@@ -83,6 +84,7 @@ export function authRoutes(app: Express, ctx: Ctx): void {
     const attemptsLeft = Math.max(0, settings.maxAttempts - failed)
     if (attemptsLeft === 0) {
       await db.query('UPDATE users SET failed_attempts = 0, locked_until = $2 WHERE id = $1', [user.id, new Date(ctx.now() + settings.lockMs)])
+      logger.warn({ actor: user.id, role: user.role }, 'account locked after too many failed attempts')
     } else {
       await db.query('UPDATE users SET failed_attempts = $2 WHERE id = $1', [user.id, failed])
     }
@@ -148,9 +150,11 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       if (!user?.pin_hash) throw new HttpError(401, 'wrong_pin', 'That PIN is not right.', { attemptsLeft: settings.maxAttempts - 1 })
       assertNotLocked(user)
       if (!(await verifySecret(String(body.pin ?? ''), user.pin_hash))) {
+        logger.warn({ actor: user.id, role: 'farmer' }, 'farmer sign-in failed')
         throw new HttpError(401, 'wrong_pin', 'That PIN is not right.', { attemptsLeft: await recordFailure(user) })
       }
       await clearFailures(user)
+      logger.info({ actor: user.id, role: 'farmer' }, 'farmer signed in')
       return [200, await sessionFor(user)]
     }),
   )
@@ -174,6 +178,7 @@ export function authRoutes(app: Express, ctx: Ctx): void {
           [name, phone, body.association, await hashSecret(String(body.password))],
         )
         user = rows[0] as UserRow
+        logger.info({ actor: user.id, role: 'agent' }, 'staff signed up')
       } catch (error) {
         if (pgError(error)?.constraint === 'users_staff_phone_key') throw new HttpError(409, 'phone_taken', 'An account with this phone number already exists.')
         throw error
@@ -205,12 +210,15 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       assertNotLocked(user)
       if (!(await verifySecret(String(body.password ?? ''), user.password_hash))) {
         // Same shape as the farmer PIN login, so the phone can show how many tries are left.
+        logger.warn({ actor: user.id, role: user.role }, 'staff sign-in failed')
         throw new HttpError(401, 'invalid_credentials', 'Wrong ID or password.', { attemptsLeft: await recordFailure(user) })
       }
       await clearFailures(user)
       if (BLOCKED_STAFF_STATUSES.includes(user.status)) {
+        logger.warn({ actor: user.id, role: user.role, status: user.status }, 'staff sign-in refused: account not active')
         throw new HttpError(403, user.status === 'pending' ? 'pending_approval' : user.status, `Account is ${user.status}.`)
       }
+      logger.info({ actor: user.id, role: user.role }, 'staff signed in')
       return [200, await sessionFor(user)]
     }),
   )
@@ -224,7 +232,10 @@ export function authRoutes(app: Express, ctx: Ctx): void {
       const user = await findUser(db, claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
       // An admin's suspension reaches the phone here, for farmers and staff alike.
-      if (user.status !== 'approved') throw new HttpError(403, user.status, `Account is ${user.status}.`)
+      if (user.status !== 'approved') {
+        logger.warn({ actor: user.id, role: user.role, status: user.status }, 'token refresh refused: account not approved')
+        throw new HttpError(403, user.status, `Account is ${user.status}.`)
+      }
       return [200, { token: await signer.sign(tokenUser(user), ttlSecondsFor(user.role)) }]
     }),
   )
