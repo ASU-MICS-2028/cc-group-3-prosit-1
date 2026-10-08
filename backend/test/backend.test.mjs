@@ -185,6 +185,15 @@ describe('audit log', () => {
     const [latest] = (await t.call('GET', '/admin/audit', { token: admin })).body.items
     expect(latest).toMatchObject({ action: 'export.farmers', actorId: 'ADM-001', detail: '0 rows' })
   })
+
+  it('records feedback, with the sender as the actor', async () => {
+    const t = await start()
+    const token = await t.farmerToken('+233241234567')
+    await t.call('POST', '/feedback', { token, body: { clientId: uid('fb-audit'), screen: 'wallet', message: 'Nice app', rating: 5, appLanguage: 'en' } })
+    const { rows: [entry] } = await t.db.query("SELECT * FROM audit_log WHERE table_name = 'feedback' ORDER BY id DESC LIMIT 1")
+    expect(entry).toMatchObject({ action: 'INSERT', event: 'feedback.insert', actor_role: 'farmer' })
+    expect(entry.app_actor).toBeTruthy()
+  })
 })
 
 describe('HTTP behaviour', () => {

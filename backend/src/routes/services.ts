@@ -266,10 +266,13 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
       if (!message || message.length > MAX_MESSAGE_LENGTH) throw invalid('message', `Write a message of up to ${MAX_MESSAGE_LENGTH} characters.`)
       if (rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) throw invalid('rating', 'rating must be 1 to 5, or null')
       try {
-        const { rows } = await db.query(
-          `INSERT INTO feedback (client_id, user_id, role, name, screen, message, rating, app_language, created_at, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $2) RETURNING id`,
-          [clientId, claims.sub, claims.role, claims.name ?? '', String(body.screen ?? ''), message, rating, String(body.appLanguage ?? ''), nowDate(ctx)],
+        // In a transaction with the actor set, so the feedback audit trigger records who sent it.
+        const { rows } = await db.tx(actorOf(claims), (q) =>
+          q.query(
+            `INSERT INTO feedback (client_id, user_id, role, name, screen, message, rating, app_language, created_at, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $2) RETURNING id`,
+            [clientId, claims.sub, claims.role, claims.name ?? '', String(body.screen ?? ''), message, rating, String(body.appLanguage ?? ''), nowDate(ctx)],
+          ),
         )
         return [201, rows[0]]
       } catch (error) {
