@@ -1,0 +1,13 @@
+{
+  "name": "agroconnect-demo-video",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "build": "bash build-video.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}
