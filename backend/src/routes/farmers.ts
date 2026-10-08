@@ -238,4 +238,67 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
       return [200, farmerView(await visibleFarmer(claims, params.id ?? ''))]
     }),
   )
+
+  /** API-CONTRACT `PATCH /farmers/:id`: edit the fields a member of staff may change. Phone and clientId are immutable. */
+  app.patch(
+    '/farmers/:id',
+    route(async ({ req, params }) => {
+      const claims = await requireAuth(signer, req, [...STAFF, 'admin'])
+      if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      const id = params.id as string
+      await visibleFarmer(claims, id)
+      const f = jsonBody(req)
+
+      if (f.clientId !== undefined) throw invalid('clientId', 'clientId cannot be changed')
+      if (f.countryCode !== undefined || f.phoneNational !== undefined) throw invalid('phone', 'A farmer phone number cannot be changed')
+      if (f.gender != null && !GENDERS.includes(f.gender)) throw invalid('gender', 'gender must be female, male or undisclosed')
+      if (f.preferredLanguage != null && !LANGUAGES.includes(f.preferredLanguage)) throw invalid('preferredLanguage', 'preferredLanguage must be en, tw, ee or dag')
+      if (f.crops !== undefined && !Array.isArray(f.crops)) throw invalid('crops', 'crops must be a list')
+
+      const assignments: string[] = []
+      const values: unknown[] = []
+      const set = (column: string, value: unknown) => {
+        values.push(value)
+        assignments.push(`${column} = $${values.length}`)
+      }
+      if (f.name !== undefined) set('name', String(f.name).trim())
+      if (f.community !== undefined) set('community', f.community ?? null)
+      if (f.region !== undefined) set('region', f.region ?? null)
+      if (f.preferredLanguage !== undefined) set('language', f.preferredLanguage ?? null)
+      if (f.gender !== undefined) set('gender', f.gender ?? null)
+      if (f.farmSizeAcres !== undefined) {
+        const acres = typeof f.farmSizeAcres === 'number' ? f.farmSizeAcres : null
+        set('farm_size_entered', acres)
+        set('farm_size_unit', acres === null ? null : 'acres')
+        set('farm_size_hectares', acres === null ? null : acres * ACRES_TO_HECTARES)
+      }
+      if (f.consent !== undefined) set('consent', f.consent === true)
+      if (f.gps !== undefined) {
+        set('gps_lat', f.gps?.lat ?? null)
+        set('gps_lng', f.gps?.lng ?? null)
+        set('gps_accuracy_m', f.gps?.accuracy ?? null)
+        set('gps_captured_at', f.gps?.capturedAt ?? null)
+      }
+      if (f.profile !== undefined) {
+        const profile = profileColumns(f.profile)
+        PROFILE_COLUMN_NAMES.forEach((column, index) => set(column, profile[index]))
+      }
+      const crops: string[] | null = f.crops !== undefined ? [...new Set((f.crops as unknown[]).map(String))] : null
+
+      await db.tx(actorOf(claims), async (q) => {
+        if (assignments.length > 0) {
+          values.push(claims.sub, id)
+          await q.query(`UPDATE farmers SET ${assignments.join(', ')}, updated_by = $${values.length - 1} WHERE id = $${values.length}`, values)
+        }
+        if (crops !== null) {
+          await q.query('DELETE FROM farmer_crops WHERE farmer_id = $1', [id])
+          if (crops.length > 0) {
+            await q.query('INSERT INTO farmer_crops (farmer_id, crop_type, created_by, updated_by) SELECT $1, unnest($2::text[]), $3, $3 ON CONFLICT DO NOTHING', [id, crops, claims.sub])
+          }
+        }
+      })
+
+      return [200, farmerView((await getFarmer(db, 'f.id = $1', [id])) as Row)]
+    }),
+  )
 }
