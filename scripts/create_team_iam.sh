@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ponytail: one-shot script. Rerunnable (idempotent on user/group creation errors).
+# One-shot script. Rerunnable (idempotent on user/group creation errors).
 # Creates a team group with PowerUserAccess + MFA-enforcement policy, adds 3 users,
 # gives each a console password forcing reset on first login, writes creds to CSVs.
 set -euo pipefail

@@ -1,4 +1,4 @@
-# ponytail: single fck-nat instance in af-south-1a; no HA.
+# Single fck-nat instance in af-south-1a; no HA.
 # If this host or its AZ fails, egress breaks until recovery.
 # Upgrade path: per-AZ fck-nat (~$6/mo) or back to Managed NAT GW (~$32/mo).
 data "aws_ami" "fck_nat" {
