@@ -7,6 +7,8 @@ import { isUuid, requireAuth, type Claims } from '../security.js'
 const STAFF = ['agent', 'coordinator'] as const
 const ACRES_TO_HECTARES = 0.404686
 export const MAX_PHOTO_BYTES = 500 * 1024
+/** JPEG magic bytes (FF D8 FF). The bucket only ever holds JPEGs, whatever the client header claims. */
+export const isJpeg = (body: Buffer) => body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
 const COUNTRY_CODE = /^\+[1-9]\d{0,2}$/
 const NATIONAL_NUMBER = /^[1-9]\d{6,13}$/
 const LANGUAGES = ['en', 'tw', 'ee', 'dag']
@@ -151,9 +153,10 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
       await visibleFarmer(claims, params.id ?? '')
       const photo: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
       if (photo.length === 0) throw invalid('photo', 'Send the photo as the request body')
+      if (!isJpeg(photo)) throw new HttpError(415, 'unsupported_media_type', 'Photos must be JPEG')
 
       const key = `farmers/${params.id}/photo.jpg`
-      await ctx.storage.put(key, photo, req.get('content-type') || 'image/jpeg')
+      await ctx.storage.put(key, photo, 'image/jpeg')
       await db.tx(actorOf(claims), (q) =>
         q.query('UPDATE farmers SET photo_object_key = $2, photo_bytes = $3 WHERE id = $1', [params.id, key, photo.length]),
       )

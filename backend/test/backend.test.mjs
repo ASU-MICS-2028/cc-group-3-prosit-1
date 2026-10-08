@@ -142,7 +142,7 @@ describe('farmer records in Postgres', () => {
     const t = await start()
     const token = await t.agent()
     const { body } = await t.call('POST', '/farmers', { token, body: registration() })
-    const jpeg = Buffer.from('fake-jpeg-bytes')
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])
     const sent = await t.call('POST', `/farmers/${body.id}/photo`, { token, raw: jpeg, headers: { 'Content-Type': 'image/jpeg' } })
     expect(sent).toMatchObject({ status: 200, body: { bytes: jpeg.length } })
     expect(await t.server.ctx.storage.get(`farmers/${body.id}/photo.jpg`)).toEqual(jpeg)
