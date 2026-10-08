@@ -1,9 +1,10 @@
 import type { Express } from 'express'
 import { actorOf, ASSOCIATIONS, auditEvent, nowIso, publicUser, type Ctx, type UserRow } from '../context.js'
 import { iso, num, pgError, type Row } from '../db.js'
-import { HttpError, invalid, jsonBody, route } from '../http.js'
+import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { hashSecret, isE164, requireAuth, type Claims } from '../security.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
+import { farmerView, getFarmer } from './farmers.js'
 import { paymentTools } from './payments.js'
 
 const AGENT_STATUSES = ['pending_verification', 'pending', 'approved', 'rejected', 'suspended']
@@ -171,6 +172,27 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
         registeredByName: row.agent_name,
       }))
       return [200, { items, total: matches.length }]
+    }),
+  )
+
+  /** ADMIN-CONTRACT: one farmer's full record plus their payments, scoped like the list. */
+  app.get(
+    '/admin/farmers/:id',
+    route(async ({ req, params }) => {
+      const claims = await requireAuth(signer, req, REPORTERS)
+      if (!/^\d+$/.test(params.id ?? '')) throw notFound('farmer')
+      const row = await getFarmer(db, 'f.id = $1', [params.id ?? ''])
+      if (!row) throw notFound('farmer')
+      const registrar = (await db.query('SELECT association_id FROM users WHERE id = $1', [row.created_by])).rows[0]
+      if (!inScope(claims, registrar?.association_id ?? null)) throw notFound('farmer')
+
+      await payments.settleSimulated()
+      // No login account yet means no payments, not an error.
+      const { rows } = await db.query(
+        `SELECT p.* FROM payments p JOIN users u ON u.id = p.farmer_user_id WHERE u.role = 'farmer' AND u.phone_e164 = $1 ORDER BY p.seq DESC`,
+        [row.phone_e164],
+      )
+      return [200, { ...farmerView(row), balance: payments.balanceOf(rows), payments: rows.map(payments.view) }]
     }),
   )
 
