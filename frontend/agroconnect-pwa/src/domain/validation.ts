@@ -30,7 +30,7 @@ export function validateStep(step: RegistrationStep, fields: RegistrationFields)
     const size = fields.farmSizeAcres.trim()
     if (size && parseFarmSize(size) === null) errors.farmSize = 'farmSizeInvalid'
   }
-  if (step === 3 && !fields.consent) errors.consent = 'consentRequired'
+  if (step === 4 && !fields.consent) errors.consent = 'consentRequired'
   return errors
 }
 
@@ -39,13 +39,14 @@ export function validateAll(fields: RegistrationFields): FieldErrors {
     ...validateStep(1, fields),
     ...validateStep(2, fields),
     ...validateStep(3, fields),
+    ...validateStep(4, fields),
   }
 }
 
 export function firstStepWithError(errors: FieldErrors): RegistrationStep {
   if (errors.name || errors.phone) return 1
   if (errors.farmSize) return 2
-  return 3
+  return 4
 }
 
 export function normaliseFields<T extends RegistrationFields>(fields: T): T {

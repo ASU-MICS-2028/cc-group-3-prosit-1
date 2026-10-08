@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid'
+import { EMPTY_PROFILE } from '../domain/profile'
 import { SYNC_STATUS, type Draft, type Farmer, type RegistrationFields, type StoredPhoto, type SyncStatus } from '../domain/farmer'
 import { db } from './db'
 
@@ -19,6 +20,7 @@ export function newDraft(carryOver: Partial<CarryOver> = {}): Draft {
     gps: null,
     photo: null,
     consent: false,
+    profile: EMPTY_PROFILE,
   }
 }
 
@@ -50,6 +52,7 @@ export async function saveFarmer(draft: Draft): Promise<Farmer> {
     crops: draft.crops,
     gps: draft.gps,
     consent: draft.consent,
+    profile: draft.profile ?? EMPTY_PROFILE,
     hasPhoto: photo !== null,
     status: SYNC_STATUS.SAVED,
     serverId: null,
