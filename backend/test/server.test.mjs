@@ -258,6 +258,17 @@ describe('farmer registration endpoints', () => {
     expect(noCode.status).toBe(400)
   })
 
+  it('refuses a gender or language outside the allowed list, with the field', async () => {
+    const { call, agentToken } = await start()
+    const token = await agentToken()
+    const gender = await call('POST', '/farmers', { token, body: registration({ gender: 'other' }) })
+    expect(gender).toMatchObject({ status: 400, body: { error: 'invalid_request', field: 'gender' } })
+    const language = await call('POST', '/farmers', { token, body: registration({ preferredLanguage: 'fr' }) })
+    expect(language).toMatchObject({ status: 400, body: { error: 'invalid_request', field: 'preferredLanguage' } })
+    const ok = await call('POST', '/farmers', { token, body: registration({ clientId: uid('c-enum'), gender: 'undisclosed', preferredLanguage: 'dag' }) })
+    expect(ok.status).toBe(201)
+  })
+
   it('links a farmer account to the record an agent created, by phone', async () => {
     const { call, agentToken, farmerToken } = await start()
     const farmer = await farmerToken('+233241234567')
