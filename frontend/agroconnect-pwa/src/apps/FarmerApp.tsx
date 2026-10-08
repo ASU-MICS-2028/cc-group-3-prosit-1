@@ -3,6 +3,7 @@ import { Advice } from '../screens/farmer/Advice'
 import { FarmerHome } from '../screens/farmer/FarmerHome'
 import { FarmerMarket } from '../screens/farmer/FarmerMarket'
 import { Me } from '../screens/farmer/Me'
+import { More } from '../screens/shared/More'
 import { Wallet } from '../screens/farmer/Wallet'
 import { AppShell } from './AppShell'
 import { FARMER_TABS, type FarmerTab } from './tabs'
@@ -24,6 +25,7 @@ export function FarmerApp() {
     wallet: <Wallet />,
     advice: <Advice />,
     me: <Me />,
+    more: <More entries={['settings']} />,
   }
 
   return <AppShell items={FARMER_TABS} active={tab} onChange={setTab} screens={screens} />

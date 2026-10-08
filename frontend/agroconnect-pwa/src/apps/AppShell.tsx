@@ -1,11 +1,14 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import { BottomNav, type NavItem } from '../components/BottomNav'
 import { FeedbackButton } from '../components/FeedbackButton'
 import { IdentityBar } from '../components/IdentityBar'
+import { NavOverflowContext } from '../components/navOverflow'
+import { useT } from '../i18n/context'
 import { useCurrentUser } from '../auth/useCurrentUser'
 import { setHeartbeatEnabled } from '../sync/heartbeat'
 import { startSync } from '../sync/syncQueue'
 import { useSyncTriggers } from '../sync/useSyncTriggers'
+import { navLayout } from './tabs'
 
 interface AppShellProps<T extends string> {
   items: readonly NavItem<T>[]
@@ -19,6 +22,12 @@ interface AppShellProps<T extends string> {
 export function AppShell<T extends string>({ items, active, onChange, screens, keepMounted = [] }: AppShellProps<T>) {
   useSyncTriggers()
   const role = useCurrentUser()?.role
+  const { language } = useT()
+  const { bar, overflow } = navLayout(items, language !== 'en')
+  const moreId = bar.find((item) => item.id === 'more')?.id
+  const inOverflow = overflow.some((item) => item.id === active)
+  const hidden = !bar.some((item) => item.id === active) && !inOverflow
+  const nav = useMemo(() => ({ tabs: overflow, open: (id: string) => onChange(id as T) }), [overflow, onChange])
 
   useEffect(() => {
     void startSync()
@@ -29,7 +38,12 @@ export function AppShell<T extends string>({ items, active, onChange, screens, k
     return () => setHeartbeatEnabled(false)
   }, [role])
 
+  useEffect(() => {
+    if (hidden && items[0]) onChange(items[0].id)
+  }, [hidden, items, onChange])
+
   return (
+    <NavOverflowContext.Provider value={nav}>
     <div className="app">
       <IdentityBar />
       {items.map(({ id }) =>
@@ -42,7 +56,8 @@ export function AppShell<T extends string>({ items, active, onChange, screens, k
         ),
       )}
       <FeedbackButton screen={active} />
-      <BottomNav items={items} active={active} onChange={onChange} />
+      <BottomNav items={bar} active={inOverflow && moreId ? moreId : active} onChange={onChange} />
     </div>
+    </NavOverflowContext.Provider>
   )
 }

@@ -22,6 +22,9 @@ export const PLACES: readonly Place[] = [
   { id: 'ke-mombasa', name: 'Mombasa', country: 'KE', latitude: -4.0435, longitude: 39.6682 },
 ]
 
+/** The phone's own position, as opposed to one of the listed towns. Its name is looked up from the coordinates. */
+export const HERE_ID = 'here'
+
 export const placesIn = (country: CountryCode): readonly Place[] => PLACES.filter((place) => place.country === country)
 
 export function defaultPlace(country: CountryCode): Place {

@@ -402,7 +402,7 @@ button, input, select, textarea { font-family: inherit; }
 .bottom-nav { padding: 0.5rem 0.25rem; }
 .nav-tab { min-width: 0; }
 .nav-icon { width: 2.75rem; height: 2.75rem; }
-.nav-label { letter-spacing: -0.01em; }
+.nav-label { letter-spacing: -0.01em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Shared lists and labels ---------- */
 .plain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
