@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { votexProvider } from '../src/integrations.ts'
 import { migrate } from '../src/migrate.ts'
-import { createApp, DEMO_ACCOUNTS, pgliteDb, uid } from './harness.ts'
+import { createApp, DEMO_ACCOUNTS, pgliteDb, signToken, uid } from './harness.ts'
 
 const servers = []
 afterEach(async () => {
