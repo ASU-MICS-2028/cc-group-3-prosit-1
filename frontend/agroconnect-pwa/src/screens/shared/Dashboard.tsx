@@ -10,6 +10,16 @@ import { isCropId, isFarmerLanguage, isGender } from '../../domain/farmer'
 import { useRemote } from '../../hooks/useRemote'
 import { useStats } from '../../hooks/useStats'
 import { useT } from '../../i18n/context'
+import type { TranslationKey } from '../../i18n/translate'
+
+/** Profile breakdowns for policy reporting (Prosit brief data requirements), shown once any answer exists. */
+const PROFILE_CARDS: ['byNeed' | 'byPhoneType' | 'byMobileMoney' | 'byContactChannel' | 'byExtensionVisit', TranslationKey, string][] = [
+  ['byNeed', 'profile.needs', 'profile.need'],
+  ['byPhoneType', 'profile.phoneType', 'profile.phone'],
+  ['byMobileMoney', 'profile.mobileMoney', 'profile.momo'],
+  ['byContactChannel', 'profile.contactChannel', 'profile.channel'],
+  ['byExtensionVisit', 'profile.extensionVisit', 'profile.visit'],
+]
 
 type Scope = 'association' | 'all'
 
@@ -117,6 +127,16 @@ function StatsView({ stats, stale, onRetry }: { stats: Stats; stale: boolean; on
             <h2 className="card-title">{t('dashboard.byGender')}</h2>
             <BarList rows={rows(stats.byGender, 'gender')} />
           </section>
+          {PROFILE_CARDS.map(([field, title, prefix]) => {
+            const list = stats[field]
+            if (!list || list.every((row) => row.key === 'unknown')) return null
+            return (
+              <section key={field} className="card">
+                <h2 className="card-title">{t(title)}</h2>
+                <BarList rows={list.map(({ key, count }) => ({ key, count, label: key === 'unknown' ? t('dashboard.unknown') : t(`${prefix}.${key}` as TranslationKey) }))} />
+              </section>
+            )
+          })}
         </>
       )}
 

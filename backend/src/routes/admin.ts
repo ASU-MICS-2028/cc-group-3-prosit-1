@@ -2,6 +2,7 @@ import type { Express } from 'express'
 import { actorOf, ASSOCIATIONS, auditEvent, nowIso, publicUser, type Ctx, type UserRow } from '../context.js'
 import { iso, num, pgError, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
+import { PROFILE_FIELDS, profileView, type ProfileField } from '../profile.js'
 import { hashSecret, isE164, requireAuth, type Claims } from '../security.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
 import { farmerView, getFarmer } from './farmers.js'
@@ -26,7 +27,21 @@ const CSV_COLUMNS = [
   'clientId', 'id', 'name', 'phoneE164', 'gender', 'preferredLanguage', 'community', 'region',
   'farmSizeHectares', 'farmSizeEntered', 'farmSizeUnit', 'crops', 'lat', 'lng', 'accuracyMetres',
   'registeredAt', 'createdAt', 'registeredBy',
+  ...Object.keys(PROFILE_FIELDS),
 ]
+
+/** A profile value as one CSV cell: lists joined with ';', booleans as yes/no, missing as empty. */
+const profileCell = (value: unknown) => (Array.isArray(value) ? value.join(';') : typeof value === 'boolean' ? (value ? 'yes' : 'no') : (value ?? ''))
+
+/** Policy breakdowns over the profile (Prosit 1 data requirements): one tally per question. */
+const PROFILE_BREAKDOWNS: Record<string, ProfileField> = {
+  byPhoneType: 'phoneType',
+  byContactChannel: 'contactChannel',
+  byMobileMoney: 'mobileMoney',
+  byNeed: 'needs',
+  bySoilType: 'soilType',
+  byExtensionVisit: 'extensionVisit',
+}
 const NUMERIC_COLUMNS = ['farmSizeHectares', 'farmSizeEntered', 'lat', 'lng', 'accuracyMetres']
 
 export function adminRoutes(app: Express, ctx: Ctx): void {
@@ -239,6 +254,16 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
           byCrop: byCountDescending(tally(farmers, (f) => f.crops as string[])),
           byLanguage: byCountDescending(tally(farmers, (f) => f.language ?? 'unknown')),
           byGender: byCountDescending(tally(farmers, (f) => f.gender ?? 'unknown')),
+          ...Object.fromEntries(
+            Object.entries(PROFILE_BREAKDOWNS).map(([key, field]) => [
+              key,
+              byCountDescending(tally(farmers, (f) => {
+                const value = profileView(f)[field]
+                return Array.isArray(value) ? (value as string[]) : String(value ?? 'unknown')
+              })),
+            ]),
+          ),
+          bankAccount: tally(farmers, (f) => (f.has_bank_account === null ? 'unknown' : f.has_bank_account ? 'yes' : 'no')),
           byAgent: agents
             .map((agent) => ({
               agentId: agent.login_id,
@@ -295,6 +320,7 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
         registeredAt: iso(f.registered_at),
         createdAt: iso(f.created_at),
         registeredBy: f.agent_login_id,
+        ...Object.fromEntries(Object.entries(profileView(f)).map(([name, value]) => [name, profileCell(value)])),
       }))
       await auditEvent(db, claims, 'export.farmers', 'farmers', `${rows.length} rows`)
       return csvResponse('farmers.csv', CSV_COLUMNS, NUMERIC_COLUMNS, rows)
