@@ -205,7 +205,7 @@ Accepted (supersedes an earlier UI-created CPU-based policy)
 A target-tracking scaling policy was initially created via the AWS Console using `ASGAverageCPUUtilization` at 60% target. For an IO-bound HTTP API (database calls, container-pull-blocked startup, FastAPI awaiting network), **CPU is a poor demand signal**: a worker blocked on a slow DB call occupies a slot but consumes near-zero CPU, so the alarm never trips even when real-world throughput is saturated. CPU-based policies for such workloads tend to lag demand by minutes and under-provision.
 
 ### Decision
-1. **Metric:** `ALBRequestCountPerTarget` (sum of HTTP requests per registered target per 1-minute period). Captured in Terraform under `module.compute.aws_autoscaling_policy.cpu_target` (name preserved for state continuity).
+1. **Metric:** `ALBRequestCountPerTarget` (sum of HTTP requests per registered target per 1-minute period). Captured in Terraform under `module.compute.aws_autoscaling_policy.request_count`.
 2. **Target Value:** 500 requests per target per minute (~8 req/s per instance). Chosen because a `t3.micro` running the API (then Python/FastAPI, now Node.js) comfortably sustains ~200 req/s; 8 req/s keeps per-instance utilization under 5% and leaves generous headroom for intermittent traffic bursts.
 3. **ASG Capacity:** `min = 1`, `desired = 1`, `max = 3`. Scales out to 3 under sustained load, back to 1 when quiet. Keeps the normal-day cost at one instance (~$10/mo), with ceiling at three (~$30/mo).
 4. **Resource Label:** Built from `module.alb.alb_arn_suffix` and `module.alb.target_group_arn_suffix` so the policy stays tied to the correct ALB/TG pair even if either is replaced.

@@ -44,3 +44,15 @@ variable "monthly_budget_critical_usd" {
   default     = 100
   description = "Actual month-to-date spend above this → critical email"
 }
+
+variable "budget_tag_key" {
+  type        = string
+  default     = "Project"
+  description = "Cost-allocation tag key the budget filters on"
+}
+
+variable "budget_cost_filter_value" {
+  type        = string
+  default     = "user:Project$agroconnect"
+  description = "Budget cost filter (TagKeyValue form: user:<Key>$<Value>)"
+}

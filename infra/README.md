@@ -115,6 +115,27 @@ In the votex365 dashboard (Developers, test mode) set the webhook URL to
 `terraform.tfvars`. The demo accounts have public passwords: turn them off
 before real data.
 
+## Rollback
+
+The deployed image tag lives in SSM at `/agroconnect-dev/app-image-tag`. CI
+pins it to the merge commit's SHA on every deploy, and instances pull
+`:<sha>` — never the mutable `:latest`. So a rollback is two commands:
+
+```bash
+# 1. Point the parameter at the last good SHA.
+aws ssm put-parameter --name /agroconnect-dev/app-image-tag \
+  --value <previous-sha> --type String --overwrite \
+  --region af-south-1 --profile ashesi-dev
+
+# 2. Roll the fleet onto it.
+aws autoscaling start-instance-refresh --auto-scaling-group-name agroconnect-dev-asg \
+  --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}' \
+  --region af-south-1 --profile ashesi-dev
+```
+
+List available tags with
+`aws ecr list-images --repository-name agroconnect-dev-backend --region af-south-1`.
+
 ## Teardown
 
 ```bash
