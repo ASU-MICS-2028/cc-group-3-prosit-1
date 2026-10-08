@@ -279,7 +279,7 @@ describe('farmer registration endpoints', () => {
     expect((await call('GET', '/farmers/me', { token: farmer })).body).toMatchObject({ name: 'Ama' })
   })
 
-  it('accepts a photo and refuses one that is too large', async () => {
+  it('accepts a JPEG photo and refuses a non-image or one that is too large', async () => {
     const { base, call, agentToken } = await start()
     const token = await agentToken()
     const { body } = await call('POST', '/farmers', { token, body: registration() })
@@ -290,7 +290,9 @@ describe('farmer registration endpoints', () => {
         headers: { 'Content-Type': 'image/jpeg', Authorization: `Bearer ${token}` },
         body: new Uint8Array(bytes),
       })
-    expect((await upload(5_000)).status).toBe(200)
+    expect((await upload([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])).status).toBe(200)
+    // A PNG is refused, even with an image/jpeg header.
+    expect((await upload([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])).status).toBe(415)
     expect((await upload(600 * 1024)).status).toBe(413)
   })
 })

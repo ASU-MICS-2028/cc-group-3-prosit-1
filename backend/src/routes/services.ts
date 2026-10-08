@@ -3,7 +3,7 @@ import { actorOf, CROPS, CURRENCIES, nowDate, type Ctx } from '../context.js'
 import { iso, num, pgError, type Row } from '../db.js'
 import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { isUuid, requireAuth, type Claims } from '../security.js'
-import { rawPhoto } from './farmers.js'
+import { isJpeg, rawPhoto } from './farmers.js'
 
 const FIELD_STAFF = ['agent', 'coordinator'] as const
 const MAX_TEXT_LENGTH = 500
@@ -116,8 +116,9 @@ export function serviceRoutes(app: Express, ctx: Ctx): void {
       if (!check || check.farmer_user_id !== claims.sub) throw notFound('crop check')
       const photo: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
       if (photo.length === 0) throw invalid('photo', 'Send the photo as the request body')
+      if (!isJpeg(photo)) throw new HttpError(415, 'unsupported_media_type', 'Photos must be JPEG')
       const key = `crop-checks/${check.id}/photo.jpg`
-      await ctx.storage.put(key, photo, req.get('content-type') || 'image/jpeg')
+      await ctx.storage.put(key, photo, 'image/jpeg')
       await db.tx(actorOf(claims), (q) => q.query('UPDATE crop_checks SET photo_object_key = $2 WHERE id = $1', [check.id, key]))
       return [200, { bytes: photo.length }]
     }),
