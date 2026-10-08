@@ -28,4 +28,7 @@ node_modules/
 # misc
 .DS_Store
 .env
+
+# AI-tool working directories — not part of the project (see docs/ai-tools-usage.md)
 .claude/
+.commandcode/
