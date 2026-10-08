@@ -186,6 +186,13 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check" {
   }
 }
 
+# Cost Explorer must have the tag activated before a budget can filter on it.
+# Activation can take up to 24h to take effect.
+resource "aws_ce_cost_allocation_tag" "project" {
+  tag_key = var.budget_tag_key
+  status  = "Active"
+}
+
 # ---------- Monthly cost guardrail ----------
 # AWS Budgets lives in us-east-1 regardless of our primary region; the resource
 # itself is global, but notifications fire from us-east-1 behind the scenes.
@@ -196,6 +203,12 @@ resource "aws_budgets_budget" "monthly" {
   limit_amount = var.monthly_budget_critical_usd
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
+
+  # Count only AgroConnect spend (Project tag), not other labs in the account.
+  cost_filter {
+    name   = "TagKeyValue"
+    values = [var.budget_cost_filter_value]
+  }
 
   cost_types {
     include_tax          = true

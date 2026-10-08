@@ -146,3 +146,15 @@ variable "seed_demo_accounts" {
   description = "true seeds the public demo accounts from WALKTHROUGH.md. Never with real data."
   default     = false
 }
+
+variable "image_tag_param_name" {
+  type        = string
+  description = "SSM parameter holding the image tag the container pulls."
+  default     = ""
+}
+
+variable "image_tag_param_arn" {
+  type        = string
+  description = "ARN of the image-tag parameter (EC2 role gets ssm:GetParameter on just this one)."
+  default     = ""
+}
