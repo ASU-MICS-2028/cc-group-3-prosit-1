@@ -142,14 +142,19 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details:* See [`docs/data-tier.md`](./docs/data-tier.md).
 
 ### 4. Cloud Infrastructure as Code ([`infra/`](./infra))
-* **Orchestration:** HashiCorp Terraform (`>= 1.6`) structured into 7 modular components under [`infra/modules/`](./infra/modules):
+* **Orchestration:** HashiCorp Terraform (`>= 1.6`) structured into 11 modular components under [`infra/modules/`](./infra/modules):
   * `network` — VPC, 6 subnets across 2 AZs, IGW, routing tables.
   * `nat` — ARM64 `fck-nat` (`t4g.nano`) cutting NAT costs by >90%.
   * `alb` — Application Load Balancer, ACM TLS certificate for `api.agroconnect.space`, HTTP-to-HTTPS redirect.
-  * `compute` — EC2 IAM role, launch template, ASG, target-tracking scaling policy.
+  * `compute` — EC2 IAM role, launch template, ASG, `awslogs` Docker logging driver, target-tracking scaling policy.
   * `ecr` — Container registry (`agroconnect-dev-backend`).
+  * `database` — Amazon RDS PostgreSQL 16 on `db.t4g.micro` in isolated subnets with KMS encryption.
+  * `storage` — S3 media bucket (`agroconnect-media-*`) with versioning, AES256, and multipart lifecycle rules.
+  * `secrets` — AWS Secrets Manager container for Arkesel SMS API credentials (`agroconnect/dev/arkesel`).
+  * `observability` — SNS alerts topic, CloudWatch operational dashboard, alarms for ALB/ASG/RDS/EC2, and $10 monthly budget.
   * `cicd` — AWS IAM OIDC federation for GitHub Actions.
   * `frontend` — AWS Amplify App in `eu-west-1` with custom domain `app.agroconnect.space`.
+* **Remote State:** Centralized in Amazon S3 (`af-south-1`) with Terraform 1.10+ native state locking (`use_lockfile = true`), completely eliminating external DynamoDB dependencies.
 * **Load Balancing & TLS:** AWS ALB with automatic HTTP :80 to HTTPS :443 redirection and ACM DNS-validated certificate for `api.agroconnect.space`.
 * **Dynamic Scaling:** Target-tracking policy on `ALBRequestCountPerTarget` (500 req/min/target, scaling 1→3) to absorb bursty registration traffic.
 * **Zero-SSH Administration:** Instances boot with AWS Systems Manager Core policy (`AmazonSSMManagedInstanceCore`) using IMDSv2; port 22 is completely closed.
@@ -158,12 +163,12 @@ Each tier is decoupled and maintained in its respective subdirectory:
 ### 5. GitOps CI/CD & Deployments ([`.github/workflows/`](./.github/workflows), [`amplify.yml`](./amplify.yml))
 * **Continuous Integration ([`ci.yml`](./.github/workflows/ci.yml)):**
   * Gated on pull requests into `main`.
-  * Executes Node.js dependency resolution, TypeScript compilation (`npm run build`), server boot `/health` probe verification, and Terraform validation (`fmt -check`, `validate`).
+  * Executes Node.js dependency resolution, TypeScript compilation (`npm run build`), server boot `/health` probe verification, and Terraform validation across all 11 modules (`fmt -check`, `validate`).
 * **Backend Continuous Deployment ([`deploy.yml`](./.github/workflows/deploy.yml)):**
   * Triggered exclusively on merges to `main`.
   * Authenticates to AWS via **IAM OIDC Web Identity Federation** (no long-lived credentials stored in GitHub).
   * Builds and pushes versioned + `:latest` Docker images to Amazon ECR (`agroconnect-dev-backend`).
-  * Triggers an automated rolling instance refresh (`MinHealthyPercentage: 50%`) across the Auto Scaling Group.
+  * Triggers an automated rolling instance refresh (`MinHealthyPercentage: 50%`) with concurrency retry handling (`InstanceRefreshInProgress`) waiting for in-flight launch template refreshes before starting.
 * **Frontend Continuous Deployment ([`amplify.yml`](./amplify.yml)):**
   * AWS Amplify Hosting pipeline building the React PWA on push to `main` with automatic edge invalidation.
 * *Details:* See [`docs/ci-cd-and-operations.md`](./docs/ci-cd-and-operations.md).
@@ -178,12 +183,12 @@ Each tier is decoupled and maintained in its respective subdirectory:
 
 | Pillar | Architectural Implementation in AgroConnect |
 |---|---|
-| **Operational Excellence** | Infrastructure 100% codified across 7 Terraform modules (`infra/modules/`). Immutable container deployments through ECR and ASG rolling refreshes. Git-connected Amplify builds. CloudWatch metrics and ALB health probes on `/health`. |
-| **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
-| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Stateless backend application design. |
+| **Operational Excellence** | Infrastructure 100% codified across 11 Terraform modules (`infra/modules/`) with native S3 state locking. Immutable container deployments through ECR and ASG rolling refreshes with concurrency retry protection. Docker `awslogs` container log streaming to CloudWatch Logs. Unified CloudWatch operational dashboard (`agroconnect-dev-operational`) and automated SNS email alarm dispatches. |
+| **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. Database credentials and third-party SMS tokens secured in AWS Secrets Manager. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
+| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Automated RDS snapshots and S3 bucket versioning. |
 | **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Static PWA cached at CloudFront edge; client-side IndexedDB caching and photo compression reducing payload overhead by >95%. |
-| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$5 AWS Budgets anomaly alert. |
-| **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Planned evaluation of AWS Graviton processors for the app tier. |
+| **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$10/month AWS Budgets guardrail with 80% forecast warning and 100% actual spend alert to SNS. |
+| **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Adoption of ARM64 Graviton instances for NAT (`t4g.nano`) and RDS (`db.t4g.micro`), reducing power consumption and emissions. |
 
 *Full architectural deep-dive:* See [`docs/system-overview.md`](./docs/system-overview.md).
 

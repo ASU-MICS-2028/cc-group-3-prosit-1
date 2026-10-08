@@ -45,8 +45,8 @@ docs/
 | [**4. Client Tier (PWA)**](./client-tier.md) | Frontend & Edge | Offline-first design, Dexie IndexedDB, Background Sync & Web Locks, GPS polling, photo compression, Twi/Ewe translations |
 | [**5. API Tier**](./api-tier.md) | Application Backend | Node.js 24 / Express 5 TypeScript API, unprivileged Docker, health probes, client UUIDs |
 | [**6. Data Tier**](./data-tier.md) | Persistence Layer | PostgreSQL schema (`db/schema.sql`), cascading relationships, S3 object pointers |
-| [**7. Cloud Infrastructure**](./cloud-infrastructure.md) | AWS & Terraform | Dual-AZ VPC in `af-south-1`, ARM64 `fck-nat` cost optimization, ALB HTTPS, ASG, SSM |
-| [**8. CI/CD & Operations**](./ci-cd-and-operations.md) | Automation & Security | GitHub Actions OIDC deployment, Node 24 smoke tests, ASG instance refresh, IAM team onboarding |
+| [**7. Cloud Infrastructure**](./cloud-infrastructure.md) | AWS & Terraform | Dual-AZ VPC in `af-south-1`, 11 modules, S3 native remote state, RDS Postgres, S3 media, CloudWatch alarms & dashboard |
+| [**8. CI/CD & Operations**](./ci-cd-and-operations.md) | Automation & Security | GitHub Actions OIDC deployment, ASG rolling refresh with concurrency retry protection, Node 24 smoke tests, team IAM |
 
 ---
 
@@ -67,8 +67,9 @@ docs/
 │                 AWS af-south-1 (Cape Town)                  │
 │  [Public Subnets]   ALB (ACM TLS) + fck-nat (t4g.nano)      │
 │  [Private App]      ASG (min 1, des 1, max 3; req-count)    │
-│                     EC2 (t3.micro) running Express :8000    │
-│  [Private Data]     Isolated Subnets (Week 4 RDS Ready)     │
+│                     EC2 (t3.micro) + Docker awslogs         │
+│  [Private Data]     RDS PostgreSQL 16 (db.t4g.micro)        │
+│  [Storage & Obs]    S3 Media • Secrets • CloudWatch & Alarms│
 └──────────────────────────────▲──────────────────────────────┘
                                │
 ┌──────────────────────────────┴──────────────────────────────┐

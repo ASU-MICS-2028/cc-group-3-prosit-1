@@ -64,7 +64,7 @@ Every pull request targeting `main` is gated by two parallel CI validation jobs:
   terraform fmt -check -recursive
   ```
 * Initializes modules without remote backend (`terraform init -backend=false`).
-* Validates provider syntax and dependency graphs across all 7 modules:
+* Validates provider syntax and dependency graphs across all 11 modules:
   ```bash
   terraform validate
   ```
@@ -96,7 +96,7 @@ Docker images are built and pushed to Amazon ECR (`agroconnect-dev-backend`) in 
 1. `:latest` — Pointer for the launch template and current operational state.
 2. `:${{ github.sha }}` — Immutable commit SHA guaranteeing deterministic auditability and fast rollback capability.
 
-### Zero-Downtime ASG Rolling Refresh
+### Zero-Downtime ASG Rolling Refresh & Concurrency Protection
 To deploy the new container image to EC2 without dropping incoming requests, the workflow initiates an Auto Scaling Group instance refresh:
 ```bash
 aws autoscaling start-instance-refresh \
@@ -105,7 +105,8 @@ aws autoscaling start-instance-refresh \
 ```
 * **`MinHealthyPercentage: 50`:** Guarantees that at least half the instances remain healthy and serving traffic while nodes are replaced sequentially.
 * **`InstanceWarmup: 180`:** Grants newly booted instances 3 minutes to pull the ECR container image, start Docker, and pass ALB `/health` checks before older instances are terminated.
-* **Status Polling:** The workflow polls `describe-instance-refreshes` every 15 seconds until status reaches `Successful` (or fails cleanly on errors).
+* **Concurrency Handling (`InstanceRefreshInProgress`):** AWS allows only one instance refresh per ASG at a time. When `terraform apply` updates the launch template, it triggers its own refresh. If `deploy.yml` runs concurrently, it catches `InstanceRefreshInProgress` and retries `start-instance-refresh` every 15s (for up to 30 minutes) until the prior refresh completes. Rather than joining the earlier refresh (where instances might have already booted with the old image), it insists on starting its own fresh cycle to guarantee 100% of fleet instances run the newly pushed image.
+* **Status Polling & Failure Detection:** The workflow polls `describe-instance-refreshes` until status reaches `Successful`. Deployment failures, cancellations, rollback attempts, or `RollbackSuccessful` exit with code 1 immediately.
 
 ---
 

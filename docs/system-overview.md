@@ -57,14 +57,21 @@ The end-to-end architecture is depicted below:
 │     └── Auto Scaling Group (min 1, des 1, max 3)                       │
 │           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
 │           └── EC2 (t3.micro) + Docker running Express :8000 (Node/TS)   │
+│                 └── awslogs driver ─> CloudWatch Logs (/.../app)        │
 │                                                                         │
-│   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)] (Week 4)        │
-│     └── PostgreSQL / Amazon RDS (Isolated — no default internet route)  │
+│   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)]                 │
+│     └── PostgreSQL / Amazon RDS (db.t4g.micro, isolated data subnets)   │
+│                                                                         │
+│   [Storage & Observability Platform]                                    │
+│     ├── S3 Media Bucket (agroconnect-media-*, AES256, versioned)        │
+│     ├── AWS Secrets Manager (DB master credentials & Arkesel SMS key)   │
+│     ├── CloudWatch Operational Dashboard (agroconnect-dev-operational)  │
+│     └── CloudWatch Alarms & SNS (ALB, ASG, RDS, EC2, $10/mo Budget)     │
 └────────────────────────────────────▲────────────────────────────────────┘
                                      │
 ┌────────────────────────────────────┴────────────────────────────────────┐
 │                    CI/CD & GitOps Automation (GitHub)                   │
-│   PR: Smoke Test + Terraform Validate                                   │
+│   PR: Smoke Test + Terraform Validate (11 modules)                      │
 │   Push to main (Backend): AWS IAM OIDC Auth ➔ ECR ➔ ASG Rolling Refresh │
 │   Push to main (Frontend): AWS Amplify Git-Connected Deploy (amplify.yml│
 └─────────────────────────────────────────────────────────────────────────┘
@@ -73,8 +80,8 @@ The end-to-end architecture is depicted below:
 The system is organized into decoupled layers:
 1. [**Client Tier (`frontend/`)**](./client-tier.md): Progressive Web App built with React 19, Vite, TypeScript, and Dexie for client-side persistence, hosted on AWS Amplify (`https://app.agroconnect.space`).
 2. [**API Tier (`backend/`)**](./api-tier.md): Node.js 24 / Express 5 TypeScript service running in Docker on EC2, exposing REST endpoints for profile creation, health checks, and discovery (`https://api.agroconnect.space`).
-3. [**Data Tier (`db/`)**](./data-tier.md): Normalized relational schema (`schema.sql`) for PostgreSQL / Amazon RDS, with S3 object storage offloading for binary media.
-4. [**Cloud Infrastructure (`infra/`)**](./cloud-infrastructure.md): Modular Terraform IaC across 7 modules in `af-south-1` (and `eu-west-1` for Amplify).
+3. [**Data Tier (`db/`)**](./data-tier.md): Normalized relational schema (`schema.sql`) for PostgreSQL 16 on Amazon RDS (`infra/modules/database`), with S3 object storage offloading for binary media (`infra/modules/storage`).
+4. [**Cloud Infrastructure (`infra/`)**](./cloud-infrastructure.md): Modular Terraform IaC across 11 modules in `af-south-1` (and `eu-west-1` for Amplify) with native S3 state locking.
 5. [**CI/CD & Operations (`.github/`, `amplify.yml`, `scripts/`)**](./ci-cd-and-operations.md): GitHub Actions utilizing AWS IAM OIDC federation for automated backend deployments and AWS Amplify for automated frontend deployments.
 
 ---
@@ -84,19 +91,20 @@ The system is organized into decoupled layers:
 AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architected Framework:
 
 ### 1. Operational Excellence
-* **Infrastructure as Code (IaC):** 100% of AWS cloud resources are defined declaratively across 7 modules in Terraform ([`infra/`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/infra)). Environments are reproducible with zero manual console drift.
-* **Automated GitOps Workflows:** Changes to code or infrastructure land via pull requests validated by automated smoke tests and Terraform format/validation checks ([`ci.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/.github/workflows/ci.yml)). Frontend deployments are Git-connected via AWS Amplify Hosting ([`amplify.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/amplify.yml)).
-* **Health Probing & Observability:** The ALB continuously probes the application tier on `/health` (15s interval, 5s timeout). EC2 instances run Amazon CloudWatch agents shipping system metrics and application logs.
+* **Infrastructure as Code (IaC):** 100% of AWS cloud resources are defined declaratively across 11 modules in Terraform ([`infra/`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/infra)) backed by S3 remote state with native locking. Environments are reproducible with zero manual console drift.
+* **Automated GitOps Workflows:** Changes to code or infrastructure land via pull requests validated by automated smoke tests and Terraform format/validation checks across all 11 modules ([`ci.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/.github/workflows/ci.yml)). Backend deployments in [`deploy.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/.github/workflows/deploy.yml) include concurrency retry synchronization against in-flight launch template refreshes.
+* **Unified Observability & Alerting:** Docker containers stream logs directly to CloudWatch Logs via the `awslogs` driver. The ALB probes `/health` every 15s. A single CloudWatch operational dashboard (`agroconnect-dev-operational`) aggregates metrics across ALB, EC2, ASG, and RDS, while an SNS topic (`agroconnect-dev-alarms`) dispatches automated email alerts on threshold breaches.
 * **Consistent Tagging Schema:** Every resource carries standardized tags: `Project = agroconnect`, `Env = dev`, `Team = highlanders`, `ManagedBy = terraform`.
 
 ### 2. Security
-* **Network Isolation:** Only the ALB and the NAT instance reside in public subnets. Application servers and future RDS databases are housed in private subnets with private RFC 1918 IPs.
+* **Network Isolation:** Only the ALB and the NAT instance reside in public subnets. Application servers and RDS database instances are housed in private subnets with private RFC 1918 IPs.
 * **Chained Security Groups:** Strict least-privilege traffic flow:
   $$\text{Public Internet} \xrightarrow{\text{Port 443}} \text{ALB SG} \xrightarrow{\text{Port 8000}} \text{App SG} \xrightarrow{\text{Port 5432}} \text{Data SG}$$
+* **Secrets Management:** Database master credentials and third-party SMS tokens (Arkesel) are managed in AWS Secrets Manager and retrieved dynamically at runtime, avoiding plaintext secrets in Git, user-data, or container layers.
 * **Zero SSH / Closed Port 22:** Administrative shell access is exclusively conducted over **AWS Systems Manager (SSM) Session Manager** with IMDSv2 mandated. No SSH keys are provisioned or stored.
 * **Zero Static Cloud Secrets:** GitHub Actions deploys via OpenID Connect (OIDC) Web Identity Federation (`sts:AssumeRoleWithWebIdentity`). No long-lived `AWS_ACCESS_KEY_ID` secrets exist in GitHub.
 * **Identity & Access Governance:** Root AWS account is protected with MFA. Daily operations are conducted via IAM users provisioned with strict `ForceMFA` policies and mandatory password resets ([`create_team_iam.sh`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/scripts/create_team_iam.sh)).
-* **Encryption in Transit:** Strict TLS 1.3/1.2 termination at the ALB with ACM certificate for `api.agroconnect.space` and managed TLS for `app.agroconnect.space`.
+* **Encryption in Transit & at Rest:** Strict TLS 1.3/1.2 termination at the ALB and Amplify via ACM. RDS storage is encrypted using AWS KMS. S3 media objects are protected by AES256 server-side encryption.
 
 ### 3. Reliability
 * **Multi-AZ Availability:** Resources span two independent Availability Zones (`af-south-1a` and `af-south-1b`). If one data center experiences an outage, the ALB automatically routes traffic to the surviving zone.
@@ -114,12 +122,12 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 ### 5. Cost Optimization
 * **`fck-nat` Architecture:** Standard AWS NAT Gateways incur a flat charge of ~$32/month per gateway plus data processing fees. AgroConnect deploys `fck-nat` on an ARM64 `t4g.nano` instance (~$3/month), cutting NAT costs by over 90%.
 * **Free-Tier Leverage & Aggressive Scale-In:** Compute instances leverage AWS Free Tier credits; the ASG scales down to 1 instance during off-peak hours (monthly baseline compute cost ~$10/mo).
-* **Cost Controls & Anomaly Detection:** AWS Budgets is configured with a strict \$5 spend threshold alert to detect misconfigurations before unexpected charges accumulate.
+* **Cost Controls & Anomaly Detection:** AWS Budgets is configured with a strict **\$10/month guardrail** (`agroconnect-dev-monthly-budget`) dispatching automated warning emails at 80% forecasted spend and critical alerts at 100% actual spend via Amazon SNS.
 
 ### 6. Sustainability
 * **Payload Minimization:** The offline-first PWA sends compressed, batched JSON payloads and optimized images, minimizing cellular radio uptime and battery drain on low-end farmer phones.
 * **Right-Sized Compute Footprint:** Dynamic auto-scaling eliminates idle, over-provisioned compute capacity.
-* **Graviton Adoption:** Initial adoption of ARM64 Graviton instances for NAT (`t4g.nano`), with architectural plans to transition the backend app tier to Graviton for superior performance-per-watt efficiency.
+* **Graviton Adoption:** Adoption of ARM64 Graviton instances for NAT (`t4g.nano`) and Amazon RDS (`db.t4g.micro`), reducing power consumption and environmental impact.
 
 ---
 

@@ -40,10 +40,10 @@ The AgroConnect data tier provides durable, strongly consistent persistence for 
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Architectural Progression
-* **Week 3 MVP:** A thread-safe, in-memory dictionary store in FastAPI to validate infrastructure, networking, and CI/CD pipelines without incurring idle database licensing charges.
-* **Week 4 Production Target:** Managed **PostgreSQL 16 on Amazon RDS**, deployed across dedicated dual-AZ isolated subnets.
-* **Media Decoupling:** Binary media (photos) are offloaded to **Amazon S3**, keeping relational rows lean and queries high-speed.
+### Architectural Progression & Codification
+* **Week 3 MVP:** A thread-safe, in-memory store validating infrastructure, networking, and CI/CD pipelines without incurring idle database licensing charges.
+* **Production Relational Tier ([`infra/modules/database`](../infra/modules/database)):** Managed **PostgreSQL 16 on Amazon RDS** provisioned via Terraform across dual-AZ isolated subnets (`10.20.21.0/24` and `10.20.22.0/24`). Configured on `db.t4g.micro` with 20 GB `gp3` storage, storage autoscaling up to 100 GB, KMS encryption at rest, automated 7-day backup snapshots, and master credentials managed via AWS Secrets Manager.
+* **Media Decoupling ([`infra/modules/storage`](../infra/modules/storage)):** Binary media (photos) offload to an encrypted **Amazon S3** bucket (`agroconnect-media-<account-id>`) with versioning enabled, public access blocked, and lifecycle rules aborting incomplete multipart uploads after 7 days, keeping relational rows lightweight and queries high-speed.
 
 ---
 
