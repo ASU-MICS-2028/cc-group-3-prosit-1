@@ -31,34 +31,27 @@ resource "aws_iam_role_policy" "ec2_media_bucket" {
   policy = var.media_bucket_policy_json
 }
 
-# Secrets Manager read for the DB master-user secret only.
-data "aws_iam_policy_document" "db_secret_read" {
+# Secrets Manager read for exactly the app's secrets: the RDS-managed master secret, the token-signing
+# key, and the Arkesel, votex365 and admin-seed credentials. The app reads them at runtime (cached
+# 5 minutes), so no secret value is ever written into user data or the container environment.
+data "aws_iam_policy_document" "app_secrets_read" {
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.db_master_user_secret_arn]
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = compact([
+      var.db_master_user_secret_arn,
+      var.sms_secret_arn,
+      var.jwt_secret_arn,
+      var.votex_secret_arn,
+      var.admin_seed_secret_arn,
+    ])
   }
 }
 
-resource "aws_iam_role_policy" "ec2_db_secret" {
-  name   = "${var.name_prefix}-ec2-db-secret"
+resource "aws_iam_role_policy" "ec2_app_secrets" {
+  name   = "${var.name_prefix}-ec2-app-secrets"
   role   = aws_iam_role.ec2.id
-  policy = data.aws_iam_policy_document.db_secret_read.json
-}
-
-# Secrets Manager read for the Arkesel SMS credentials only.
-data "aws_iam_policy_document" "sms_secret_read" {
-  statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.sms_secret_arn]
-  }
-}
-
-resource "aws_iam_role_policy" "ec2_sms_secret" {
-  name   = "${var.name_prefix}-ec2-sms-secret"
-  role   = aws_iam_role.ec2.id
-  policy = data.aws_iam_policy_document.sms_secret_read.json
+  policy = data.aws_iam_policy_document.app_secrets_read.json
 }
 
 # ---------- app logs → CloudWatch Logs ----------
@@ -130,17 +123,6 @@ locals {
       docker pull "$IMAGE" && break || sleep 15
     done
 
-    # Build DATABASE_URL from the Secrets-Manager-managed master credentials.
-    # Resolves to postgres://<user>:<pass>@<host>:<port>/<db>
-    DB_SECRET=$(aws secretsmanager get-secret-value --region "$REGION" --secret-id "${var.db_master_user_secret_arn}" --query SecretString --output text 2>/dev/null || echo "")
-    if [ -n "$DB_SECRET" ]; then
-      DB_USER=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['username'])")
-      DB_PASS=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['password'])")
-      DB_URL="postgres://$DB_USER:$DB_PASS@${var.db_endpoint}/${var.db_name}"
-    else
-      DB_URL=""
-    fi
-
     docker rm -f app 2>/dev/null || true
 
     # Instance id -> log stream name (IMDSv2).
@@ -153,10 +135,19 @@ locals {
       --log-opt awslogs-group="${aws_cloudwatch_log_group.app.name}" \
       --log-opt awslogs-region="$REGION" \
       --log-opt awslogs-stream="$INSTANCE_ID" \
-      -e DATABASE_URL="$DB_URL" \
+      -e AWS_REGION="$REGION" \
+      -e DB_HOST="${var.db_endpoint}" \
+      -e DB_NAME="${var.db_name}" \
+      -e DB_SECRET_ARN="${var.db_master_user_secret_arn}" \
       -e PHOTO_BUCKET="${var.media_bucket_name}" \
       -e SMS_SECRET_ARN="${var.sms_secret_arn}" \
-      -e AWS_REGION="$REGION" \
+      -e JWT_SECRET_ARN="${var.jwt_secret_arn}" \
+      -e VOTEX_SECRET_ARN="${var.votex_secret_arn}" \
+      -e ADMIN_SEED_SECRET_ARN="${var.admin_seed_secret_arn}" \
+      -e PWA_ORIGINS="${var.pwa_origins}" \
+      -e PAYMENT_RETURN_URL="${var.payment_return_url}" \
+      -e AUTH_TEST_MODE="${var.auth_test_mode}" \
+      -e SEED_DEMO_ACCOUNTS="${var.seed_demo_accounts}" \
       "$IMAGE"
   EOT
 }

@@ -97,3 +97,8 @@ output "sms_secret_arn" {
 output "app_log_group_name" {
   value = module.compute.app_log_group_name
 }
+
+output "app_secret_names" {
+  description = "Secrets whose values are set out-of-band with aws secretsmanager put-secret-value"
+  value       = module.secrets.secret_names
+}

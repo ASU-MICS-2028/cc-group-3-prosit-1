@@ -65,14 +65,20 @@ module "compute" {
   target_group_arn_suffix = module.alb.target_group_arn_suffix
   ecr_repository_url      = module.ecr.repository_url
 
-  # Data-tier wiring (RDS + S3). Compute uses these to construct DATABASE_URL
-  # and PHOTO_BUCKET env vars at EC2 boot via user_data.
+  # Runtime wiring. The container gets ARNs and settings only; it reads secret values itself.
   db_endpoint               = module.database.endpoint
   db_name                   = module.database.db_name
   db_master_user_secret_arn = module.database.master_user_secret_arn
   media_bucket_name         = module.storage.bucket_name
   media_bucket_policy_json  = module.storage.app_access_policy_json
   sms_secret_arn            = module.secrets.arkesel_sms_secret_arn
+  jwt_secret_arn            = module.secrets.jwt_signing_key_secret_arn
+  votex_secret_arn          = module.secrets.votex365_secret_arn
+  admin_seed_secret_arn     = module.secrets.admin_seed_secret_arn
+  pwa_origins               = "https://${var.frontend_subdomain_prefix}.${var.frontend_apex_domain}"
+  payment_return_url        = "https://${var.frontend_subdomain_prefix}.${var.frontend_apex_domain}/"
+  auth_test_mode            = var.auth_test_mode
+  seed_demo_accounts        = var.seed_demo_accounts
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------
