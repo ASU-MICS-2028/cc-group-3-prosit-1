@@ -155,7 +155,13 @@ The sync orchestrator (`src/sync/`) manages the lifecycle of local records and r
 ### Conflict Resolution Strategy
 * **Idempotent Retry:** If the server returns `200 OK` for an existing `clientId`, the client accepts the returned server ID and transitions the status to `'synced'`.
 * **Phone Collision (`HTTP 409`):** If a farmer's phone number already exists under a *different* `clientId` (e.g., registered by another agent in a neighboring village), the record transitions to `'conflict'`. The agent is prompted with an inline alert to review the contact details.
-* **Transient Network Failure:** Network timeouts, HTTP 408, 429, or 5xx responses maintain the record in `'pending'` with exponential backoff retry intervals ($2\text{s}, 4\text{s}, 8\text{s}, 16\text{s}, \dots$).
+* **Transient Network Failure:** Network timeouts, HTTP 408, 429, or 5xx responses stop the run and keep the record in `'pending'` for the next one.
+
+### When Sync Runs
+* **While the app is open:** on launch, right after anything is saved, when the phone comes back online, when the app returns to the foreground, and every 30 seconds.
+* **After the app is closed:** whenever a run ends with items still waiting, the app registers a Background Sync (`agroconnect-sync`). The browser wakes the service worker (`src/sw.ts`) once there is signal, and it sends the queue with the session token saved on the phone. If items are still waiting after that, the event fails and the browser retries later with its own back-off. Signed-out phones send nothing.
+* **One sender at a time:** the app and the service worker share the IndexedDB queue, so each run holds a Web Lock (`agroconnect-sync`).
+* **Browser support:** Background Sync works in Chrome and other Chromium browsers on Android, which is what field agents use. On iOS Safari and Firefox the queue waits until the app is opened again.
 
 ---
 
