@@ -16,7 +16,7 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 |---|---|
 | [**Documentation Index**](./docs/README.md) | Navigation index, directory mapping, and high-level project summary |
 | [**1. System Overview**](./docs/system-overview.md) | Operational context, high-level topology & Well-Architected Framework alignment |
-| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-013 |
+| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-016 |
 | [**2b. Engineering Learnings**](./docs/learnings.md) | Engineering journal — discoveries & mental models (Amplify API gaps, CloudFront routing) |
 | [**2c. AI Tools Disclosure**](./docs/ai-tools-usage.md) | Academic integrity disclosure per Ashesi AI policy: tool categories, prompts & verification |
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |

@@ -19,6 +19,9 @@ This document formalizes the key architectural decisions made for **AgroConnect 
 * [ADR-011: Backend Runtime Migration to Node.js and TypeScript](#adr-011-backend-runtime-migration-to-nodejs-and-typescript)
 * [ADR-012: Service Worker Background Sync with Web Locks Concurrency](#adr-012-service-worker-background-sync-with-web-locks-concurrency)
 * [ADR-013: One Backend Service for Every Contract, on Postgres](#adr-013-one-backend-service-for-every-contract-on-postgres)
+* [ADR-014: Relational Database (PostgreSQL) over NoSQL](#adr-014-relational-database-postgresql-over-nosql)
+* [ADR-015: Phone Number Verification over National ID (Ghana Card)](#adr-015-phone-number-verification-over-national-id-ghana-card)
+* [ADR-016: Data Protection and Privacy for Rural User Data](#adr-016-data-protection-and-privacy-for-rural-user-data)
 
 ---
 
@@ -46,6 +49,9 @@ Empirical network latency testing was conducted directly from Ghana to evaluate 
 ### Consequences
 * **Positive:** Minimizes round-trip delay for mobile clients uploading data; keeps data within the African continent.
 * **Negative:** AWS charges for inter-region data transfer; `af-south-1` pricing is slightly higher than `us-east-1` for certain services. Egress costs require strict architectural control.
+
+### African providers considered (qualitative, not measured)
+The brief asks us to weigh hyperscalers against African providers such as **MainOne** (MDXi, now Equinix, Lagos/Accra) and **Rack Centre** (Lagos). Both are strongest at **colocation, interconnection and private cloud**: they would put servers physically closest to Ghanaian users and keep data in West Africa. We did not run latency tests against them. We chose AWS because the system leans on managed services they do not offer in the same form: managed Postgres with automated backups and secret rotation (RDS), autoscaling behind a managed load balancer, object storage, managed certificates, CloudWatch alarms, and OIDC-based deployment from GitHub, all as Terraform. Rebuilding those on colocated hardware would need operations staff the project does not have. Revisit if a Ghana-resident data requirement appears, or once a local provider offers a managed database and autoscaling.
 
 ---
 
@@ -376,6 +382,84 @@ The contracts imply an auth-service and several other services, but the infrastr
 * **Positive:** the hosted PWA works end to end against real infrastructure; contract parity with the mock is proven by its own tests; no secret value appears in user data, Terraform state or the repository.
 * **Negative:** one service means one blast radius and one deploy for every area. The payment provider is a small local company, not a regional standard; live mode would need KYC and a provider change. Demo accounts with public passwords are enabled for the prosit (`SEED_DEMO_ACCOUNTS`) and must be turned off before real data.
 * **Reversal:** each route module depends only on the shared context, so one can be moved into its own service behind the same path.
+---
+
+## ADR-014: Relational Database (PostgreSQL) over NoSQL
+
+### Status
+Accepted (8 Oct 2026)
+
+### Context
+The brief asks us to choose and justify SQL or NoSQL for farmer data. The data is strongly relational: farmers belong to the agent and association that registered them, coordinators see only their association, payments and crop checks link to farmer accounts, and the admin dashboard aggregates across all of it. Phones send records offline and retry, so duplicates must be impossible. MoFA-style reporting wants counts by region, crop, gender and need.
+
+### Decision
+**PostgreSQL 16 on RDS**, with integrity in the schema rather than the application:
+1. **Idempotency in the database:** every offline-created row has `client_id UUID NOT NULL UNIQUE`; the API inserts and maps the constraint error, so two retries of the same farmer can never both land.
+2. **Validation in the database:** CHECK constraints on languages, genders, crops, profile answers and amounts (`NUMERIC(12,2)`), and a generated, unique `phone_e164`.
+3. **An audit trigger** records every change with the acting user.
+4. **Arrays where a list belongs to one row** (crops, seasons, needs) with `<@` checks, giving most of NoSQL's flexibility without losing constraints.
+
+### Alternatives Considered
+* **DynamoDB / MongoDB:** scale and flexible documents, but scoping by association, the reporting joins and cross-record uniqueness (one farmer per phone) would move into application code, which is exactly where offline retries cause races. Costs per access pattern would also need designing up front.
+* **Firebase / Firestore:** an excellent offline story, but it would replace our own sync protocol, tie the data to Google outside Africa, and make the audit and scoping rules much harder.
+
+### Consequences
+* **Positive:** correctness under retries is enforced by Postgres; reports are plain SQL; the schema documents itself.
+* **Negative:** vertical scaling of one instance; sharding by country (Week 2) would need either per-country databases or partitioning. Single-AZ for the lab.
+
+---
+
+## ADR-015: Phone Number Verification over National ID (Ghana Card)
+
+### Status
+Accepted (8 Oct 2026)
+
+### Context
+The brief asks us to choose between phone verification and national ID integration for authentication. Farmers use shared and basic phones, connectivity is intermittent, and the Ghana Card (NIA) verification API is available only to licensed integrators.
+
+### Decision
+1. **Farmers sign in with their phone number, a one-time SMS code (Arkesel), then a 4-digit PIN** that unlocks the app offline. The PIN is hashed on the phone and on the server; 5 wrong tries lock the account for 15 minutes.
+2. **Staff sign in with an ID and password**, and field agents must be approved by an admin before they can sign in.
+3. **The phone number in E.164 is the link** between a farmer's login and the record an agent made for them, so a farmer registered by an agent can sign in without any other identifier.
+4. Farmers on basic phones are served by USSD, which identifies them by the calling number.
+
+### Alternatives Considered
+* **Ghana Card verification:** the strongest identity, and useful later for credit and subsidies, but it needs an NIA integration agreement, a data-processing licence, and a card the farmer has with them at registration. Many smallholders do not carry it to the field.
+* **Email and password:** most farmers have no email address.
+
+### Consequences
+* **Positive:** works for everyone with a phone number, including on USSD; no third-party identity dependency.
+* **Negative:** a SIM swap could take over an account (mitigated by the PIN on the phone); one phone shared by a family maps to one farmer. A Ghana Card number can be added to the farmer profile later as optional, verified data.
+
+---
+
+## ADR-016: Data Protection and Privacy for Rural User Data
+
+### Status
+Accepted (8 Oct 2026)
+
+### Context
+The brief asks for "data encryption and privacy protection for rural user data", and Ghana's Data Protection Act, 2012 (Act 843) applies to personal data collected here: names, phone numbers, GPS locations, photos, financial profiles.
+
+### Decision
+| Principle (Act 843) | How AgroConnect meets it |
+|---|---|
+| **Consent** | Registration cannot be saved without the farmer's recorded consent; `consent_at` stores when. The agent can play the consent statement aloud in the farmer's language (Listen button). |
+| **Minimality** | Only the brief's listed data is collected, and every profile question is optional. |
+| **Security in transit** | TLS everywhere: ACM certificates on the ALB and Amplify, HSTS, and verified TLS from the API to RDS. |
+| **Security at rest** | RDS storage encryption; SSE on the S3 photo bucket, which is private and reached only through the API. PINs and passwords are hashed (scrypt) and never logged or audited. |
+| **Access control** | Role-based tokens; agents see only farmers they registered and coordinators only their association, with out-of-scope records answering 404. |
+| **Accountability** | An audit trigger records who changed what and when; exports are audited. |
+| **On the phone** | Data waits in IndexedDB until sent; the app opens with a PIN, and 5 wrong PINs wipe the saved session. |
+| **Residency** | Personal data lives in `af-south-1` (Cape Town). Only the static app files are hosted from `eu-west-1` (ADR-009). |
+
+### Known gaps
+* **No retention schedule or deletion workflow yet**, and no self-service way for a farmer to see or correct everything held about them (Act 843's access and correction rights). An admin can find a farmer's record, but erasure is a manual database operation.
+* **No formal registration with Ghana's Data Protection Commission**, which a production deployment would need.
+
+### Consequences
+* **Positive:** the controls that prevent leaks (encryption, scoping, hashing, audit) are built in and tested.
+* **Negative:** the rights-handling workflow above is still manual.
 
 ---
 
