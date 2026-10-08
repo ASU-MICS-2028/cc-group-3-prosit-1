@@ -51,6 +51,21 @@ describe('USSD', () => {
     expect(twi.message).toContain('Gua so boɔ')
   })
 
+  it("speaks Nalo Solutions' format (upper-case fields in, MSG/MSGTYPE out)", async () => {
+    const t = await start()
+    const sessionID = `N-${Date.now()}`
+    const post = (body) => t.call('POST', '/ussd', { body })
+    const first = await post({ USERID: GATEWAY, SESSIONID: sessionID, MSISDN: '233241234567', USERDATA: '*928*77#', MSGTYPE: true })
+    expect(first.status).toBe(200)
+    expect(first.body).toMatchObject({ USERID: GATEWAY, MSISDN: '233241234567', MSGTYPE: true })
+    expect(first.body.MSG).toContain('1 English')
+    const pick = await post({ USERID: GATEWAY, SESSIONID: sessionID, MSISDN: '233241234567', USERDATA: '1', MSGTYPE: false })
+    expect(pick.body.MSGTYPE).toBe(true)
+    expect(pick.body.MSG).toContain('Market prices')
+    const stranger = await post({ USERID: 'not-ours', SESSIONID: sessionID, MSISDN: '233241234567', USERDATA: '1', MSGTYPE: false })
+    expect(stranger.status).toBe(403)
+  })
+
   it('greets a registered farmer in their language and shows their registration', async () => {
     const t = await start()
     await t.call('POST', '/farmers', {
