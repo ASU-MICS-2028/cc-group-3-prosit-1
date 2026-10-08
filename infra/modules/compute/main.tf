@@ -238,8 +238,8 @@ resource "aws_autoscaling_group" "app" {
 #
 # AWS auto-manages the two CloudWatch alarms backing this policy — don't try
 # to own them in Terraform.
-resource "aws_autoscaling_policy" "cpu_target" {
-  name                   = "Target Tracking Policy"
+resource "aws_autoscaling_policy" "request_count" {
+  name                   = "${var.name_prefix}-requests-per-target"
   autoscaling_group_name = aws_autoscaling_group.app.name
   policy_type            = "TargetTrackingScaling"
 

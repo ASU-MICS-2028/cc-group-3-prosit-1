@@ -15,7 +15,7 @@ output "ec2_role_arn" {
 }
 
 output "scaling_policy_arn" {
-  value = aws_autoscaling_policy.cpu_target.arn
+  value = aws_autoscaling_policy.request_count.arn
 }
 
 output "app_log_group_name" {
