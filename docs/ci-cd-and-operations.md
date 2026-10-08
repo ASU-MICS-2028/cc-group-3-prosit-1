@@ -4,7 +4,7 @@
 **Automation Workflows:** [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) & [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)  
 **Amplify Build Spec:** [`amplify.yml`](../amplify.yml)  
 **Governance Script:** [`scripts/create_team_iam.sh`](../scripts/create_team_iam.sh)  
-**Associated Architectural Records:** [ADR-005 (OIDC CI/CD)](./architecture-decisions.md#adr-005-zero-trust-gitops-cicd-deployment-via-aws-iam-oidc), [ADR-009 (Amplify Hosting)](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1), [L-001 (GitHub App Auth)](./learnings.md#l-001--aws-amplify-hosting--terraform--github-app-a-public-api-gap)
+**Associated Architectural Records:** [ADR-005 (OIDC CI/CD)](./architecture-decisions.md#adr-005-zero-trust-gitops-cicd-deployment-via-aws-iam-oidc), [ADR-009 (Amplify Hosting)](./architecture-decisions.md#adr-009-frontend-hosting-on-aws-amplify-in-eu-west-1), [ADR-011 (Node.js/TypeScript Backend)](./architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript), [L-001 (GitHub App Auth)](./learnings.md#l-001--aws-amplify-hosting--terraform--github-app-a-public-api-gap)
 
 ---
 
@@ -23,7 +23,7 @@ AgroConnect adheres to strict GitOps delivery principles: **merging to `main` is
 │                        Automated CI Verification                       │
 │                        (.github/workflows/ci.yml)                      │
 │                                                                        │
-│   ├── Backend Smoke Test (Python 3.12, dependency resolution, import)  │
+│   ├── Backend Smoke Test (Node.js 24, npm build & /health probe)       │
 │   └── Terraform Validation (terraform fmt -check & validate)           │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Code Owner Approval + Merge
@@ -51,13 +51,11 @@ AgroConnect adheres to strict GitOps delivery principles: **merging to `main` is
 Every pull request targeting `main` is gated by two parallel CI validation jobs:
 
 ### Job 1: `backend` (Smoke Test)
-* Runs on `ubuntu-latest` with Python `3.12`.
-* Installs dependencies via `pip install -r requirements.txt`.
-* Imports the FastAPI application and verifies metadata integrity:
-  ```bash
-  python -c "from app.main import app; print('ok:', app.title, app.version)"
-  ```
-* Catches syntax errors, broken imports, and schema regression before code review.
+* Runs on `ubuntu-latest` with **Node.js 24** (`actions/setup-node@v4`) and npm caching.
+* Installs dependencies via `npm ci`.
+* Compiles TypeScript application via `npm run build`.
+* Boots the compiled server (`PORT=8000 node dist/server.js &`) and probes `http://localhost:8000/health` up to 20 times (0.5s interval).
+* Guarantees that compilation errors, broken type definitions, and runtime boot failures fail the PR before review.
 
 ### Job 2: `terraform` (Format & Validation)
 * Runs on `ubuntu-latest` with Terraform `1.9.8`.

@@ -56,7 +56,7 @@ The end-to-end architecture is depicted below:
 │   [Private App Subnets (10.20.11.0/24, 10.20.12.0/24)]                 │
 │     └── Auto Scaling Group (min 1, des 1, max 3)                       │
 │           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
-│           └── EC2 (t3.micro) + Docker running FastAPI :8000             │
+│           └── EC2 (t3.micro) + Docker running Express :8000 (Node/TS)   │
 │                                                                         │
 │   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)] (Week 4)        │
 │     └── PostgreSQL / Amazon RDS (Isolated — no default internet route)  │
@@ -72,7 +72,7 @@ The end-to-end architecture is depicted below:
 
 The system is organized into decoupled layers:
 1. [**Client Tier (`frontend/`)**](./client-tier.md): Progressive Web App built with React 19, Vite, TypeScript, and Dexie for client-side persistence, hosted on AWS Amplify (`https://app.agroconnect.space`).
-2. [**API Tier (`backend/`)**](./api-tier.md): FastAPI service running in Docker on EC2, exposing REST endpoints for profile creation, health checks, and discovery (`https://api.agroconnect.space`).
+2. [**API Tier (`backend/`)**](./api-tier.md): Node.js 24 / Express 5 TypeScript service running in Docker on EC2, exposing REST endpoints for profile creation, health checks, and discovery (`https://api.agroconnect.space`).
 3. [**Data Tier (`db/`)**](./data-tier.md): Normalized relational schema (`schema.sql`) for PostgreSQL / Amazon RDS, with S3 object storage offloading for binary media.
 4. [**Cloud Infrastructure (`infra/`)**](./cloud-infrastructure.md): Modular Terraform IaC across 7 modules in `af-south-1` (and `eu-west-1` for Amplify).
 5. [**CI/CD & Operations (`.github/`, `amplify.yml`, `scripts/`)**](./ci-cd-and-operations.md): GitHub Actions utilizing AWS IAM OIDC federation for automated backend deployments and AWS Amplify for automated frontend deployments.
@@ -125,7 +125,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 
 ## Next Steps & Further Reading
 
-* [Architectural Decision Records (ADR-001 through ADR-009)](./architecture-decisions.md)
+* [Architectural Decision Records (ADR-001 through ADR-011)](./architecture-decisions.md)
 * [Engineering Learnings Journal](./learnings.md)
 * [Empirical Latency & Provider Benchmark Results](./empirical-research.md)
 * [Client Tier Architecture & Offline Sync](./client-tier.md)
