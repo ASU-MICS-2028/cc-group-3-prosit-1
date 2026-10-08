@@ -129,7 +129,9 @@ export async function createApp({ now = Date.now, checkout = null, ...settings }
     sms,
     storage: memoryStorage(),
     checkout,
-    settings: { ...DEFAULT_SETTINGS, testMode: true, pwaOrigins: ['https://app.example'], ...settings },
+    // Rate limiting is relaxed by default so it does not interfere with the contract tests; the
+    // dedicated rate-limit test passes its own settings.
+    settings: { ...DEFAULT_SETTINGS, testMode: true, pwaOrigins: ['https://app.example'], rateLimit: { windowMs: 60_000, max: 1_000_000, authMax: 1_000_000 }, ...settings },
     now,
   }
   const server = createServer(createExpressApp(ctx)) as TestServer

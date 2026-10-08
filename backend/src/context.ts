@@ -11,6 +11,8 @@ export interface Settings {
   /** How long a simulated payment stays pending before it settles. */
   paymentDelayMs: number
   pwaOrigins: string[]
+  /** Per-IP rate limits. `max` covers the whole API, `authMax` the sign-in and sign-up routes. */
+  rateLimit: { windowMs: number; max: number; authMax: number }
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxAttempts: 5,
   paymentDelayMs: 4000,
   pwaOrigins: [],
+  rateLimit: { windowMs: 60_000, max: 300, authMax: 20 },
 }
 
 export interface Ctx {
