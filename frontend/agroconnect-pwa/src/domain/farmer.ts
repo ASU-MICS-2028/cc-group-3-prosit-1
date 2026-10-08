@@ -3,6 +3,8 @@ export const SYNC_STATUS = {
   SENDING: 'sending',
   SENT: 'sent',
   ATTENTION: 'attention',
+  /** A farmer already on the server has been edited on the phone and is waiting to be patched. */
+  EDITED: 'edited',
 } as const
 export type SyncStatus = (typeof SYNC_STATUS)[keyof typeof SYNC_STATUS]
 

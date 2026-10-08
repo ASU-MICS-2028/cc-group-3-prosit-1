@@ -66,6 +66,7 @@ The PWA keeps a single phone box and builds both forms from what was typed: `024
 | New optional field | `gender` |
 | Photo goes to S3 | `POST /farmers/:id/photo`, the API stores the object and keeps the key in `photo_object_key` |
 | New endpoint | `GET /farmers/me` links a signed-in farmer to their record |
+| New endpoint | `PATCH /farmers/:id` edits a farmer's details (staff, scoped); the phone stays immutable |
 | GPS time is ISO | `gps.capturedAt` is an ISO string (the PWA will be changed to match) |
 
 ## `POST /farmers`
@@ -150,6 +151,20 @@ Role: `farmer`. Finds the record whose `phone_e164` equals the token's phone, an
 ## `GET /health`, `GET /farmers/:id`
 
 `/health` unchanged. `GET /farmers/:id` is for `agent`, `coordinator` and `admin`.
+
+## `PATCH /farmers/:id`
+
+Roles: `agent`, `coordinator`, `admin`, scoped like `GET /farmers/:id` (an agent: the farmers they registered; a coordinator: their association's; an admin: any). A farmer outside the caller's scope is **404**.
+
+A *partial* body: send only the fields to change. The editable fields are the ones `POST /farmers` accepts — `name`, `community`, `region`, `preferredLanguage`, `gender`, `farmSizeAcres`, `crops`, `gps`, `consent` and `profile` — validated the same way (a bad enum returns `400 invalid_request` with `field`). These are **immutable**: `clientId`, the phone (`countryCode` / `phoneNational`), `registeredAt`, and who registered the farmer; a phone change is refused with `400 invalid_request, field: "phone"`.
+
+| Status | Body |
+|--------|------|
+| 200 | the updated farmer record (the same shape `GET /farmers/:id` returns) |
+| 400 | `invalid_request` with `field` — a bad value, an enum outside its list, or an immutable field |
+| 404 | unknown id, or a farmer outside the caller's scope |
+
+Last-write-wins: the server applies the fields as sent. When `crops` is present it **replaces** the farmer's crop list. The change is audited (`farmers.update`) and `updated_by` is taken from the token.
 
 ## Authorization
 

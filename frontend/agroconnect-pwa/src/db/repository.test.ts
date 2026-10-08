@@ -5,6 +5,7 @@ import { db } from './db'
 import {
   getLatestDraft,
   getPhoto,
+  listEdited,
   listFarmers,
   listPhotosToSend,
   listUnsent,
@@ -14,6 +15,7 @@ import {
   saveDraft,
   saveFarmer,
   setStatus,
+  updateFarmer,
 } from './repository'
 
 async function register(name: string, photo: Blob | null = null) {
@@ -95,5 +97,26 @@ describe('sync queue', () => {
     expect(await listPhotosToSend()).toHaveLength(1)
     await markPhotoSent(id)
     expect(await listPhotosToSend()).toHaveLength(0)
+  })
+})
+
+describe('editing a farmer', () => {
+  it('marks a synced farmer as "edited" for the next sync', async () => {
+    const clientId = await register('Ama')
+    await setStatus(clientId, SYNC_STATUS.SENT, { serverId: '12' })
+    await updateFarmer(clientId, { name: 'Ama Mensah', community: 'Ashaiman' })
+
+    const [farmer] = await listFarmers()
+    expect(farmer).toMatchObject({ name: 'Ama Mensah', community: 'Ashaiman', status: SYNC_STATUS.EDITED })
+    expect((await listEdited()).map((entry) => entry.clientId)).toEqual([clientId])
+  })
+
+  it('keeps an unsynced farmer "saved", so the create carries the change', async () => {
+    const clientId = await register('Ama')
+    await updateFarmer(clientId, { name: 'Ama Mensah' })
+
+    const [farmer] = await listFarmers()
+    expect(farmer).toMatchObject({ name: 'Ama Mensah', status: SYNC_STATUS.SAVED })
+    expect(await listEdited()).toEqual([])
   })
 })

@@ -3,8 +3,8 @@
 The schema lives with the service that owns it: [`backend/migrations/`](../backend/migrations). Each file is applied once, in name order, when the API boots (`backend/src/migrate.ts`). A Postgres advisory lock means two instances starting together never apply the same migration twice, and `schema_migrations` records what has run.
 
 - **Design:** [`DATA-CONTRACT.md`](../DATA-CONTRACT.md) (storage rules) and the wire contracts in [`frontend/agroconnect-pwa/docs/`](../frontend/agroconnect-pwa/docs).
-- **Current schema:** [`backend/migrations/001_initial.sql`](../backend/migrations/001_initial.sql), then `002_market_prices_and_advice.sql`, `003_indexes_and_delete_policy.sql` and `004_feedback_audit.sql`.
-- **Adding a change:** create `backend/migrations/005_<what>.sql` (the next free number). Never edit a migration that has already run on RDS; write a new one.
+- **Current schema:** [`backend/migrations/001_initial.sql`](../backend/migrations/001_initial.sql), then `002_market_prices_and_advice.sql`, `003_indexes_and_delete_policy.sql`, `004_farmer_profile.sql` and `004_feedback_audit.sql` (two files share the `004_` prefix; the runner keys on the full filename), `005_ussd_and_support_requests.sql`, `006_extension_visits.sql`, `007_push_subscriptions.sql` and `008_auth_token_version.sql`.
+- **Adding a change:** create `backend/migrations/009_<what>.sql` (the next free number). Never edit a migration that has already run on RDS; write a new one.
 
 There is no separate migration step in CI or deploy: the ASG's next instance refresh boots the new image, which migrates before it starts serving.
 

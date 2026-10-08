@@ -92,6 +92,26 @@ export function listUnsent(): Promise<Farmer[]> {
   return db.farmers.where('status').equals(SYNC_STATUS.SAVED).sortBy('createdAt')
 }
 
+/**
+ * Saves an edit to a farmer. Before its first sync the create carries the change; afterwards it waits as an
+ * "edited" record for the next sync to PATCH.
+ */
+export async function updateFarmer(clientId: string, changes: Partial<RegistrationFields>): Promise<void> {
+  const farmer = await db.farmers.get(clientId)
+  if (!farmer) return
+  await db.farmers.update(clientId, {
+    ...changes,
+    status: farmer.serverId ? SYNC_STATUS.EDITED : SYNC_STATUS.SAVED,
+    errorMessage: null,
+    updatedAt: Date.now(),
+  })
+}
+
+/** Farmers edited after they reached the server, oldest edit first. */
+export function listEdited(): Promise<Farmer[]> {
+  return db.farmers.where('status').equals(SYNC_STATUS.EDITED).sortBy('updatedAt')
+}
+
 /** A record left on "sending" means the app closed mid-upload. */
 export async function resetStuckSending(): Promise<void> {
   await db.farmers.where('status').equals(SYNC_STATUS.SENDING).modify({ status: SYNC_STATUS.SAVED })

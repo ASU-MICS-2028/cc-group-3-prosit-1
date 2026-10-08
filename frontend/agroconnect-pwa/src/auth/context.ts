@@ -13,6 +13,8 @@ export interface AuthActions {
   /** Signs in again with the credentials held in memory. Resolves 'pending' if still not approved. */
   checkApproval: () => Promise<'approved' | 'pending'>
   signOut: () => Promise<void>
+  /** After a password/PIN change: stay signed in here with the fresh token (and re-hashed local PIN). */
+  applyCredentialChange: (token: string, pin?: string) => Promise<void>
 }
 
 export interface Auth extends AuthActions {

@@ -122,4 +122,33 @@ describe('PWA auth client against the mock', () => {
     const [{ startFarmer }, { NetworkError }] = await Promise.all([import('../src/auth/authApi.ts'), import('../src/lib/http.ts')])
     expect(await rejection(startFarmer('0241234567'))).toBeInstanceOf(NetworkError)
   })
+
+  it('ends the session on logout, so the old token stops working', async () => {
+    const { token } = await api.loginStaff(DEMO_ACCOUNTS.agent.loginId, DEMO_ACCOUNTS.agent.password)
+    expect(await api.refreshToken(token)).toBeTruthy()
+
+    await api.logout(token)
+    expect(await rejection(api.refreshToken(token))).toMatchObject({ status: 401, code: 'token_revoked' })
+  })
+
+  it('changes a staff password and keeps the current device signed in', async () => {
+    const { loginId, password } = DEMO_ACCOUNTS.agent
+    const { token } = await api.loginStaff(loginId, password)
+
+    expect(await rejection(api.changePassword(token, 'nope', 'brand-new-pw'))).toMatchObject({ status: 401, code: 'wrong_password' })
+    const changed = await api.changePassword(token, password, 'brand-new-pw')
+    expect(changed.token).toBeTruthy()
+    expect(await rejection(api.refreshToken(token))).toMatchObject({ status: 401 })
+    expect((await api.loginStaff(loginId, 'brand-new-pw')).token).toBeTruthy()
+  })
+
+  it('changes a farmer PIN', async () => {
+    const started = await api.startFarmer('+233249998811')
+    const { token } = await api.verifyFarmerOtp('+233249998811', started.testCode, '1234')
+
+    expect(await rejection(api.changePin(token, '0000', '4321'))).toMatchObject({ status: 401, code: 'wrong_pin' })
+    const changed = await api.changePin(token, '1234', '4321')
+    expect(changed.token).toBeTruthy()
+    expect((await api.loginFarmer('+233249998811', '4321')).token).toBeTruthy()
+  })
 })

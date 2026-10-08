@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { FarmerPayments } from '../../components/FarmerPayments'
 import { FarmerVisits } from '../../components/FarmerVisits'
@@ -11,6 +11,7 @@ import { SYNC_STATUS } from '../../domain/farmer'
 import { useT } from '../../i18n/context'
 import { requestSync } from '../../sync/syncQueue'
 import { ProfileRows } from '../../components/ProfileRows'
+import { EditFarmer } from './EditFarmer'
 
 interface FarmerDetailProps {
   clientId: string
@@ -38,7 +39,10 @@ export function FarmerDetail({ clientId, onClose }: FarmerDetailProps) {
     }
   }, [photoUrl])
 
+  const [editing, setEditing] = useState(false)
+
   if (!farmer) return null
+  if (editing) return <EditFarmer farmer={farmer} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
 
   async function sendAgain() {
     await setStatus(clientId, SYNC_STATUS.SAVED, { errorMessage: null })
@@ -60,6 +64,7 @@ export function FarmerDetail({ clientId, onClose }: FarmerDetailProps) {
       <main className="screen-body">
         <section className="card">
           <SyncBadge status={farmer.status} />
+          <Button onClick={() => setEditing(true)}>{t('detail.edit')}</Button>
           {farmer.status === SYNC_STATUS.ATTENTION && (
             <>
               <p className="detail-error">

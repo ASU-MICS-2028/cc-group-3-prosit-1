@@ -31,6 +31,8 @@ export interface Claims {
   name: string
   phone: string
   assoc?: string | null
+  /** The account's token_version when the token was signed; a mismatch means the session was revoked. */
+  ver?: number
 }
 
 export interface TokenUser {
@@ -39,6 +41,13 @@ export interface TokenUser {
   name: string
   phone: string
   assoc: string | null
+  ver: number
+}
+
+/** A request the session middleware has looked at: the resolved claims, or the failure to rethrow. */
+export interface SessionRequest extends Request {
+  claims?: Claims
+  authError?: unknown
 }
 
 const DAY = 24 * 3600
@@ -82,7 +91,7 @@ export async function createSigner(config: Pick<Config, 'jwtSecretArn' | 'region
   return {
     jwks,
     sign(user, ttlSeconds = ttlSecondsFor(user.role)) {
-      return new SignJWT({ role: user.role, name: user.name, phone: user.phone, assoc: user.assoc ?? undefined })
+      return new SignJWT({ role: user.role, name: user.name, phone: user.phone, assoc: user.assoc ?? undefined, ver: user.ver })
         .setProtectedHeader({ alg: 'RS256', kid })
         .setSubject(user.id)
         .setIssuedAt()
@@ -108,9 +117,15 @@ export function bearerToken(req: Request): string | null {
 
 /** The token's claims, or 401 (no valid token) / 403 (role not allowed). The actor is never read from the body. */
 export async function requireAuth(signer: Signer, req: Request, roles?: readonly Claims['role'][]): Promise<Claims> {
-  const token = bearerToken(req)
-  if (!token) throw new HttpError(401, 'unauthorized', 'Missing token')
-  const claims = await signer.verify(token)
+  const session = req as SessionRequest
+  // The session middleware resolves the account (and rejects a revoked/suspended one) before the route runs.
+  let claims = session.claims
+  if (!claims) {
+    if (session.authError) throw session.authError
+    const token = bearerToken(req)
+    if (!token) throw new HttpError(401, 'unauthorized', 'Missing token')
+    claims = await signer.verify(token)
+  }
   if (roles && !roles.includes(claims.role)) throw new HttpError(403, 'forbidden', 'Not allowed for this role')
   return claims
 }

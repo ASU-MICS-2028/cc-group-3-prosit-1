@@ -41,7 +41,7 @@ const app = createApp({
   checkout: config.votexSecretArn ? votexProvider(config) : null,
 
   push: vapid?.public_key && vapid.private_key ? webPushSender({ ...vapid, subject: vapid.subject || 'mailto:admin@agroconnect.space' }) : null,
-  settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins },
+  settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins, ussdUserId: config.ussdUserId },
   now: Date.now,
 })
 
