@@ -22,3 +22,17 @@ new migration.
 - **Data damage:** restore the RDS instance from an automated snapshot or use point-in-time recovery,
   then re-apply anything the API wrote since. Snapshots are retained for 7 days (see the `database`
   Terraform module).
+
+## Backups
+
+RDS takes automated daily snapshots (7-day retention) and supports point-in-time recovery; the `database`
+Terraform module configures this. To prove a dump restores, run the check against a dev database with a
+`postgresql-client` at least the server's major version:
+
+```bash
+DATABASE_URL=postgres://user:pass@host:5432/agroconnect scripts/verify-backup-restore.sh
+```
+
+It dumps the database, restores the dump into a scratch database on the same server, and compares row
+counts for the core tables (`farmers`, `users`, `payments`, `loan_requests`, `crop_checks`, `listings`,
+`feedback`, `audit_log`).
