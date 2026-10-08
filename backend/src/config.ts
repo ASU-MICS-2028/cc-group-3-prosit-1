@@ -16,7 +16,7 @@ export interface Config {
   authTestMode: boolean
   /** VAPID keys for Web Push ({ public_key, private_key, subject }). Unset: notifications off. */
   vapidSecretArn: string | null
-  /** Arkesel's userID for our USSD code (USSD_USER_ID). Unset: POST /ussd answers 404. */
+  /** USSD gateway's userID (Nalo Solutions or Arkesel) — USSD_USER_ID. Unset: POST /ussd answers 404. */
   ussdUserId: string | null
   jwtSecretArn: string | null
   smsSecretArn: string | null
