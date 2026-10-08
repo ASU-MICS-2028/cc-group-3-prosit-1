@@ -80,7 +80,6 @@ infra/
 ├── main.tf                    # Root orchestrator (provider configuration & module calls)
 ├── variables.tf               # Environment variables, CIDRs & domain declarations
 ├── outputs.tf                 # Exported endpoints, ARNs, and connection strings
-├── migrate-state.sh           # State migration helper for zero-downtime refactors
 ├── bootstrap/                 # Decoupled root provisioning S3 remote state bucket
 └── modules/
     ├── network/               # VPC, 6 subnets across 2 AZs, IGW, routing tables

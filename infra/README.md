@@ -11,7 +11,6 @@ infra/
 ├── main.tf              # providers, locals, module wiring
 ├── variables.tf         # root inputs
 ├── outputs.tf           # pulls from module outputs
-├── migrate-state.sh     # one-shot state-mv helper (idempotent)
 ├── bootstrap/           # one-time: creates the state bucket (own local state)
 └── modules/
     ├── network/         # VPC, subnets (×6), IGW, route tables

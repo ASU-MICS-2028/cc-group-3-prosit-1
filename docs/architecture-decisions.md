@@ -188,7 +188,7 @@ The initial Week-3 bring-up kept all 36+ Terraform resources in a single ~500-li
    * `ecr/` — container registry (kept separate so `compute/` has no cross-concern dependency).
    * `cicd/` — GitHub Actions OIDC provider, deploy role, inline policy.
 2. **Root `main.tf` is a thin ~90-line orchestrator** that wires modules together and nothing else.
-3. **State migration via a one-shot `migrate-state.sh` script** that runs `terraform state mv` for each pre-module address. Idempotent (dry-run default). 43 entries migrated with zero destroys. ALB `/health` served uninterrupted throughout.
+3. **State migration via a one-shot `migrate-state.sh` script** (removed once the migration had run; it is in the git history) that runs `terraform state mv` for each pre-module address. Idempotent (dry-run default). 43 entries migrated with zero destroys. ALB `/health` served uninterrupted throughout.
 
 ### Consequences
 * **Positive:** Each module reasons about one concern; Week 4 RDS lands as a new `database/` module without touching existing code; swapping NAT strategies, deleting the ALB, or spinning a second environment all become module-scope changes.
