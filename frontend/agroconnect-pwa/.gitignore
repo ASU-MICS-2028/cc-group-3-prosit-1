@@ -23,13 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-cat >> frontend/.gitignore << 'EOF'
-
 # Personal notes, not for the repo
 CLAUDE.md
 HOW-IT-WORKS.md
 REQUIREMENTS-CHECKLIST.md
 agroconnect-pwa-decisions.md
-EOF
+
 # Local data saved by the mock backend
 mock-server/.mock-data/
