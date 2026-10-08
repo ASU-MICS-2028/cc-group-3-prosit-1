@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { votexProvider } from '../src/integrations.ts'
 import { migrate } from '../src/migrate.ts'
-import { createApp, DEMO_ACCOUNTS, pgliteDb, uid } from './harness.ts'
+import { createApp, DEMO_ACCOUNTS, pgliteDb, signToken, uid } from './harness.ts'
 
 const servers = []
 afterEach(async () => {
@@ -312,5 +312,25 @@ describe('votex365 payments', () => {
     expect(failed).toMatchObject({ status: 503, body: { error: 'payments_unavailable' } })
     const { rows } = await t.db.query('SELECT status, checkout_url FROM payments')
     expect(rows).toEqual([{ status: 'pending', checkout_url: null }])
+  })
+})
+
+describe('farmer access scoping', () => {
+  it('hides a farmer from another association, but not from the agent, their coordinator, or an admin', async () => {
+    const t = await start()
+    const agent = await t.agent()
+    const id = (await t.call('POST', '/farmers', { token: agent, body: registration() })).body.id
+
+    expect((await t.call('GET', `/farmers/${id}`, { token: agent })).status).toBe(200)
+    expect((await t.call('GET', `/farmers/${id}`, { token: await t.staff(DEMO_ACCOUNTS.coordinator) })).status).toBe(200)
+    expect((await t.call('GET', `/farmers/${id}`, { token: await t.admin() })).status).toBe(200)
+
+    await t.db.query("INSERT INTO users (id, role, name, phone_e164, association_id, status) VALUES ('U-outsider', 'agent', 'Outsider', '+233200000123', 'ngfn', 'approved')")
+    const outsider = await signToken({ id: 'U-outsider', role: 'agent', name: 'Outsider', phone: '+233200000123', assoc: 'ngfn' })
+
+    expect((await t.call('GET', `/farmers/${id}`, { token: outsider })).status).toBe(404)
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00])
+    const upload = await t.call('POST', `/farmers/${id}/photo`, { token: outsider, raw: jpeg, headers: { 'Content-Type': 'image/jpeg' } })
+    expect(upload.status).toBe(404)
   })
 })
