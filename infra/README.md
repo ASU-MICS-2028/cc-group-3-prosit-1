@@ -99,7 +99,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/jwt.pem
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-jwt-signing-key \
   --secret-string "$(jq -n --rawfile k /tmp/jwt.pem '{private_key_pem: $k}')" && rm /tmp/jwt.pem
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-arkesel-sms \
-  --secret-string '{"key":"<NALO_KEY>","sender_id":"WSB"}'
+  --secret-string '{"nalo_key":"<NALO_KEY>","nalo_sender_id":"WSB","api_key":"<ARKESEL_API_KEY>","sender_id":"<ARKESEL_SENDER_ID>"}'
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-votex365 \
   --secret-string '{"api_key":"vxp_test_…","webhook_secret":"whsec_…"}'
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-admin-seed \

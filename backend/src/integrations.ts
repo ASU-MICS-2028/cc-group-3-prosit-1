@@ -10,31 +10,55 @@ export interface Sms {
   send(phoneE164: string, message: string): Promise<void>
 }
 
-interface NaloSecret {
-  key: string
-  sender_id: string
+interface SmsSecret {
+  /** Nalo Solutions (https://documenter.getpostman.com/view/7705958/Uyr7Hydn), tried first. */
+  nalo_key?: string
+  nalo_sender_id?: string
+  /** Arkesel SMS v2 (https://developers.arkesel.com), the fallback. */
+  api_key?: string
+  sender_id?: string
+  /** true accepts Arkesel messages without delivering them (Arkesel's sandbox). */
+  sandbox?: boolean
 }
 
-/** Nalo Solutions SMS (https://documenter.getpostman.com/view/7705958/Uyr7Hydn). Recipients go without the +, as 233241234567. */
-export function naloSms(config: Config): Sms {
+/** Sends through Nalo, then Arkesel if Nalo fails; a provider without a key is skipped. Recipients go without the +. */
+export function smsGateway(config: Config): Sms {
   return {
     async send(phoneE164, message) {
-      const secret = await optionalSecret<NaloSecret>(config, config.smsSecretArn)
-      if (!secret?.key) throw new HttpError(503, 'sms_unavailable', 'Text messages cannot be sent right now. Try again later.')
-      const response = await fetch('https://sms.nalosolutions.com/smsbackend/Resl_Nalo/send-message/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: secret.key, sender_id: secret.sender_id, msisdn: phoneE164.slice(1), message }),
-        signal: AbortSignal.timeout(10_000),
-      }).catch(() => null)
-      // 1701 is success; other codes (1707 bad sender, 1025 out of credit, ...) are refusals.
-      const body = (await response?.json().catch(() => null)) as { status?: string } | null
-      if (!response?.ok || body?.status !== '1701') {
-        console.error(`[sms] Nalo refused: ${response?.status} ${JSON.stringify(body)}`)
-        throw new HttpError(503, 'sms_unavailable', 'Text messages cannot be sent right now. Try again later.')
-      }
+      const secret = await optionalSecret<SmsSecret>(config, config.smsSecretArn)
+      const to = phoneE164.slice(1)
+      if (secret?.nalo_key && (await nalo(secret.nalo_key, secret.nalo_sender_id ?? '', to, message))) return
+      if (secret?.api_key && (await arkesel(secret, to, message))) return
+      throw new HttpError(503, 'sms_unavailable', 'Text messages cannot be sent right now. Try again later.')
     },
   }
+}
+
+async function nalo(key: string, sender: string, to: string, message: string): Promise<boolean> {
+  const response = await fetch('https://sms.nalosolutions.com/smsbackend/Resl_Nalo/send-message/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, sender_id: sender, msisdn: to, message }),
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null)
+  // 1701 is success; other codes (1707 bad sender, 1025 out of credit, ...) are refusals.
+  const body = (await response?.json().catch(() => null)) as { status?: string } | null
+  if (response?.ok && body?.status === '1701') return true
+  console.error(`[sms] Nalo refused: ${response?.status} ${JSON.stringify(body)}`)
+  return false
+}
+
+async function arkesel(secret: SmsSecret, to: string, message: string): Promise<boolean> {
+  const response = await fetch('https://sms.arkesel.com/api/v2/sms/send', {
+    method: 'POST',
+    headers: { 'api-key': secret.api_key!, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sender: secret.sender_id, message, recipients: [to], ...(secret.sandbox && { sandbox: true }) }),
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null)
+  const body = (await response?.json().catch(() => null)) as { status?: string; message?: string } | null
+  if (response?.ok && body?.status === 'success') return true
+  console.error(`[sms] Arkesel refused: ${response?.status} ${body?.message ?? ''}`)
+  return false
 }
 
 /** Collects messages instead of sending them (tests). */

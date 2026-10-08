@@ -28,7 +28,7 @@ The PWA's mock server (`frontend/agroconnect-pwa/mock-server/`) is the executabl
 - **Audit:** a trigger writes every change to `users`, `farmers`, `farmer_crops`, `payments`, loan requests, crop checks, listings and `feedback` into `audit_log`, with the acting user from the token's `sub` (set per transaction with `set_config('app.actor', $1, true)`). PIN and password hashes never reach the log.
 - **Logging & health:** structured JSON on stdout (pino) into CloudWatch, one line per request carrying the `X-Request-Id`; an unexpected error logs an `errorId` and returns it. Authorization headers and cookies are redacted and request bodies are never logged. Failed sign-ins, lockouts and refused refreshes are logged with the actor id — never a phone number, code, PIN or password. `GET /health` is liveness and `GET /ready` checks the database.
 - **Auth:** RS256 JWTs. The private key is in Secrets Manager (`JWT_SECRET_ARN`), so every instance signs with the same key; the public key is at `/.well-known/jwks.json`. PINs and passwords are hashed with scrypt; 5 wrong tries lock an account for 15 minutes.
-- **SMS:** sign-in codes go out through Nalo Solutions. With `AUTH_TEST_MODE=true` no SMS is sent and the code comes back in the response (demo only).
+- **SMS:** sign-in codes go out through Nalo Solutions, falling back to Arkesel if Nalo fails. With `AUTH_TEST_MODE=true` no SMS is sent and the code comes back in the response (demo only).
 - **Payments:** cedi collections go through a [votex365](https://partners.votex365.com/docs) hosted checkout (test keys): the response carries a `checkoutUrl`, and a signed webhook (`/webhooks/votex365`, HMAC-SHA256 over the raw body, 5-minute window) settles them. What votex365 cannot do (payouts, NGN, KES) is simulated as the test-mode contract describes.
 - **Photos:** stored in the private S3 bucket (`PHOTO_BUCKET`) through the API, so phones never hold bucket access.
 - **Secrets** are read at runtime with the instance role and cached for 5 minutes. The database password is fetched per new connection, so RDS's managed rotation needs no restart, and TLS to RDS is verified with the CA bundle baked into the image.
@@ -45,7 +45,7 @@ The PWA's mock server (`frontend/agroconnect-pwa/mock-server/`) is the executabl
 | `LOG_LEVEL` | `info` (default), `debug`, `warn`, `error` or `silent` |
 | `JWT_SECRET_ARN` | `{ "private_key_pem": "<PKCS#8>" }`. Unset: a throwaway key (every restart signs everyone out) |
 | `AUTH_TEST_MODE` | `true` returns sign-in codes instead of texting them. Default `false` |
-| `SMS_SECRET_ARN` | Nalo Solutions `{ "key", "sender_id" }` |
+| `SMS_SECRET_ARN` | `{ "nalo_key", "nalo_sender_id" }` (Nalo, tried first) and/or `{ "api_key", "sender_id", "sandbox"? }` (Arkesel, fallback) |
 | `PHOTO_BUCKET` | S3 bucket for photos. Unset: in memory (lost on restart) |
 | `VOTEX_SECRET_ARN` | votex365 `{ "api_key", "webhook_secret" }`. Unset: every payment is simulated |
 | `PAYMENT_RETURN_URL` | Where votex365 sends the farmer back after checkout |

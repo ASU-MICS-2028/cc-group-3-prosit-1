@@ -134,7 +134,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details & specifications:* See [`docs/client-tier.md`](./docs/client-tier.md) and [`frontend/README.md`](./frontend/README.md).
 
 ### 2. Application & API Tier ([`backend/`](./backend))
-* **Service:** `agroconnect-api` in **Node.js 24**, **Express 5** and **TypeScript** ([ADR-011](./docs/architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript), [ADR-013](./docs/architecture-decisions.md#adr-013-one-backend-service-for-every-contract-on-postgres)). One service implements all six PWA contracts: farmer registration and photos, sign-in for all four roles (SMS codes via Nalo Solutions, RS256 tokens), the admin dashboard and audit log, payments (votex365 checkout in test mode), crop checks and produce listings.
+* **Service:** `agroconnect-api` in **Node.js 24**, **Express 5** and **TypeScript** ([ADR-011](./docs/architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript), [ADR-013](./docs/architecture-decisions.md#adr-013-one-backend-service-for-every-contract-on-postgres)). One service implements all six PWA contracts: farmer registration and photos, sign-in for all four roles (SMS codes via Nalo Solutions with Arkesel as fallback, RS256 tokens), the admin dashboard and audit log, payments (votex365 checkout in test mode), crop checks and produce listings.
 * **Data:** Postgres 16 on RDS, migrated on boot; idempotency through `client_id` unique constraints; an audit trigger records every change with the acting user.
 * **Containerization:** Multi-stage Alpine Docker ([`backend/Dockerfile`](./backend/Dockerfile)) running unprivileged as `USER node` on port `8000`; secrets are read at runtime by ARN, never baked into user data.
 * **Tests:** the mock server's contract tests run against the real API on Postgres (108 tests, PGlite and Postgres 16 in CI).
@@ -154,7 +154,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
   * `ecr` — Container registry (`agroconnect-dev-backend`).
   * `database` — Amazon RDS PostgreSQL 16 on `db.t4g.micro` in isolated subnets with KMS encryption.
   * `storage` — S3 media bucket (`agroconnect-dev-media`) with versioning, AES256, and multipart lifecycle rules.
-  * `secrets` — AWS Secrets Manager container for Nalo SMS API credentials (`agroconnect-dev-arkesel-sms`).
+  * `secrets` — AWS Secrets Manager container for Nalo and Arkesel SMS API credentials (`agroconnect-dev-arkesel-sms`).
   * `observability` — SNS alerts topic, CloudWatch operational dashboard, alarms for ALB/ASG/RDS/EC2, and a $100 monthly budget.
   * `cicd` — AWS IAM OIDC federation for GitHub Actions.
   * `frontend` — AWS Amplify App in `eu-west-1` with custom domain `app.agroconnect.space`.
