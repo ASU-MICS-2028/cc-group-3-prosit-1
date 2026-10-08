@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
 import type { Ctx } from './context.js'
@@ -39,6 +40,22 @@ function requestId(req: Request, res: Response, next: NextFunction) {
   next()
 }
 
+/** The sign-in / sign-up routes get a stricter per-IP limit than the rest of the API. */
+const AUTH_PATHS = ['/auth/farmer/start', '/auth/farmer/verify-otp', '/auth/farmer/login', '/auth/staff/signup', '/auth/staff/verify-phone', '/auth/staff/login']
+
+function ipLimiter({ windowMs, limit }: { windowMs: number; limit: number }) {
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    // The ALB is the only proxy in front of the app (trust proxy is on), so the X-Forwarded-For check is safe.
+    validate: { trustProxy: false },
+    skip: (req) => req.path === '/health' || req.path === '/ready',
+    handler: (_req, res) => void res.status(429).json({ error: 'rate_limited', message: 'Too many requests. Try again later.' }),
+  })
+}
+
 export function createApp(ctx: Ctx): Express {
   const app = express()
   app.disable('x-powered-by')
@@ -55,6 +72,9 @@ export function createApp(ctx: Ctx): Express {
   // The PWA calls this API cross-origin, so keep the resource policy open; there is no HTML to protect.
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }))
   app.use(cors(ctx.settings.pwaOrigins))
+  const limits = ctx.settings.rateLimit
+  app.use(ipLimiter({ windowMs: limits.windowMs, limit: limits.max }))
+  app.use(AUTH_PATHS, ipLimiter({ windowMs: limits.windowMs, limit: limits.authMax }))
   // Webhooks are verified against their raw bytes, so they must not be parsed as JSON here.
   const json = express.json({ limit: '100kb' })
   app.use((req, res, next) => (req.path.startsWith('/webhooks/') ? next() : json(req, res, next)))
