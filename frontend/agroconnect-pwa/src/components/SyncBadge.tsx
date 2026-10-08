@@ -8,6 +8,7 @@ const SHAPES: Record<SyncStatus, ReactElement> = {
   sending: <path d="M12 5v10M7 11l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />,
   sent: <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />,
   attention: <path d="M12 5v9M12 18.5v.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />,
+  edited: <path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />,
 }
 
 export function SyncBadge({ status, label }: { status: SyncStatus; label?: string }) {
