@@ -23,7 +23,8 @@ AgroConnect adheres to strict GitOps delivery principles: **merging to `main` is
 │                        Automated CI Verification                       │
 │                        (.github/workflows/ci.yml)                      │
 │                                                                        │
-│   ├── Backend Smoke Test (Node.js 24, npm build & /health probe)       │
+│   ├── Frontend: lint, 257 tests, type check & build                    │
+│   ├── Backend: 108 tests on PGlite + Postgres 16, image boot test      │
 │   └── Terraform Validation (terraform fmt -check & validate)           │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Code Owner Approval + Merge
@@ -48,17 +49,19 @@ AgroConnect adheres to strict GitOps delivery principles: **merging to `main` is
 
 ## 2. Continuous Integration ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml))
 
-Every pull request targeting `main` is gated by two parallel CI validation jobs:
+Every pull request targeting `main` is gated by three parallel CI jobs:
 
-### Job 1: `backend` (Smoke Test)
-* Runs on `ubuntu-latest` with **Node.js 24** (`actions/setup-node@v4`) and npm caching.
-* Installs dependencies via `npm ci`.
-* Compiles TypeScript application via `npm run build`.
-* Boots the compiled server (`PORT=8000 node dist/server.js &`) and probes `http://localhost:8000/health` up to 20 times (0.5s interval).
-* Guarantees that compilation errors, broken type definitions, and runtime boot failures fail the PR before review.
+### Job 1: `frontend`
+* Node.js 24 with npm caching, working in `frontend/agroconnect-pwa`.
+* `npm run lint` (oxlint), `npm test` (257 Vitest tests, including the mock server's contract tests and the translation key/placeholder check), then `npm run build`, which also runs the type check.
 
-### Job 2: `terraform` (Format & Validation)
-* Runs on `ubuntu-latest` with Terraform `1.9.8`.
+### Job 2: `backend`
+* Node.js 24 with a **Postgres 16 service container** (the RDS major version).
+* `npm run build` (type check and compile), then the 108-test suite twice: on **PGlite** (Postgres in WebAssembly) and on the real Postgres 16 through the production `pg` driver (`TEST_DATABASE_URL`).
+* Builds the Docker image and boots it against the empty database: it must apply its migrations and answer `/health`, as it does on EC2.
+
+### Job 3: `terraform` (Format & Validation)
+* Runs on `ubuntu-latest` with Terraform `1.10.5` (S3 native state locking needs 1.10).
 * Executes recursive formatting verification:
   ```bash
   terraform fmt -check -recursive

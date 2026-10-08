@@ -16,7 +16,7 @@ Open `http://localhost:5173` in Chrome. Press F12, then the phone icon (device t
 
 The mock **restarts itself whenever its code changes** and keeps your data (farmers, accounts, approvals, sign-ins), and the app reloads itself too. You should never need to stop either one for a code change. `npm run mock:reset` is only for wiping everything and starting empty, and it does **not** restart itself. If a new feature seems missing after an update, reload the browser tab.
 
-**Demo accounts** (mock only; `npm run mock` prints them too):
+**Demo accounts** (the mock always has them; the live site has them while `seed_demo_accounts` is on in Terraform):
 
 | Who | Sign in with | Password |
 |-----|--------------|----------|
@@ -26,6 +26,14 @@ The mock **restarts itself whenever its code changes** and keeps your data (farm
 | Field agent (waiting for approval) | `+233200000099` | `pending-test-pass` |
 | Farmer (demo) | `0200000010` | PIN `1234`: sign in with the PIN straight away, no code needed |
 | Farmer (new) | any other Ghana phone number, for example `0241234567` | none: the code appears on screen, then you choose a 4-digit PIN |
+
+### Or use the live app
+
+Open **https://app.agroconnect.space** on a phone (Chrome on Android) or in Chrome with the device toolbar. It talks to the real API (`api.agroconnect.space`): Postgres, S3 photos, real SMS. Everything below works the same, with three differences:
+
+1. **Sign-in codes arrive by SMS** to the number you typed; nothing is shown on screen. Use a phone you can read texts on, or the demo farmer (`0200000010`, PIN `1234`), who needs no code.
+2. **Paying (collect, in cedis) opens a checkout page.** After the payment is sent, the Wallet shows **Complete payment**. It opens the votex365 test checkout with two buttons: **Pay** marks it paid, **Fail** marks it failed. You come back to the app, and the Wallet updates within a few seconds. No real money moves. Receiving money (payout) and naira or shilling payments are still simulated as below.
+3. **Data is shared.** Everyone on the team sees the same farmers and accounts, so use made-up names and numbers.
 
 **About PINs.** A PIN is how the app opens when there is no signal, so every person has one.
 - **Staff (admin, coordinator, agent):** you sign in with the ID and password above, and the **first time on each phone or browser** the app asks you to choose a 6-digit PIN. It is stored only on that phone, so it cannot be pre-set. For demos use **`123456`**, so everyone on the team knows it.
@@ -103,7 +111,7 @@ Screenshots: each role's home screen, the admin Agents queue, and the Feedback f
 
 ### Batch 4: Wallet, payments and loans
 
-Everything here is **test mode, no real money**. The mock pretends to be the mobile-money provider: a payment stays "waiting" for 4 seconds, then succeeds, except that a mobile money number ending in `0000` fails, so you can show both outcomes.
+Everything here is **test mode, no real money**. On the live site a cedi payment goes through the votex365 test checkout (see "Or use the live app" above). The mock, and the live site for payouts and other currencies, pretend to be the mobile-money provider: a payment stays "waiting" for 4 seconds, then succeeds, except that a mobile money number ending in `0000` fails, so you can show both outcomes.
 
 1. Sign in as the demo farmer (`0200000010`, PIN `1234`) and open **Wallet**. The balance is `₵ 0` and the header says "Test mode, no real money".
 2. **Receive money:** tap it, enter `120`, keep MTN and the prefilled number, tap **Continue**. You see "Saved…". Go back: the history shows the payment as "Waiting: approve the prompt on your phone", and after about 4 seconds as "Successful". The balance becomes `₵ 120`.
@@ -171,4 +179,5 @@ Screenshots: the weather card and the 5-day forecast, a crop check with its phot
 | 6 | 2026-10-07 | Crop checks end to end (photo, agent's advice, farmer reads it), produce listings you can sell, browse and mark sold, admin crop-check list | 227 |
 | UI | 2026-10-07 | A bar on every signed-in screen showing your name, role and ID; confirmed sign-out everywhere | 233 |
 | Fix | 2026-10-07 | Admin can add, list, suspend and reinstate coordinators; role chips on team rows; sign-up form says it is for field agents | 247 |
+| Live | 2026-10-08 | The real backend implements every contract on Postgres (codes by SMS, photos in S3, votex365 test checkout with a **Complete payment** button); the farmer's **Me** screen shows the profile an agent registered | 257 (+108 backend) |
 | Fix | 2026-10-07 | The sync heartbeat is only sent by agents and coordinators (admins and farmers were being refused); the digit 0 is drawn from Onest so it cannot be read as the letter O; status badges and the ID in the top bar no longer stretch or get cut off | 250 |

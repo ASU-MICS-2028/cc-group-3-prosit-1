@@ -91,8 +91,8 @@ The system is organized into decoupled layers:
 AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architected Framework:
 
 ### 1. Operational Excellence
-* **Infrastructure as Code (IaC):** 100% of AWS cloud resources are defined declaratively across 11 modules in Terraform ([`infra/`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/infra)) backed by S3 remote state with native locking. Environments are reproducible with zero manual console drift.
-* **Automated GitOps Workflows:** Changes to code or infrastructure land via pull requests validated by automated smoke tests and Terraform format/validation checks across all 11 modules ([`ci.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/.github/workflows/ci.yml)). Backend deployments in [`deploy.yml`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/.github/workflows/deploy.yml) include concurrency retry synchronization against in-flight launch template refreshes.
+* **Infrastructure as Code (IaC):** 100% of AWS cloud resources are defined declaratively across 11 modules in Terraform ([`infra/`](../infra)) backed by S3 remote state with native locking. Environments are reproducible with zero manual console drift.
+* **Automated GitOps Workflows:** Changes to code or infrastructure land via pull requests validated by automated smoke tests and Terraform format/validation checks across all 11 modules ([`ci.yml`](../.github/workflows/ci.yml)). Backend deployments in [`deploy.yml`](../.github/workflows/deploy.yml) include concurrency retry synchronization against in-flight launch template refreshes.
 * **Unified Observability & Alerting:** Docker containers stream logs directly to CloudWatch Logs via the `awslogs` driver. The ALB probes `/health` every 15s. A single CloudWatch operational dashboard (`agroconnect-dev-operational`) aggregates metrics across ALB, EC2, ASG, and RDS, while an SNS topic (`agroconnect-dev-alarms`) dispatches automated email alerts on threshold breaches.
 * **Consistent Tagging Schema:** Every resource carries standardized tags: `Project = agroconnect`, `Env = dev`, `Team = highlanders`, `ManagedBy = terraform`.
 
@@ -103,11 +103,11 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 * **Secrets Management:** Database master credentials and third-party SMS tokens (Arkesel) are managed in AWS Secrets Manager and retrieved dynamically at runtime, avoiding plaintext secrets in Git, user-data, or container layers.
 * **Zero SSH / Closed Port 22:** Administrative shell access is exclusively conducted over **AWS Systems Manager (SSM) Session Manager** with IMDSv2 mandated. No SSH keys are provisioned or stored.
 * **Zero Static Cloud Secrets:** GitHub Actions deploys via OpenID Connect (OIDC) Web Identity Federation (`sts:AssumeRoleWithWebIdentity`). No long-lived `AWS_ACCESS_KEY_ID` secrets exist in GitHub.
-* **Identity & Access Governance:** Root AWS account is protected with MFA. Daily operations are conducted via IAM users provisioned with strict `ForceMFA` policies and mandatory password resets ([`create_team_iam.sh`](file:///Users/josetseph/Projects/Technical/ashesi/cc-group-3-prosit-1/scripts/create_team_iam.sh)).
+* **Identity & Access Governance:** Root AWS account is protected with MFA. Daily operations are conducted via IAM users provisioned with strict `ForceMFA` policies and mandatory password resets ([`create_team_iam.sh`](../scripts/create_team_iam.sh)).
 * **Encryption in Transit & at Rest:** Strict TLS 1.3/1.2 termination at the ALB and Amplify via ACM. RDS storage is encrypted using AWS KMS. S3 media objects are protected by AES256 server-side encryption.
 
 ### 3. Reliability
-* **Multi-AZ Availability:** Resources span two independent Availability Zones (`af-south-1a` and `af-south-1b`). If one data center experiences an outage, the ALB automatically routes traffic to the surviving zone.
+* **Multi-AZ Availability:** The ALB and the app instances span two Availability Zones (`af-south-1a` and `af-south-1b`). If one data center experiences an outage, the ALB automatically routes traffic to the surviving zone. The RDS instance is single-AZ for the lab (`multi_az = false`), so a zone outage in its AZ would take the database down until it is restored; switching to Multi-AZ is one variable at roughly twice the database cost.
 * **Dynamic Target Tracking:** Auto Scaling Group dynamically tracks `ALBRequestCountPerTarget` (500 req/min/target), scaling between 1 and 3 instances to handle load without human intervention.
 * **Stateless Application Architecture:** EC2 instances maintain zero local session state. Requests can be served interchangeably by any instance in the Auto Scaling Group.
 * **Automated Self-Healing:** The Auto Scaling Group replaces failed or unhealthy instances automatically when ALB health probes fail.
@@ -133,7 +133,7 @@ AgroConnect Ghana was engineered to address each pillar of the AWS Well-Architec
 
 ## Next Steps & Further Reading
 
-* [Architectural Decision Records (ADR-001 through ADR-012)](./architecture-decisions.md)
+* [Architectural Decision Records (ADR-001 through ADR-013)](./architecture-decisions.md)
 * [Engineering Learnings Journal](./learnings.md)
 * [AI Tools Usage & Academic Integrity Disclosure](./ai-tools-usage.md)
 * [Empirical Latency & Provider Benchmark Results](./empirical-research.md)

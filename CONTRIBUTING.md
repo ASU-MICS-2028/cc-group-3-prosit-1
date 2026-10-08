@@ -9,8 +9,9 @@ through a pull request, and **merging to `main` is what ships to production**.
    - `feat/<topic>`, `fix/<topic>`, `chore/<topic>`, `docs/<topic>`
 2. Open a pull request into `main`.
 3. CI runs automatically ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)):
-   - `backend smoke test` — installs deps and imports the app
-   - `terraform fmt + validate` — checks `infra/`
+   - `frontend` — lint, 257 Vitest tests (including the mock server's contract tests), type check and production build
+   - `backend` — type check, 108 tests on PGlite and again on Postgres 16, then builds the Docker image and boots it against an empty database
+   - `terraform fmt + validate` — checks `infra/` with Terraform 1.10
 4. [`.github/CODEOWNERS`](./.github/CODEOWNERS) requests a review from whoever owns
    the paths you touched.
 5. Merge (squash) once it's green and approved. The push to `main` triggers
