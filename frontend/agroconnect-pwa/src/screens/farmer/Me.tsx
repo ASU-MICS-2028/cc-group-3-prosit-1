@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useCurrentUser } from '../../auth/useCurrentUser'
+import { Button } from '../../components/Button'
 import { CountryPicker } from '../../components/CountryPicker'
 import { useCachedRemote } from '../../hooks/useCachedRemote'
 import { LanguagePicker } from '../../components/LanguagePicker'
@@ -8,12 +10,16 @@ import { useT } from '../../i18n/context'
 import type { TranslationKey } from '../../i18n/translate'
 import { fetchMyProfile, isFarmerProfile } from '../../profile/profileApi'
 import { NotificationToggle } from '../../components/NotificationToggle'
+import { ChangePin } from './ChangePin'
 
 export function Me() {
   const { t } = useT()
   const user = useCurrentUser()
   const { state: profile } = useCachedRemote('myProfile', fetchMyProfile, isFarmerProfile)
   const record = profile.status === 'ready' ? profile.data : null
+  const [view, setView] = useState<'main' | 'pin'>('main')
+
+  if (view === 'pin') return <ChangePin onBack={() => setView('main')} />
 
   return (
     <>
@@ -67,6 +73,7 @@ export function Me() {
           <CountryPicker />
         </section>
 
+        <Button onClick={() => setView('pin')}>{t('me.changePin')}</Button>
         <NotificationToggle />
         <SignOutButton />
       </main>

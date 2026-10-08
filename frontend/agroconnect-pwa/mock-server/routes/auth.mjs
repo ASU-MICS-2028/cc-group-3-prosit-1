@@ -178,6 +178,7 @@ export function authRoutes(ctx) {
       const claims = await verifyToken(token, { graceSeconds: REFRESH_GRACE_SECONDS })
       const user = store.users.get(claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
+      if (Number(claims.ver ?? 1) !== Number(user.tokenVersion ?? 1)) throw new HttpError(401, 'token_revoked', 'This session has ended. Sign in again.')
       if (user.role !== 'farmer' && user.status !== 'approved') throw new HttpError(403, user.status, `Account is ${user.status}.`)
       return [200, { token: await signToken(user, ttlSecondsFor(user.role)) }]
     }],
@@ -187,6 +188,37 @@ export function authRoutes(ctx) {
       const user = store.users.get(claims.sub)
       if (!user) throw new HttpError(401, 'unauthorized', 'Unknown account')
       return [200, publicUser(user)]
+    }],
+
+    ['POST', '/auth/logout', async ({ req }) => {
+      const claims = await requireAuth(req)
+      const user = store.users.get(claims.sub)
+      if (user) user.tokenVersion = (user.tokenVersion ?? 1) + 1
+      return [204]
+    }],
+
+    ['POST', '/auth/staff/password', async ({ req }) => {
+      const claims = await requireAuth(req, ['agent', 'coordinator', 'admin'])
+      const user = store.users.get(claims.sub)
+      const body = await readJson(req)
+      if (!(await verifySecret(String(body.currentPassword ?? ''), user.passwordHash))) {
+        throw new HttpError(401, 'wrong_password', 'That password is not right.')
+      }
+      if (String(body.newPassword ?? '').length < 8) throw new HttpError(400, 'invalid_request', 'The password needs at least 8 characters.', { field: 'newPassword' })
+      user.passwordHash = await hashSecret(body.newPassword)
+      user.tokenVersion = (user.tokenVersion ?? 1) + 1
+      return [200, { token: await signToken(user) }]
+    }],
+
+    ['POST', '/auth/farmer/pin', async ({ req }) => {
+      const claims = await requireAuth(req, ['farmer'])
+      const user = store.users.get(claims.sub)
+      const body = await readJson(req)
+      if (!(await verifySecret(String(body.pin ?? ''), user.pinHash))) throw new HttpError(401, 'wrong_pin', 'That PIN is not right.')
+      if (!/^\d{4}$/.test(String(body.newPin ?? ''))) throw new HttpError(422, 'invalid_pin', 'The PIN must be exactly 4 digits.')
+      user.pinHash = await hashSecret(body.newPin)
+      user.tokenVersion = (user.tokenVersion ?? 1) + 1
+      return [200, { token: await signToken(user) }]
     }],
   ]
 }

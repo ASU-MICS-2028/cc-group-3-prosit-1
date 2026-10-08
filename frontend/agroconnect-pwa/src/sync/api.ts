@@ -43,3 +43,28 @@ export async function postPhoto(serverId: string, photo: Blob): Promise<void> {
     body: photo,
   })
 }
+
+/** Only the fields a member of staff may change; the phone and clientId are immutable (API-CONTRACT). */
+function editPayload(farmer: Farmer) {
+  return {
+    name: farmer.name,
+    preferredLanguage: farmer.preferredLanguage,
+    gender: farmer.gender ?? null,
+    community: farmer.community,
+    region: farmer.region,
+    farmSizeAcres: parseFarmSize(farmer.farmSizeAcres),
+    crops: farmer.crops,
+    gps: farmer.gps && { ...farmer.gps, capturedAt: new Date(farmer.gps.capturedAt).toISOString() },
+    consent: farmer.consent,
+    profile: farmer.profile ?? EMPTY_PROFILE,
+  }
+}
+
+/** Edits a farmer already on the server (`PATCH /farmers/:id`). */
+export async function patchFarmer(serverId: string, farmer: Farmer): Promise<void> {
+  await send(`${API_URL}/farmers/${encodeURIComponent(serverId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(editPayload(farmer)),
+  })
+}

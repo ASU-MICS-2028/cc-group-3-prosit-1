@@ -1,5 +1,6 @@
 import {
   getFarmer,
+  listEdited,
   listPhotosToSend,
   listUnsent,
   markPhotoRejected,
@@ -12,7 +13,7 @@ import { reportHeartbeat } from './heartbeat'
 import { scheduleBackgroundSync } from './background'
 import { hasUnsent } from './pending'
 import { sendOutbox } from './outbox'
-import { NetworkError, postFarmer, postPhoto, RejectedError, ServerError, UnauthorizedError } from './api'
+import { NetworkError, patchFarmer, postFarmer, postPhoto, RejectedError, ServerError, UnauthorizedError } from './api'
 
 let running = false
 let runAgain = false
@@ -42,6 +43,24 @@ async function sendFarmers(): Promise<'done' | 'stopped'> {
   return 'done'
 }
 
+async function sendEdits(): Promise<'done' | 'stopped'> {
+  for (const farmer of await listEdited()) {
+    if (!farmer.serverId) continue
+    try {
+      await patchFarmer(farmer.serverId, farmer)
+      await setStatus(farmer.clientId, SYNC_STATUS.SENT, { errorMessage: null })
+    } catch (error) {
+      if (error instanceof RejectedError) {
+        await setStatus(farmer.clientId, SYNC_STATUS.ATTENTION, { errorMessage: error.message })
+        continue
+      }
+      if (isTemporary(error)) return 'stopped'
+      throw error
+    }
+  }
+  return 'done'
+}
+
 async function sendPhotos(): Promise<void> {
   for (const photo of await listPhotosToSend()) {
     const farmer = await getFarmer(photo.clientId)
@@ -61,7 +80,10 @@ async function sendPhotos(): Promise<void> {
 }
 
 async function syncOnce(): Promise<void> {
-  if ((await sendFarmers()) === 'done') await sendPhotos()
+  if ((await sendFarmers()) === 'done') {
+    // New records have a serverId now, so any pending edits can be patched; photos go last.
+    if ((await sendEdits()) === 'done') await sendPhotos()
+  }
 }
 
 /**

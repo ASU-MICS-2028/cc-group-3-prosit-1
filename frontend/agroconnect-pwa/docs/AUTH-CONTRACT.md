@@ -24,8 +24,9 @@ The access token is a JWT signed with an **asymmetric key (RS256 or EdDSA)**. On
 | `phone` | The user's E.164 phone. A farmer's `GET /farmers/me` uses it. |
 | `assoc` | Association ID. Set for agents and coordinators; scopes what a coordinator sees |
 | `exp` | Farmers: 30 days. Agents, coordinators, admins: 7 days |
+| `ver` | The account's `token_version` when the token was signed. Every request compares it against the stored value, so bumping the version ends all of that user's sessions at once |
 
-Every other service request carries `Authorization: Bearer <token>`.
+Every other service request carries `Authorization: Bearer <token>`. A request whose `ver` no longer matches, or whose account is no longer `approved`, is refused **immediately** — `401 token_revoked`, or `403` with the account status — not only at the next refresh. This is how a logout or an admin suspension reaches a phone that is already signed in.
 
 ## Farmer sign-in (phone, one-time code, 4-digit PIN)
 
@@ -95,6 +96,27 @@ Admins and coordinators sign in through this same endpoint. Admin accounts are *
 ### `GET /auth/me`
 200 `{ "id", "role", "name", "phone", "assoc", "status", "loginId" }`.
 
+### `POST /auth/logout`
+`Authorization: Bearer <token>`. Ends the session: the server bumps the account's `token_version`, so every token issued before now is refused with `401 token_revoked`. **204**. Signing out on one device therefore signs the user out everywhere (one device per user in practice).
+
+### `POST /auth/staff/password`
+`Authorization: Bearer <token>` (agent, coordinator or admin). `{ "currentPassword", "newPassword" }`, the new password at least 8 characters.
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| 200 | `{ "token" }` | Changed. The other sessions are invalidated; the returned token keeps **this** device signed in. |
+| 400 | `invalid_request` with `field: "newPassword"` | The new password is too short |
+| 401 | `wrong_password` | The current password is wrong |
+
+### `POST /auth/farmer/pin`
+`Authorization: Bearer <token>` (farmer). `{ "pin", "newPin" }`, both 4 digits.
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| 200 | `{ "token" }` | Changed; the other sessions are invalidated, the returned token keeps this device signed in |
+| 401 | `wrong_pin` | The current PIN is wrong |
+| 422 | `invalid_pin` | The new PIN is not exactly 4 digits |
+
 ### `GET /.well-known/jwks.json`
 The public key set, for the other services.
 
@@ -116,6 +138,7 @@ Tables this contract implies. Column names are suggestions; the rules are not.
 | `status_reason` | The reason an admin gave for a rejection or suspension |
 | `pin_hash`, `password_hash` | argon2id or bcrypt |
 | `failed_attempts`, `locked_until` | For the lockouts |
+| `token_version` | Integer, default 1. Bumped on logout and on a password/PIN change, and compared against the token's `ver` claim on every request |
 | `created_at`, `updated_at`, `created_by`, `updated_by` | Same audit columns as `farmers` |
 
 **`otp_codes`** (or a cache with expiry): phone, code hash, expiry, attempts left, and the send times used for the rate limit.
@@ -129,3 +152,5 @@ Rules:
 ## Offline behaviour on the phone (for context)
 
 The PWA caches the token and unlocks with a locally hashed PIN (4 digits for farmers, 6 for agents, coordinators and admins). Five wrong PINs wipe the stored session and require an online sign-in. Refresh is attempted whenever the app is online.
+
+Sign-out is **best-effort** when offline: the app clears the local session first and tells the server when it next can, so a token can outlive a sign-out until the phone reconnects. Once the server has the logout (or an admin suspends the account), the token is refused on its next request, and the app shows the matching notice (`expired`, `revoked`, `suspended`).
