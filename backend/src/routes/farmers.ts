@@ -9,6 +9,8 @@ const ACRES_TO_HECTARES = 0.404686
 export const MAX_PHOTO_BYTES = 500 * 1024
 const COUNTRY_CODE = /^\+[1-9]\d{0,2}$/
 const NATIONAL_NUMBER = /^[1-9]\d{6,13}$/
+const LANGUAGES = ['en', 'tw', 'ee', 'dag']
+const GENDERS = ['female', 'male', 'undisclosed']
 
 export const rawPhoto = express.raw({ type: () => true, limit: MAX_PHOTO_BYTES })
 
@@ -79,6 +81,9 @@ export function farmerRoutes(app: Express, ctx: Ctx): void {
       if (!COUNTRY_CODE.test(f.countryCode) || !NATIONAL_NUMBER.test(f.phoneNational)) {
         throw new HttpError(400, 'invalid_request', 'countryCode must look like +233, and phoneNational must be digits without a leading 0')
       }
+      // Check the enums here so the caller gets a field to fix, rather than a raw constraint name.
+      if (f.gender != null && !GENDERS.includes(f.gender)) throw invalid('gender', 'gender must be female, male or undisclosed')
+      if (f.preferredLanguage != null && !LANGUAGES.includes(f.preferredLanguage)) throw invalid('preferredLanguage', 'preferredLanguage must be en, tw, ee or dag')
       const acres = typeof f.farmSizeAcres === 'number' ? f.farmSizeAcres : null
       const crops: unknown[] = Array.isArray(f.crops) ? f.crops : []
       const registeredAt = f.registeredAt ?? nowDate(ctx).toISOString()
