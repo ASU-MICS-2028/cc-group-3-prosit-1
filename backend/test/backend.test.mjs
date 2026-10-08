@@ -325,3 +325,20 @@ describe('token refresh and account status', () => {
     expect(await t.call('POST', '/auth/refresh', { token })).toMatchObject({ status: 403, body: { error: 'suspended' } })
   })
 })
+
+describe('admin farmer detail', () => {
+  it('returns the record and payments to an admin and the association coordinator, and 404 elsewhere', async () => {
+    const t = await start()
+    const id = (await t.call('POST', '/farmers', { token: await t.agent(), body: registration() })).body.id
+
+    expect(await t.call('GET', `/admin/farmers/${id}`, { token: await t.admin() })).toMatchObject({
+      status: 200,
+      body: { id, name: 'Ama Mensah', payments: [], balance: [] },
+    })
+    expect((await t.call('GET', `/admin/farmers/${id}`, { token: await t.staff(DEMO_ACCOUNTS.coordinator) })).status).toBe(200)
+
+    await t.db.query("INSERT INTO users (id, role, name, phone_e164, association_id, status) VALUES ('U-ngfn-co', 'coordinator', 'Ngfn Co', '+233200000124', 'ngfn', 'approved')")
+    const other = await signToken({ id: 'U-ngfn-co', role: 'coordinator', name: 'Ngfn Co', phone: '+233200000124', assoc: 'ngfn' })
+    expect((await t.call('GET', `/admin/farmers/${id}`, { token: other })).status).toBe(404)
+  })
+})
