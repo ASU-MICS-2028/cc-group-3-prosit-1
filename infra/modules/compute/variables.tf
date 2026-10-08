@@ -162,6 +162,9 @@ variable "image_tag_param_arn" {
 variable "vapid_secret_arn" {
   type        = string
   description = "Secrets Manager ARN of the Web Push VAPID keys ({ public_key, private_key, subject }). Passed as VAPID_SECRET_ARN."
+  default     = ""
+}
+
 variable "ussd_user_id" {
   type        = string
   description = "Arkesel's userID for the USSD code (not a secret: it identifies the account). Empty turns POST /ussd off."
