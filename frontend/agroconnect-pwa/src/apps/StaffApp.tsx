@@ -10,7 +10,7 @@ import { AGENT_TABS, COORDINATOR_TABS, type StaffTab } from './tabs'
 
 const MORE_ENTRIES: Record<'agent' | 'coordinator', readonly MoreEntry[]> = {
   agent: ['weather', 'market', 'feedback', 'settings'],
-  coordinator: ['weather', 'market', 'checks', 'feedback', 'settings'],
+  coordinator: ['weather', 'market', 'checks', 'content', 'feedback', 'settings'],
 }
 
 /** The app for field agents and coordinators. A coordinator swaps the Checks tab for Stats. */

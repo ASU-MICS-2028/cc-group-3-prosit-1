@@ -58,13 +58,21 @@ export interface Signer {
  * a throwaway key is generated, and every restart signs everyone out.
  */
 export async function createSigner(config: Pick<Config, 'jwtSecretArn' | 'region'> & Partial<Config>): Promise<Signer> {
+  const secret = config.jwtSecretArn
+    ? await getSecretJson<{ private_key_pem?: string }>(config as Config, config.jwtSecretArn).catch((error: Error) => {
+        console.error(`[auth] cannot read the signing key (${error.message})`)
+        return null
+      })
+    : null
   let privateKey: KeyObject
-  if (config.jwtSecretArn) {
-    const { private_key_pem } = await getSecretJson<{ private_key_pem: string }>(config as Config, config.jwtSecretArn)
-    privateKey = createPrivateKey(private_key_pem)
+  if (secret?.private_key_pem) {
+    privateKey = createPrivateKey(secret.private_key_pem)
   } else {
+    // Booting beats crash-looping: terraform creates the secret empty and its first instances start before
+    // anyone can fill it. Each instance then has its own key, so tokens fail between instances until the
+    // secret is set and the instances are refreshed.
     privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
-    console.warn('[auth] JWT_SECRET_ARN not set: using a throwaway signing key')
+    console.warn('[auth] no signing key in JWT_SECRET_ARN: using a throwaway key. Set the secret, then refresh the instances.')
   }
   const publicKey = createPublicKey(privateKey)
   const publicJwk = await exportJWK(publicKey)

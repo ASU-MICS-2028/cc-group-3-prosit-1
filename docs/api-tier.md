@@ -3,229 +3,157 @@
 **Lead:** Elise Kennedy-Angbo ([@Elise-Oyi](https://github.com/Elise-Oyi))  
 **Production Endpoint:** [`https://api.agroconnect.space`](https://api.agroconnect.space)  
 **Hosting Infrastructure:** AWS EC2 Auto Scaling Group (`af-south-1` Cape Town) behind ALB  
-**Associated Architectural Records:** [ADR-003 (Stateless Compute)](./architecture-decisions.md#adr-003-stateless-containerized-application-tier-on-auto-scaled-compute), [ADR-006 (HTTPS via ACM)](./architecture-decisions.md#adr-006-https-via-aws-certificate-manager-with-external-dns-hostinger), [ADR-008 (Target-Tracking Scaling)](./architecture-decisions.md#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget), [ADR-011 (Node.js/TypeScript Runtime)](./architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript)
+**Associated Architectural Records:** [ADR-003 (Stateless Compute)](./architecture-decisions.md#adr-003-stateless-containerized-application-tier-on-auto-scaled-compute), [ADR-006 (HTTPS via ACM)](./architecture-decisions.md#adr-006-https-via-aws-certificate-manager-with-external-dns-hostinger), [ADR-008 (Target-Tracking Scaling)](./architecture-decisions.md#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget), [ADR-011 (Node.js/TypeScript Runtime)](./architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript), [ADR-013 (One Service, Postgres, votex365)](./architecture-decisions.md#adr-013-one-backend-service-for-every-contract-on-postgres)
 
 ---
 
 ## 1. Role & Architectural Responsibilities
 
-The API tier is the ingestion and processing engine of the AgroConnect cloud platform. It provides high-throughput, idempotent profile registration and retrieval for field agents operating across Ghana.
+The API tier is the single backend the PWA talks to. One Node.js service, `agroconnect-api`, implements every contract the PWA was built against ([`frontend/agroconnect-pwa/docs/`](../frontend/agroconnect-pwa/docs)): farmer registration, sign-in for all four roles, the admin dashboard, payments, crop checks, produce listings, and the market prices and advice cards admins enter.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   AWS Application Load Balancer (ALB)                  │
-│   Listens: :443 (ACM TLS for api.agroconnect.space)                    │
-│   Redirects: :80 -> 301 Permanent Redirect to :443                    │
-│   Health Probe: GET /health every 15s                                  │
+│   :443 (ACM TLS for api.agroconnect.space), :80 → 301 to :443          │
+│   Health probe: GET /health every 15s                                  │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Reverse Proxy (Port 8000)
+                                    │ HTTP :8000
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│             Private Application Tier (Auto Scaling Group)              │
-│             af-south-1a & af-south-1b (No Public IPs)                  │
-│                                                                        │
-│   ┌──────────────────────────────────────────────────────────────┐     │
-│   │ EC2 t3.micro (Docker runtime, unprivileged `USER node`)      │     │
-│   │                                                              │     │
-│   │   Node.js 24 LTS Runtime                                     │     │
-│   │      └── Express 5 TypeScript API (farmer-profile-service)   │     │
-│   │             ├── GET  /                 (Metadata)            │     │
-│   │             ├── GET  /health           (ALB Liveness Probe)  │     │
-│   │             ├── POST /farmers          (Idempotent Ingest)   │     │
-│   │             ├── GET  /farmers/:id      (Profile Fetch)       │     │
-│   │             └── POST /farmers/:id/photo (Week 4 Media)       │     │
-│   └──────────────────────────────────────────────────────────────┘     │
-└────────────────────────────────────────────────────────────────────────┘
+│     Private app subnets: Auto Scaling Group (af-south-1a / 1b)         │
+│   EC2 t3.micro → Docker → Node.js 24 / Express 5 (USER node)           │
+│     /auth/*  /farmers*  /admin/*  /payments*  /crop-checks*  /listings │
+└──────┬──────────────────┬───────────────────┬────────────────┬─────────┘
+       │ TLS (verified)   │ instance role     │ HTTPS          │ HTTPS
+       ▼                  ▼                   ▼                ▼
+  RDS Postgres 16    S3 media bucket     Arkesel SMS      votex365 checkout
+  (data subnets)     Secrets Manager                      (+ signed webhook)
 ```
 
 ### Core Design Goals
-1. **Stateless Scalability:** Individual compute nodes retain zero local session state. Requests can hit any instance in the Auto Scaling Group (ASG).
-2. **Unified TypeScript Ecosystem:** Migrated from Python/FastAPI to **Node.js 24** and **TypeScript** (see [ADR-011](./architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript)), aligning domain models directly with the React 19 PWA and mock server.
-3. **Idempotent Ingestion:** Handles duplicate submissions gracefully when mobile clients flush queued records over intermittent cellular connectivity.
-4. **Least-Privilege Container Security:** The production container executes as an unprivileged system user (`USER node`) in a minimal Alpine Linux footprint.
-5. **Zero-Trust Network Perimeter:** The service binds strictly to internal interfaces in private subnets with no public IPv4 addresses and no SSH access.
+1. **Stateless:** instances keep nothing between requests. Accounts, sign-in codes, lockouts and payments live in Postgres; photos in S3. Any instance can serve any request.
+2. **Safe for an offline-first client:** everything a phone creates carries a `clientId` UUID. The database enforces uniqueness, so a retried send is answered with the original record (200), never a duplicate.
+3. **Contract-tested:** the PWA's mock server is the executable reference; its contract tests are ported into `backend/test/` and run against this service on Postgres in CI.
+4. **Least privilege:** unprivileged container user, private subnets, no SSH, and an instance role that can read exactly the app's five secrets and write only its own S3 bucket.
 
 ---
 
 ## 2. Technology Stack & Implementation
 
-* **Runtime:** Node.js 24 LTS
-* **Framework:** **Express 5** (`^5.2.1`)
-* **Language:** **TypeScript** (`^7.0.2`) with `NodeNext` module resolution and ES2022 target
-* **Development Runner:** `tsx` (`^4.23.15`) for TypeScript watch and reload
-* **Source Location:** [`backend/src/server.ts`](../backend/src/server.ts)
-* **Configuration:** [`backend/package.json`](../backend/package.json) and [`backend/tsconfig.json`](../backend/tsconfig.json)
+* **Runtime:** Node.js 24 LTS, **Express 5**, **TypeScript** (`NodeNext`, ES2022)
+* **Database driver:** `pg` with a pool; schema migrations in [`backend/migrations/`](../backend/migrations), applied on boot
+* **Tokens:** `jose` (RS256)
+* **AWS:** `@aws-sdk/client-s3`, `@aws-sdk/client-secrets-manager` (credentials from the instance role through IMDSv2)
+* **Source:** [`backend/src/`](../backend/src): `routes/` per contract, `db.ts`, `migrate.ts`, `security.ts`, `integrations.ts` (Arkesel, S3, votex365)
+* **Tests:** Vitest on PGlite (Postgres in WebAssembly) or a real Postgres (`TEST_DATABASE_URL`)
 
 ---
 
-## 3. API Specifications & Contracts
+## 3. API Surface
 
-### Endpoints Overview
+Every endpoint except `/health`, `/`, `/.well-known/jwks.json`, the sign-in calls and the votex365 webhook needs `Authorization: Bearer <token>`. The contracts are the specification; this table is the map.
 
-| Method | Route | Description | Auth Required | ALB Monitored |
-|---|---|---|---|---|
-| `GET` | `/` | Service metadata, active version & endpoint discovery | No | No |
-| `GET` | `/health` | Liveness probe returning JSON status | No | Yes (every 15s) |
-| `POST` | `/farmers` | Idempotent registration of farmer profile | Optional (Dev) / Yes | No |
-| `GET` | `/farmers/:farmer_id` | Fetch registered farmer profile by primary key | Optional (Dev) / Yes | No |
+| Area | Endpoints | Roles | Contract |
+|---|---|---|---|
+| Farmers | `POST /farmers`, `POST /farmers/:id/photo`, `GET /farmers/:id` | agent, coordinator (+ admin for GET) | [API](../frontend/agroconnect-pwa/docs/API-CONTRACT.md) |
+| | `GET /farmers/me` | farmer | |
+| Sign-in | `POST /auth/farmer/{start,verify-otp,login}` | public | [AUTH](../frontend/agroconnect-pwa/docs/AUTH-CONTRACT.md) |
+| | `POST /auth/staff/{signup,verify-phone,login}` | public | |
+| | `POST /auth/refresh`, `GET /auth/me`, `GET /.well-known/jwks.json` | any | |
+| Admin | `/admin/stats`, `/admin/agents/*`, `/admin/coordinators/*`, `/admin/farmers`, `/admin/audit`, `/admin/activity`, `/admin/export/*.csv` | admin, coordinator (scoped) | [ADMIN](../frontend/agroconnect-pwa/docs/ADMIN-CONTRACT.md) |
+| | `POST /agents/me/heartbeat`, `POST /feedback` | staff / any | |
+| Payments | `POST /payments`, `GET /payments/me`, `GET /payments/:id`, `GET /farmers/:id/payments`, `POST /loan-requests`, `GET /admin/income` | farmer / staff (scoped) | [PAYMENTS](../frontend/agroconnect-pwa/docs/PAYMENTS-CONTRACT.md) |
+| | `POST /webhooks/votex365` | votex365 (signed) | |
+| Advice | `POST /crop-checks`, `POST /crop-checks/:id/photo`, `GET /crop-checks/me`, `GET /crop-checks`, `GET /crop-checks/:id/photo`, `POST /crop-checks/:id/advice` | farmer / field staff | [ADVICE](../frontend/agroconnect-pwa/docs/ADVICE-CONTRACT.md) |
+| Listings | `POST /listings`, `GET /listings`, `POST /listings/:id/close` | farmer / any | [LISTINGS](../frontend/agroconnect-pwa/docs/LISTINGS-CONTRACT.md) |
+| Content | `GET /market-prices`, `GET /advice` | any | [CONTENT](../frontend/agroconnect-pwa/docs/CONTENT-CONTRACT.md) |
+| | `POST /admin/market-prices`, `POST /admin/advice`, `POST /admin/advice/:id/archive` | admin, coordinator | |
+| Ops | `GET /health`, `GET /` | public | |
 
----
+### Example: `POST /farmers`
 
-### Detailed Endpoint Contracts
+```http
+POST /farmers
+Authorization: Bearer <agent token>
+Content-Type: application/json
 
-#### 1. `GET /health` (ALB Health Probe)
-Queried continuously by the AWS ALB target group to verify instance availability.
-* **Response Status:** `200 OK`
-* **Response Body:**
-  ```json
-  {
-    "status": "ok"
-  }
-  ```
-
-#### 2. `GET /` (Service Metadata)
-Returns service identification, version, and supported routes.
-* **Response Status:** `200 OK`
-* **Response Body:**
-  ```json
-  {
-    "service": "farmer-profile-service",
-    "version": "0.1.0",
-    "description": "AgroConnect Ghana — farmer profile API (ICS 534, Group 3)",
-    "endpoints": [
-      { "method": "GET", "path": "/", "description": "service metadata" },
-      { "method": "GET", "path": "/health", "description": "liveness probe" },
-      { "method": "POST", "path": "/farmers", "description": "create a farmer" },
-      { "method": "GET", "path": "/farmers/{farmer_id}", "description": "fetch a farmer" }
-    ]
-  }
-  ```
-
-#### 3. `POST /farmers` (Profile Ingestion)
-Accepts farmer data submitted by the PWA client sync queue.
-* **Request Headers:**
-  * `Content-Type: application/json`
-  * `Authorization: Bearer <token>` (enforced in production)
-* **Request Body:**
-  ```json
-  {
-    "name": "Kwame Mensah",
-    "phone": "+233241234567",
-    "region": "Northern",
-    "language": "dag",
-    "farm_size": 3.5
-  }
-  ```
-* **Responses:**
-  * `201 Created`: Profile registered successfully. Returns full record including assigned `id` and `created_at`.
-  * `400 Bad Request`: Validation failure (empty or missing `name` or `phone`).
-
-#### 4. `GET /farmers/:farmer_id`
-Fetches a single farmer record by primary key.
-* **Parameters:** `farmer_id` (numeric route parameter)
-* **Responses:**
-  * `200 OK`: Returns farmer record JSON.
-  * `404 Not Found`: If no record matches `farmer_id` (`{"error": "farmer not found"}`).
-
----
-
-## 4. Multi-Stage Containerization & ECR Packaging
-
-The backend is packaged using a two-stage Alpine Dockerfile ([`backend/Dockerfile`](../backend/Dockerfile)):
-
-```dockerfile
-# --- build stage: install dev deps and compile TypeScript ---
-FROM node:24-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build
-
-# --- runtime stage: production deps + compiled output only ---
-FROM node:24-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=8000
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=build /app/dist ./dist
-USER node
-EXPOSE 8000
-CMD ["node", "dist/server.js"]
+{ "clientId": "0b9c6f0e-5a8f-4a43-9a7e-3a4d1b2c3d4e", "name": "Ama Mensah",
+  "countryCode": "+233", "phoneNational": "241234567", "preferredLanguage": "tw",
+  "gender": "female", "community": "Ashaiman", "region": "Greater Accra",
+  "farmSizeAcres": 2.5, "crops": ["maize", "tomato"],
+  "gps": { "lat": 5.6941, "lng": -0.0332, "accuracy": 8, "capturedAt": "2026-10-07T08:59:00Z" },
+  "consent": true, "registeredAt": "2026-10-07T09:00:00Z" }
 ```
 
-### Key Security & Optimization Highlights
-* **Unprivileged Execution:** Runs as `USER node` instead of `root`, preventing container escape vulnerabilities.
-* **Lean Runtime Image:** Development dependencies (`typescript`, `@types/*`, `tsx`) are discarded after compilation; only compiled JavaScript in `dist/` and production dependencies ship in the runtime image (~120 MB).
-* **Deterministic Tagging:** Automated GitHub Actions workflows push dual tags (`:latest` and `:${{ github.sha }}`) to Amazon ECR (`agroconnect-dev-backend`) in `af-south-1`.
-* **Centralized CloudWatch Logging:** The container runs under Docker's native `awslogs` driver (`--log-driver=awslogs`), streaming stdout/stderr directly to CloudWatch log group `/${name_prefix}/app` under individual EC2 `INSTANCE_ID` streams. No logs are stored on ephemeral EC2 disk.
-* **Dynamic Secret & Environment Injection:**
-  * `DATABASE_URL`: Assembled on instance boot via EC2 user-data by pulling master credentials from AWS Secrets Manager.
-  * `PHOTO_BUCKET`: Injected with the Terraform-provisioned S3 media bucket name (`agroconnect-media-<account-id>`).
-  * `SMS_SECRET_ARN`: Injected with the AWS Secrets Manager ARN storing Arkesel SMS gateway credentials.
-  * `AWS_REGION`: Defaults to `af-south-1`.
+| Status | Meaning |
+|---|---|
+| `201 { "id": "42" }` | New farmer |
+| `200 { "id": "42" }` | The same `clientId` again (a phone retrying): the original record |
+| `409 duplicate_phone` | A different farmer with the same phone number |
+| `400 invalid_request` | Missing field, or a value outside the allowed lists |
+| `401` / `403` | No valid token / wrong role |
+
+Every error body is `{ "error": "<code>", "message": "<readable text>" }`.
 
 ---
 
-## 5. Load Balancing & Network Security
+## 4. Behaviour Worth Knowing
 
-### Application Load Balancer Integration
-* **Listeners:**
-  * Port `80` (HTTP): Returns `HTTP 301` redirecting all traffic to HTTPS on port `443`.
-  * Port `443` (HTTPS): Terminates TLS using an AWS Certificate Manager (ACM) DNS-validated certificate for `api.agroconnect.space`.
-* **Target Group Configuration:**
-  * Target type: `instance` (EC2)
-  * Protocol & Port: `HTTP:8000`
-  * Health check path: `/health`
-  * Interval: `15 seconds`
-  * Timeout: `5 seconds`
-  * Healthy threshold: `2 consecutive successes`
-  * Unhealthy threshold: `2 consecutive failures`
-
-### Chained Security Groups
-The backend instances accept traffic **exclusively** from the ALB security group:
-$$\text{Public Internet} \xrightarrow{\text{Port 443}} \text{ALB SG} \xrightarrow{\text{Port 8000}} \text{App SG}$$
-Direct inbound connections from the internet or other ports are blocked at the hypervisor layer.
+* **Idempotency without races:** the service inserts and maps Postgres error `23505` by constraint name (`…_client_id_key` → 200, `farmers_phone_e164_key` → 409). It never searches first, so two simultaneous sends cannot both insert.
+* **Audit:** a database trigger records every change with the acting user from the token (`set_config('app.actor', $1, true)`); PIN and password hashes are stripped. See [data-tier.md §4](./data-tier.md#4-audit-trail).
+* **Sign-in codes:** 6 digits, hashed, 5 minutes, 5 attempts, 3 per phone per 15 minutes, texted by Arkesel. If the SMS fails, the code and the rate-limit slot are not spent. `AUTH_TEST_MODE=true` returns the code instead (demo only).
+* **Lockouts:** 5 wrong PINs or passwords lock the account for 15 minutes, on the server.
+* **Payments:** cedi collections open a votex365 hosted checkout (test keys); the PWA shows a *Complete payment* button. A signed webhook (HMAC-SHA256 over the raw body, 5-minute window) settles the payment, with a status check against votex365 as a fallback when the phone polls. Payouts, NGN and KES, which votex365 cannot do, are simulated as the test-mode contract describes.
+* **CORS:** only `https://app.agroconnect.space` (`PWA_ORIGINS`) may call from a browser, with `Authorization` and `Content-Type`.
 
 ---
 
-## 6. Auto Scaling & Demand Management
+## 5. Container & Runtime Configuration
 
-AgroConnect scales compute nodes using **`ALBRequestCountPerTarget`** (see [ADR-008](./architecture-decisions.md#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget)):
+The two-stage Alpine image ([`backend/Dockerfile`](../backend/Dockerfile)) ships the compiled `dist/`, production dependencies, the `migrations/` folder and the af-south-1 RDS CA bundle (`DB_CA_FILE`), and runs as `USER node`. CI pushes `:latest` and `:<sha>` to ECR (`agroconnect-dev-backend`).
 
-* **Metric:** Sum of requests per EC2 target per 1-minute period.
-* **Target Utilization:** `500 requests/minute/target` (~8 req/s per instance).
-* **Capacity Bounds:**
-  * Minimum instances: `1`
-  * Desired instances: `1`
-  * Maximum instances: `3`
-* **Engineering Rationale:** An I/O-bound web service waiting on database queries or slow rural cellular uploads blocks worker threads without burning significant CPU. Scaling based on request count provides an immediate, proactive response to seasonal registration surges.
+EC2 user data starts the container with **ARNs and settings only**; the app reads secret values itself at runtime, so nothing sensitive sits in user data or `docker inspect`:
+
+| Variable | Source |
+|---|---|
+| `DB_HOST`, `DB_NAME`, `DB_SECRET_ARN` | RDS endpoint and its managed master secret (password fetched per connection, so rotation needs no restart) |
+| `JWT_SECRET_ARN` | Token-signing key `{ private_key_pem }` |
+| `SMS_SECRET_ARN` | Arkesel `{ api_key, sender_id }` |
+| `VOTEX_SECRET_ARN` | votex365 `{ api_key, webhook_secret }` |
+| `ADMIN_SEED_SECRET_ARN` | First admin account, created if missing |
+| `PHOTO_BUCKET` | S3 media bucket |
+| `PWA_ORIGINS`, `PAYMENT_RETURN_URL` | Derived from the frontend domain |
+| `AUTH_TEST_MODE`, `SEED_DEMO_ACCOUNTS` | Terraform variables, default `false` |
+
+Logs go to CloudWatch (`/agroconnect-dev/app`) through Docker's `awslogs` driver: one line per request with method, path, status and duration, never bodies.
 
 ---
 
-## 7. Local Development & Testing
+## 6. Load Balancing & Network Security
 
-### Running with tsx Watch
+* **Listeners:** `:80` returns 301 to HTTPS; `:443` terminates TLS with an ACM certificate for `api.agroconnect.space`.
+* **Target group:** `HTTP:8000`, health check `GET /health` every 15 s, timeout 5 s, healthy after 2 successes, unhealthy after 5 failures.
+* **Security groups:** Internet → ALB SG (443) → App SG (8000) → Data SG (5432). Nothing reaches the instances or the database directly.
+* **Boot order:** a new instance migrates the database (advisory lock) before it listens, so it only passes the health check once the schema is current.
+
+---
+
+## 7. Auto Scaling & Demand Management
+
+Scaling follows **`ALBRequestCountPerTarget`** ([ADR-008](./architecture-decisions.md#adr-008-target-tracking-auto-scaling-on-albrequestcountpertarget)): target 500 requests per instance per minute, between 1 and 3 instances (desired 1). The service is I/O-bound (Postgres, S3, SMS, votex365), so request count is a better signal than CPU.
+
+---
+
+## 8. Local Development & Testing
+
 ```bash
-cd backend
-npm ci
-npm run dev
-# Starts server at http://localhost:3001 with hot reloading
+cd backend && npm ci
+# Any Postgres 16+; for example: docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres \
+  AUTH_TEST_MODE=true SEED_DEMO_ACCOUNTS=true npm run dev     # http://localhost:8000
+
+npm test                                                     # 108 tests on PGlite, no setup
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres npm test   # on real Postgres
 ```
 
-### Compiling and Running Production Server
-```bash
-npm run build
-npm start
-# Runs compiled server from dist/server.js
-```
-
-### Running with Docker
-```bash
-docker build -t agroconnect-backend .
-docker run -p 8000:8000 -e PORT=8000 agroconnect-backend
-curl http://localhost:8000/health
-# {"status":"ok"}
-```
+Point the PWA at it with `VITE_API_URL=http://localhost:8000`. Full variable list: [`backend/README.md`](../backend/README.md#configuration).

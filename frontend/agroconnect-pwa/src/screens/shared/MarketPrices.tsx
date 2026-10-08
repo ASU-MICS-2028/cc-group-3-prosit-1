@@ -5,9 +5,8 @@ import { PriceChange } from '../../components/PriceChange'
 import { CROP_BACKGROUND } from '../../components/cropColours'
 import { SampleBadge } from '../../components/SampleBadge'
 import { ScreenHeader } from '../../components/ScreenHeader'
-import { SAMPLE_PRICES, SAMPLE_PRICES_UPDATED } from '../../data/samplePrices'
+import { useMarketPrices } from '../../content/useContent'
 import { formatMoney } from '../../domain/country'
-import { CROP_IDS } from '../../domain/farmer'
 import { useT } from '../../i18n/context'
 import { useSettings } from '../../settings/context'
 
@@ -19,6 +18,7 @@ interface MarketPricesProps {
 export function MarketPrices({ onSell, onBrowse }: MarketPricesProps) {
   const { t } = useT()
   const { country } = useSettings()
+  const { view } = useMarketPrices(country)
 
   return (
     <>
@@ -28,22 +28,23 @@ export function MarketPrices({ onSell, onBrowse }: MarketPricesProps) {
           <CountryPicker />
         </section>
         <section className="card">
-          <SampleBadge label="common.samplePrices" />
+          {!view && <p>{t('common.loading')}</p>}
+          {view?.sample && <SampleBadge label="common.samplePrices" />}
           <ul className="price-list">
-            {CROP_IDS.map((crop) => (
+            {view?.rows.map(({ crop, price, change }) => (
               <li key={crop} className="price-row">
                 <span className="crop-tile" style={{ background: CROP_BACKGROUND[crop] }}>
                   <CropArt crop={crop} size={36} />
                 </span>
                 <span className="price-name">{t(`crop.${crop}`)}</span>
                 <span className="price-value">
-                  {formatMoney(SAMPLE_PRICES[country][crop].price, country)} <span className="price-unit">{t('market.perKg')}</span>
-                  <PriceChange change={SAMPLE_PRICES[country][crop].change} />
+                  {formatMoney(price, country)} <span className="price-unit">{t('market.perKg')}</span>
+                  <PriceChange change={change} />
                 </span>
               </li>
             ))}
           </ul>
-          <p className="farmer-meta">{t('market.updated', { date: new Date(SAMPLE_PRICES_UPDATED).toLocaleDateString([], { dateStyle: 'medium' }) })}</p>
+          {view?.updatedOn && <p className="farmer-meta">{t('market.updated', { date: new Date(view.updatedOn).toLocaleDateString([], { dateStyle: 'medium' }) })}</p>}
         </section>
         {onSell && (
           <Button variant="main" onClick={onSell}>

@@ -65,8 +65,8 @@ The Virtual Private Cloud (VPC) spans two Availability Zones (`af-south-1a` and 
 | **Public B** | `af-south-1b` | `10.20.2.0/24` | Internet Gateway (`igw`) | ALB Node B |
 | **Private App A** | `af-south-1a` | `10.20.11.0/24` | `fck-nat` ENI (`eni-xxx`) | ASG EC2 Worker Instances |
 | **Private App B** | `af-south-1b` | `10.20.12.0/24` | `fck-nat` ENI (`eni-xxx`) | ASG EC2 Worker Instances |
-| **Private Data A** | `af-south-1a` | `10.20.21.0/24` | *None (Local only)* | RDS PostgreSQL (Primary) |
-| **Private Data B** | `af-south-1b` | `10.20.22.0/24` | *None (Local only)* | RDS PostgreSQL (Standby) |
+| **Private Data A** | `af-south-1a` | `10.20.21.0/24` | *None (Local only)* | RDS PostgreSQL (single-AZ instance) |
+| **Private Data B** | `af-south-1b` | `10.20.22.0/24` | *None (Local only)* | RDS subnet group only (a Multi-AZ standby would go here) |
 
 ---
 
@@ -80,7 +80,6 @@ infra/
 ├── main.tf                    # Root orchestrator (provider configuration & module calls)
 ├── variables.tf               # Environment variables, CIDRs & domain declarations
 ├── outputs.tf                 # Exported endpoints, ARNs, and connection strings
-├── migrate-state.sh           # State migration helper for zero-downtime refactors
 ├── bootstrap/                 # Decoupled root provisioning S3 remote state bucket
 └── modules/
     ├── network/               # VPC, 6 subnets across 2 AZs, IGW, routing tables
