@@ -1,0 +1,546 @@
+* { box-sizing: border-box; }
+
+/* The whole screen is deep green. Content sits on it as cream cards (the Cosmos look). */
+body {
+  margin: 0;
+  background: var(--green);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+/* Buttons don't inherit the page font by default; make them. */
+button, input, select, textarea { font-family: inherit; }
+
+/* Leave room at the bottom so the floating nav never covers content. */
+.app {
+  max-width: 32rem;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 8rem;
+}
+
+/* ---------- Header (sits directly on the green screen) ---------- */
+.screen-header {
+  padding: 1.5rem 1.25rem 0.5rem;
+}
+
+.screen-header h1 {
+  margin: 1.25rem 0 0;
+  font-size: 3rem;
+  font-weight: 300;   /* light for large headings */
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.net-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.875rem;
+  border: 2px solid var(--cream);
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.net-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--cream);
+}
+
+.net-pill.is-online .net-dot { background: var(--cream); }
+
+/* ---------- Body ---------- */
+.screen-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Cream cards on the green screen: the colour difference is enough contrast, no outline. */
+.card {
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.stat-number {
+  margin: 0;
+  font-family: var(--font-stat);
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.stat-number.small { font-size: 1.75rem; }
+
+.stat-label {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+/* ---------- Gauge card ---------- */
+.gauge-card { text-align: center; padding-top: 1.5rem; }
+
+.gauge { width: 100%; max-width: 15rem; display: block; margin: 0 auto; }
+
+.gauge-track,
+.gauge-fill {
+  fill: none;
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+.gauge-track { stroke: #DAD5C0; }
+.gauge-fill { stroke: var(--green); }
+
+/* Pull the big number up into the hollow of the half-ring. */
+.gauge-number {
+  margin-top: -3.25rem;
+  font-size: 3rem;
+}
+
+.note {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-card);
+  border: 2px dashed var(--cream);
+}
+
+/* Development only: shows every special letter so we can check them on a real phone. */
+.font-test {
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px dashed var(--ink);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.25rem;
+  overflow-wrap: anywhere;
+}
+.font-test h2 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 700; }
+.font-test p { margin: 0 0 0.5rem; }
+.font-test .test-stat { font-family: var(--font-stat); font-weight: 700; font-size: 1.5rem; }
+
+/* ---------- Floating bottom nav ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  width: calc(100% - 2rem);
+  max-width: 28rem;
+  display: flex;
+  justify-content: space-around;
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 0.5rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.nav-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+}
+
+/* Active tab: a filled deep-green circle behind the icon. Not lime: lime is for the main button. */
+.nav-tab.is-active .nav-icon {
+  background: var(--green);
+  color: var(--cream);
+}
+
+.nav-label { font-size: 1rem; font-weight: 600; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 1.125rem 1.5rem;
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+
+/* Lime is reserved for the one main action on each screen. */
+.btn-main { background: var(--lime); color: var(--ink); font-size: 1.25rem; }
+.btn-secondary { background: var(--cream); color: var(--ink); }
+.btn-text { background: none; color: var(--cream); text-decoration: underline; padding: 0.75rem; }
+
+.card .btn-secondary { background: var(--green); color: var(--cream); align-self: flex-start; padding: 0.875rem 1.5rem; }
+
+/* ---------- Forms ---------- */
+.form { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.5rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.label { font-weight: 700; padding: 0; }
+.hint { margin: 0; opacity: 0.8; }
+.error { margin: 0; font-weight: 700; color: #8A1C10; }
+
+.input {
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--green);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+}
+.input:focus-visible,
+.pill:focus-visible,
+.crop-chip:focus-visible,
+.btn:focus-visible,
+.consent input:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.card-title { margin: 0; font-size: 1.25rem; font-weight: 700; }
+
+.pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pill {
+  min-height: 3rem;
+  padding: 0.5rem 1.25rem;
+  border: 2px solid var(--green);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill.is-selected { background: var(--green); color: var(--cream); }
+
+/* ---------- Crop chips: each crop sits on its own colour ---------- */
+.crop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+.crop-chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1rem 0.5rem 0.75rem;
+  border: 3px solid transparent;
+  border-radius: var(--radius-card);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.crop-chip.is-selected { border-color: var(--ink); }
+.crop-name { font-weight: 700; }
+.crop-tick {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--cream);
+}
+
+/* ---------- Registration progress ---------- */
+.progress { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.progress-bar { flex: 1; height: 0.5rem; border-radius: 999px; background: rgba(244, 241, 230, 0.3); }
+.progress-bar.is-done { background: var(--cream); }
+.progress-label { margin: 0.5rem 0 0; font-weight: 600; }
+
+/* ---------- Photo, GPS, consent ---------- */
+.photo-row { display: flex; align-items: center; gap: 1rem; }
+.thumb { width: 6rem; height: 6rem; object-fit: cover; border-radius: 16px; background: #DAD5C0; }
+
+.gps-reading { margin: 0; font-weight: 700; font-size: 1.125rem; display: flex; flex-direction: column; }
+.gps-reading.is-poor { color: #8A1C10; }
+.gps-coords { font-weight: 400; font-size: 1rem; }
+
+.consent { display: flex; gap: 0.875rem; align-items: flex-start; cursor: pointer; }
+.consent input { flex: none; width: 1.75rem; height: 1.75rem; margin: 0.125rem 0 0; accent-color: var(--green); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 7rem;
+  transform: translateX(-50%);
+  padding: 0.875rem 1.5rem;
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- Farmers list and detail ---------- */
+.farmer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.farmer-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.farmer-main { display: flex; flex-direction: column; }
+.farmer-name { font-size: 1.25rem; font-weight: 700; }
+.farmer-meta { opacity: 0.8; }
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 2px solid var(--ink);
+}
+.sync-saved { background: transparent; }
+.sync-sending { background: #DAD5C0; }
+.sync-sent { background: var(--green); border-color: var(--green); color: var(--cream); }
+.sync-attention { background: #8A1C10; border-color: #8A1C10; color: var(--cream); }
+
+.back-link { padding-left: 0; text-decoration: none; font-size: 1.125rem; }
+.detail-photo { display: block; margin-bottom: 1rem; }
+.detail-error { margin: 0.75rem 0; }
+.detail-list { margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+.detail-row dt { font-size: 1rem; font-weight: 700; opacity: 0.75; }
+.detail-row dd { margin: 0; font-size: 1.125rem; }
+.crop-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.crop-tag { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem 0.25rem 0.375rem; border-radius: 999px; font-weight: 600; }
+
+/* ---------- Sign-in ---------- */
+.center { margin: 0; text-align: center; }
+
+.role-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.role-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--cream);
+}
+.role-text { display: flex; flex-direction: column; }
+.role-title { font-size: 1.375rem; font-weight: 700; line-height: 1.2; }
+.role-hint { opacity: 0.8; }
+
+.language-picker { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.test-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  background: #DAD5C0;
+  font-weight: 700;
+}
+
+.btn-text.on-card { color: var(--ink); width: 100%; }
+
+.pinpad { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 1rem 0 0.5rem; }
+.pin-dots { display: flex; gap: 0.875rem; }
+.pin-dot { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 2px solid var(--green); }
+.pin-dot.is-filled { background: var(--green); }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; width: 100%; max-width: 20rem; }
+.pin-key {
+  min-height: 4rem;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pin-key:active:not(:disabled) { background: var(--green); color: var(--cream); }
+.pin-key:disabled { opacity: 0.5; }
+.pin-key-delete { background: transparent; }
+.pin-key:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- Nav fit for five tabs ---------- */
+.bottom-nav { padding: 0.5rem 0.25rem; }
+.nav-tab { min-width: 0; }
+.nav-icon { width: 2.75rem; height: 2.75rem; }
+.nav-label { letter-spacing: -0.01em; }
+
+/* ---------- Shared lists and labels ---------- */
+.plain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.list-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.soon { font-weight: 700; opacity: 0.7; white-space: nowrap; }
+.textarea { min-height: 7rem; resize: vertical; }
+
+.sample-badge {
+  align-self: flex-start;
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border: 2px dashed currentColor;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.pill-on-green { color: var(--cream); border-color: var(--cream); }
+.pill-on-green.is-selected { background: var(--cream); color: var(--ink); }
+
+.menu-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ---------- Market and advice ---------- */
+.price-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.price-row { display: flex; align-items: center; gap: 0.75rem; }
+.crop-tile { flex: none; display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 16px; }
+.price-name { flex: 1; font-weight: 700; }
+.price-value { font-family: var(--font-stat); font-weight: 700; font-size: 1rem; text-align: right; }
+.price-unit { font-family: var(--font-ui); font-weight: 400; }
+.advice-card { display: flex; gap: 1rem; align-items: flex-start; }
+.advice-card .card-title, .advice-card p { margin: 0 0 0.25rem; }
+
+/* ---------- Dashboard bars ---------- */
+.bar-list { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.bar-row { display: grid; grid-template-columns: 5.5rem 1fr 2.5rem; align-items: center; gap: 0.75rem; }
+.bar-label { font-weight: 600; }
+.bar-track { height: 1.25rem; border-radius: 999px; background: #DAD5C0; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; }
+.bar-count { font-family: var(--font-stat); font-weight: 700; text-align: right; }
+
+/* ---------- Admin lists ---------- */
+.agent-card { display: flex; flex-direction: column; gap: 0.125rem; }
+.agent-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.agent-actions .btn { padding: 0.625rem 1.25rem; background: var(--green); color: var(--cream); }
+
+/* ---------- Feedback ---------- */
+.feedback-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: 7.25rem;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--green);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.feedback-fab:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: rgba(20, 32, 24, 0.85);
+}
+.sheet-body { max-width: 30rem; margin: 0 auto; }
+
+/* ---------- Photo button ---------- */
+.photo-button { position: relative; display: inline-block; cursor: pointer; }
+.photo-button:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---------- Dashboard agents ---------- */
+.agent-line { display: flex; flex-direction: column; gap: 0.125rem; }
+.agent-line .stat-number { font-size: 1.25rem; }
+
+/* ---------- Payments ---------- */
+.payment-row { display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; }
+.payment-row .list-item { width: 100%; }
+
+/* ---------- Market trend and weather ---------- */
+.price-value { display: flex; flex-direction: column; align-items: flex-end; }
+.price-change { font-family: var(--font-ui); font-size: 1rem; font-weight: 700; }
+.price-change.is-up { color: #1F5E2B; }
+.price-change.is-down { color: #8A1C10; }
+.price-change.is-flat { opacity: 0.7; }
+
+.weather-now { display: flex; align-items: center; gap: 1rem; }
+.weather-temp { font-family: var(--font-stat); font-weight: 700; font-size: 3rem; line-height: 1; margin: 0; }
+.weather-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.weather-day { display: grid; grid-template-columns: 3.5rem 2.5rem 1fr; align-items: center; gap: 0.75rem; }
+.weather-day-name { font-weight: 700; }
+.weather-day-detail { display: flex; flex-direction: column; }
+
+/* ---------- Crop checks and produce listings ---------- */
+.crop-check { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; list-style: none; }
+.crop-check p { margin: 0; }
+.crop-check .list-item { width: 100%; }
+.check-crop { display: inline-flex; align-items: center; gap: 0.75rem; }
+.crop-tile.small { width: 2.5rem; height: 2.5rem; border-radius: 12px; }
+.btn-link { display: inline-block; text-align: center; text-decoration: none; }
+
+/* ---------- Who is signed in ---------- */
+.identity-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--green);
+  border-bottom: 1px solid rgba(244, 241, 230, 0.25);
+}
+.avatar { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; color: var(--ink); font-weight: 800; }
+.identity-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.identity-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.identity-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0.5rem; min-width: 0; }
+.role-chip { flex: none; padding: 0 0.625rem; border-radius: 999px; color: var(--ink); font-weight: 700; }
+.identity-id { opacity: 0.85; }
+.identity-signout { padding: 0.5rem; flex: none; }
+
+/* A status badge sits at its natural width inside a stacked card, not stretched across it. */
+.agent-card .sync-badge, .agent-line .sync-badge, .payment-row .sync-badge, .crop-check .sync-badge { align-self: flex-start; }

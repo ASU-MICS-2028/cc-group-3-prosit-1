@@ -1,0 +1,33 @@
+/* Both fonts are served from this app (public/fonts), not from Google, so the service
+   worker caches them and they work in airplane mode. Each file is one "variable" font:
+   a single file that holds every weight in the range, so we don't ship a file per weight.
+   font-display: swap shows text in the fallback font straight away and swaps when the
+   font file arrives, so text is never invisible. */
+
+@font-face {
+  font-family: 'Onest';
+  src: url('/fonts/onest-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Unbounded's zero is a perfect circle and reads as the letter O in a count or a price. So the digit 0
+   alone (U+0030) is drawn from Onest, whose zero is a narrow oval, and everything else from Unbounded. */
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/unbounded-var.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-002F, U+0031-10FFFF;
+}
+
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/onest-var.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0030;
+}

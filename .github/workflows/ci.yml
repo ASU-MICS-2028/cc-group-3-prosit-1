@@ -9,23 +9,81 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: backend smoke test
+  frontend:
+    name: frontend typecheck, lint, tests, build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/agroconnect-pwa
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/agroconnect-pwa/package-lock.json
 
-      - name: Install dependencies
-        working-directory: backend
-        run: pip install -r requirements.txt
+      - run: npm ci
+      - run: npm run lint
+      # Also covers the mock server's contract tests (mock-server/*.test.mjs).
+      - run: npm test
+      # Includes the type check (tsc --noEmit).
+      - run: npm run build
 
-      - name: Import the app
+  backend:
+    name: backend tests (PGlite and Postgres 16) + image smoke test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: backend
-        run: python -c "from app.main import app; print('ok:', app.title, app.version)"
+    services:
+      # Same major version as RDS, so the suite also runs through the production pg driver.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+      - name: Type check and build
+        run: npm run build
+      - name: Tests on PGlite
+        run: npm test
+      - name: Tests on Postgres 16
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: npm test
+
+      - name: Build the image
+        run: docker build -t agroconnect-api:ci .
+
+      # The image must boot, migrate an empty database and answer /health, as it does on EC2.
+      - name: Smoke test the image
+        run: |
+          set -euo pipefail
+          docker run -d --name api --network host \
+            -e PORT=8000 -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres \
+            -e AUTH_TEST_MODE=true agroconnect-api:ci
+          trap "docker logs api; docker rm -f api" EXIT
+          for _ in $(seq 1 40); do
+            if curl -sf http://localhost:8000/health; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "server did not become healthy" >&2
+          exit 1
 
   terraform:
     name: terraform fmt + validate
@@ -35,7 +93,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.8"
+          terraform_version: "1.10.5"
 
       - name: Format check
         working-directory: infra

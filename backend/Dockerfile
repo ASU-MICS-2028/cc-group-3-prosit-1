@@ -1,16 +1,37 @@
-FROM python:3.12-slim
+# --- build stage: install dev deps and compile TypeScript ---
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip
+COPY package*.json ./
+RUN npm ci
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY tsconfig.json ./
+COPY src ./src
 
-COPY app ./app
+RUN npm run build
 
-RUN useradd -r -u 1001 app && chown -R app /app
-USER app
+# --- runtime stage: production deps + compiled output only ---
+FROM node:24-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8000
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+# Applied on boot by src/migrate.ts (one instance at a time, under an advisory lock).
+COPY migrations ./migrations
+
+# RDS CA bundle for af-south-1, so the connection to Postgres verifies the server's certificate.
+ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/af-south-1/af-south-1-bundle.pem /app/rds-ca.pem
+ENV DB_CA_FILE=/app/rds-ca.pem
+
+USER node
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+CMD ["node", "dist/server.js"]

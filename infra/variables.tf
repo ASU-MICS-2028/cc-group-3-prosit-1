@@ -63,3 +63,43 @@ variable "api_hostname" {
   type    = string
   default = "api.agroconnect.space"
 }
+
+variable "frontend_apex_domain" {
+  type    = string
+  default = "agroconnect.space"
+}
+
+variable "frontend_subdomain_prefix" {
+  type    = string
+  default = "app"
+}
+
+variable "alarm_email_addresses" {
+  description = "Emails subscribed to the CloudWatch alarm SNS topic and the AWS Budgets notifications. Set these in terraform.tfvars (gitignored); each recipient must confirm the SNS email before alarms arrive."
+  type        = list(string)
+  default     = []
+}
+
+variable "monthly_budget_warn_usd" {
+  description = "Forecasted monthly spend above this triggers a warning budget notification."
+  type        = number
+  default     = 50
+}
+
+variable "monthly_budget_critical_usd" {
+  description = "Actual month-to-date spend above this triggers a critical budget notification (also the budget limit)."
+  type        = number
+  default     = 100
+}
+
+variable "auth_test_mode" {
+  type        = bool
+  description = "Return sign-in codes in API responses instead of texting them (AUTH_TEST_MODE). Demo only."
+  default     = false
+}
+
+variable "seed_demo_accounts" {
+  type        = bool
+  description = "Seed the public demo accounts from WALKTHROUGH.md (SEED_DEMO_ACCOUNTS). Never with real data."
+  default     = false
+}
