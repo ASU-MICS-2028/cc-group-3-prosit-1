@@ -16,7 +16,7 @@ type Farmer = {
   created_at: string;
 };
 
-// ponytail: in-memory store until Week 4 swaps in RDS.
+// In-memory store until Week 4 swaps in RDS.
 const farmers = new Map<number, Farmer>();
 let nextId = 1;
 

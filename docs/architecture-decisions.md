@@ -123,7 +123,7 @@ Industry security standards dictate that application servers and databases must 
 
 ### Consequences
 * **Positive:** Provides true enterprise-grade defense-in-depth security; reduces VPC fixed NAT egress cost from ~$32/month down to ~$3/month.
-* **Negative (Ponytail Debt):** Single `fck-nat` instance in `af-south-1a` represents a single point of failure (SPOF) for outbound egress if that specific AZ fails. In production, this can be upgraded to an ASG-wrapped NAT or multi-AZ fck-nat.
+* **Negative (Technical Debt):** Single `fck-nat` instance in `af-south-1a` represents a single point of failure (SPOF) for outbound egress if that specific AZ fails. In production, this can be upgraded to an ASG-wrapped NAT or multi-AZ fck-nat.
 
 ---
 
@@ -163,7 +163,7 @@ Two sub-decisions were required: (a) where to obtain the TLS certificate, and (b
 
 ### Consequences
 * **Positive:** Zero cost (ACM free, no Route 53 hosted zone fee); DNS consolidated at one provider the team already pays for; one-line toggle to add new subdomains (`app.`, future).
-* **Negative (Ponytail Debt):** DNS records at Hostinger are managed via MCP calls, not Terraform. Changing them requires either MCP access or the Hostinger console — not a `terraform apply`. Documented as debt in `infra/README.md`. Migration to Route 53 later is a one-time delegation if an all-IaC story becomes necessary.
+* **Negative (Technical Debt):** DNS records at Hostinger are managed via MCP calls, not Terraform. Changing them requires either MCP access or the Hostinger console — not a `terraform apply`. Documented as debt in `infra/README.md`. Migration to Route 53 later is a one-time delegation if an all-IaC story becomes necessary.
 
 ---
 
@@ -257,7 +257,7 @@ CloudFront serves the PWA assets from edges globally (including Lagos and Cape T
 
 ### Consequences
 * **Positive:** Git-connected deploys with zero pipeline code; auto-managed TLS cert for `app.agroconnect.space`; farmer-facing latency essentially unchanged vs. a Cape-Town-hosted option; no long-lived secret to rotate.
-* **Negative (Ponytail Debt):** Build logs and the Amplify console live in `eu-west-1`, not `af-south-1` — team members need to switch regions in the console to view them. The GitHub App install itself is a one-time ClickOps action outside Terraform; the Terraform resource is unaware of it and will fail with `Deploy keys are disabled for this repository` if the install is ever revoked.
+* **Negative (Technical Debt):** Build logs and the Amplify console live in `eu-west-1`, not `af-south-1` — team members need to switch regions in the console to view them. The GitHub App install itself is a one-time ClickOps action outside Terraform; the Terraform resource is unaware of it and will fail with `Deploy keys are disabled for this repository` if the install is ever revoked.
 * **Note:** The GitHub App install is scoped to the single repo (`cc-group-3-prosit-1`). Future repos in the same org would need either their own install or a widened scope on this install.
 
 ---
