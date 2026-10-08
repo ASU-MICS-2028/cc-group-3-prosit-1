@@ -8,6 +8,7 @@ import { Button } from './Button'
 import { CropArt } from './CropArt'
 import { CROP_BACKGROUND } from './cropColours'
 import { SyncBadge } from './SyncBadge'
+import { ListenButton } from '../audio/ListenButton'
 
 interface CropCheckCardProps {
   check: CropCheckView
@@ -59,6 +60,10 @@ export function CropCheckCard({ check, canAnswer, onAnswered }: CropCheckCardPro
         <p className="note">
           <strong>{t('checks.adviceBy', { name: check.advice.by })}:</strong> {check.advice.text}
         </p>
+      )}
+      {check.advice && (
+        // Officers answer in English, so it is read in English whatever the app language.
+        <ListenButton text={check.advice.text} lang="en" />
       )}
 
       {!check.advice && canAnswer && (

@@ -1,7 +1,7 @@
 import { listOutboxToSend, markOutboxAttention, markOutboxSent } from '../db/outbox'
 import { SENDABLE_KINDS, type AnyOutboxItem, type RemoteRef } from '../domain/outbox'
 import { NetworkError, RejectedError, ServerError, UnauthorizedError } from './api'
-import { postCropCheck, postFeedback, postListing, postLoanRequest, postPayment } from './outboxApi'
+import { postCropCheck, postFeedback, postListing, postLoanRequest, postPayment, postVisit } from './outboxApi'
 
 async function sendItem(item: AnyOutboxItem): Promise<RemoteRef | undefined> {
   switch (item.kind) {
@@ -16,6 +16,8 @@ async function sendItem(item: AnyOutboxItem): Promise<RemoteRef | undefined> {
       return postListing(item)
     case 'cropCheck':
       return postCropCheck(item)
+    case 'visit':
+      return postVisit(item)
   }
 }
 

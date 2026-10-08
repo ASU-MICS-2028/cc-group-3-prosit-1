@@ -121,6 +121,28 @@ The API stores the image in S3 and writes the key to `photo_object_key`. This is
 | 404 unknown id, 413 over 500 KB, other 4xx | Not retried. |
 | 408, 429, 5xx, no response | Retried later. |
 
+## Extension visits
+
+The brief requires extension agents to "track farmer interactions and progress". An agent logs a visit on the farmer's screen; it is saved on the phone and sent with the outbox, like everything else created offline.
+
+### `POST /farmers/:id/visits`
+
+Roles: `agent`, `coordinator`, for a farmer they may see (an agent: farmers they registered; a coordinator: their association's). Otherwise 404.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `clientId` | UUID | Required. A repeat answers 200 with the same `id`; 409 `client_id_taken` if it is another account's. |
+| `visitedAt` | ISO 8601 | When it happened on the phone. Defaults to now. |
+| `topics` | list | At least one of `advice`, `inputs`, `pests`, `market`, `training`, `credit`, `records`, `follow_up`. |
+| `notes` | string | Optional, at most 500 characters. |
+| `nextVisit` | `YYYY-MM-DD` \| null | Optional. |
+
+201 `{ "id": "EV-12" }`. Bad values are 400 with `field`. Stored in `extension_visits` (migration 006), audited.
+
+### `GET /farmers/:id/visits`
+
+Roles: `agent`, `coordinator`, `admin`, scoped as above. `{ "items": [{ "id", "clientId", "farmerId", "visitedAt", "topics", "notes", "nextVisit", "agentName" }] }`, newest first.
+
 ## `GET /farmers/me`
 
 Role: `farmer`. Finds the record whose `phone_e164` equals the token's phone, and returns it. 404 if no agent has registered this farmer yet. This is how a farmer who was registered by an agent sees their own profile after signing in.

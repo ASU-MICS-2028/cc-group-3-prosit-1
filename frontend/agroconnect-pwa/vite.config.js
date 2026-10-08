@@ -19,7 +19,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // mp3: recorded audio for low-literacy users (public/audio), so it plays offline too.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,mp3}'],
       },
       manifest: {
         name: 'AgroConnect Ghana',
