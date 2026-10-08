@@ -106,6 +106,6 @@ variable "seed_demo_accounts" {
 
 variable "ussd_user_id" {
   type        = string
-  description = "Arkesel USSD userID, given when the USSD code is set up (USSD-CONTRACT.md). Empty keeps USSD off."
+  description = "USSD gateway userID (Nalo Solutions or Arkesel), given when the USSD code is set up (USSD-CONTRACT.md). Empty keeps USSD off."
   default     = ""
 }
