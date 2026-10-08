@@ -29,6 +29,8 @@ export interface PaymentView {
   phone: string
   status: PaymentStatus
   createdAt: string
+  /** A pending payment the farmer completes on the provider's checkout page (votex365). */
+  checkoutUrl?: string | null
 }
 
 export interface BalanceRow {
