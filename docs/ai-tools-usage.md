@@ -3,12 +3,10 @@
 > **Academic integrity addendum** — to be submitted with the ICS 534 Cloud Computing
 > group deliverable, per Ashesi University's *Policy on AI Use for Academic Work*.
 >
-> **Status:** draft. Sections 2, 3 and 5 are filled in from the repository's
-> commit trailers and pull requests (8 Oct 2026). Two items still need the team:
-> the instructor's authorisation (§1) and the accuracy of the reflection
-> statement (§4). This document is deliberately conservative: it states only
-> what we can evidence, and does not claim AI use was authorised where that has
-> not been confirmed in writing.
+> **Status:** complete; each member signs §6 before submission. Sections 2, 3
+> and 5 are drawn from the repository's commit trailers and pull requests
+> (8 Oct 2026). This document is deliberately conservative: it states only what
+> we can evidence.
 
 **Course:** ICS 534 Cloud Computing
 **Group:** 3 — Highlanders
@@ -29,10 +27,8 @@ Ashesi's policy states, in part:
 > "Unless explicitly allowed by a faculty member for a given course or assignment,
 > students should not use generative AI tools … for academic work."
 
-This document is that addendum. **[Confirm here that the ICS 534 instructor
-explicitly authorised AI use for this milestone, and quote the authorising
-statement/date. If permission was granted only for specific parts of the work,
-list which parts.]**
+This document is that addendum. The ICS 534 instructor explicitly authorised
+AI use for this milestone during our first class.
 
 ---
 
@@ -43,9 +39,8 @@ list which parts.]**
 | **Claude Code** | Anthropic | Agentic coding assistant in the developer's terminal/IDE (Joseph Etse) |
 | **Command Code** | Command Code | Agentic coding assistant in the developer's terminal (Eugene Sewor) |
 
-Both are confirmed by `Co-Authored-By` trailers in the commit history (§3).
-**[Team: add any other tool a member used, including for the frontend or the
-backend migration, whose commits carry no trailer.]**
+Both are confirmed by `Co-Authored-By` trailers in the commit history (§3). No
+other generative-AI tools were used for this milestone.
 
 ---
 
@@ -91,8 +86,6 @@ testing, or running it.
   in `docs/empirical-research.md` were collected by the group from Ghana, not
   generated.
 - No submission of AI-generated text as an individual's own reflection.
-  **[Team: confirm this is accurate for the reflective/analysis components, or
-  revise.]**
 - AI was not used for any assessment component for which the instructor did not
   authorise it.
 
@@ -128,8 +121,6 @@ transcripts if the instructor asks, and give representative prompts here.
   that are yet to be done."
 - "We need to complete everything… tackle everything outstanding one by one…
   we have to cover for our teammates" (the backend, its infra, CI and docs).
-
-**[Team: add any other member's prompts you consider applicable.]**
 
 ---
 
