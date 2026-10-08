@@ -219,8 +219,12 @@ resource "aws_autoscaling_group" "app" {
 
   instance_refresh {
     strategy = "Rolling"
+    # Launch the replacement before terminating the old instance. With desired capacity 1, a minimum of
+    # 50% rounds down to zero, so every refresh used to take the API offline for several minutes.
     preferences {
-      min_healthy_percentage = 50
+      min_healthy_percentage = 100
+      max_healthy_percentage = 200
+      instance_warmup        = 180
     }
   }
 

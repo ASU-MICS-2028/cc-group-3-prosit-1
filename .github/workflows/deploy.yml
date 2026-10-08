@@ -75,7 +75,7 @@ jobs:
           for _ in $(seq 1 120); do
             if REFRESH_ID=$(aws autoscaling start-instance-refresh \
               --auto-scaling-group-name "$ASG_NAME" \
-              --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}' \
+              --preferences '{"MinHealthyPercentage":100,"MaxHealthyPercentage":200,"InstanceWarmup":180}' \
               --query 'InstanceRefreshId' --output text 2>"$RUNNER_TEMP/refresh.err"); then
               break
             fi

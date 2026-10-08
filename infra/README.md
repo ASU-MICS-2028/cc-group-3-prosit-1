@@ -105,7 +105,7 @@ aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-vote
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-admin-seed \
   --secret-string '{"login_id":"ADM-002","name":"…","phone":"+233…","password":"<12+ chars>"}'
 aws autoscaling start-instance-refresh --region $R --auto-scaling-group-name agroconnect-dev-asg \
-  --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}'
+  --preferences '{"MinHealthyPercentage":100,"MaxHealthyPercentage":200,"InstanceWarmup":180}'
 ```
 
 In the votex365 dashboard (Developers, test mode) set the webhook URL to
@@ -129,7 +129,7 @@ aws ssm put-parameter --name /agroconnect-dev/app-image-tag \
 
 # 2. Roll the fleet onto it.
 aws autoscaling start-instance-refresh --auto-scaling-group-name agroconnect-dev-asg \
-  --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}' \
+  --preferences '{"MinHealthyPercentage":100,"MaxHealthyPercentage":200,"InstanceWarmup":180}' \
   --region af-south-1 --profile ashesi-dev
 ```
 
