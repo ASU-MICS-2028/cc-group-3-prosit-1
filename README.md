@@ -31,7 +31,7 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 
 The system is architected as an offline-first client syncing with a highly available, dual-AZ cloud runtime on AWS, automated via GitOps CI/CD.
 
-![AgroConnect Architecture v2](./docs/assets/architecture-v2.png)
+![AgroConnect Architecture v3](./docs/assets/architecture-v3.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
