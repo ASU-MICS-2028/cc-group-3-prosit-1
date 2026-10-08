@@ -34,8 +34,10 @@ export async function createApp({ dataFile, ...options } = {}) {
   const store = await createStore(dataFile ? await readSnapshot(dataFile) : null)
   const ctx = { store, config: { ...DEFAULTS, ...options } }
   const saver = dataFile ? createSaver(dataFile, store) : null
-  const router = createRouter([...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx), ...requestRoutes(ctx)])
-  const router = createRouter([...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx), ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx), ...visitRoutes(ctx)])
+  const router = createRouter([
+    ...authRoutes(ctx), ...adminRoutes(ctx), ...farmerRoutes(ctx), ...statsRoutes(ctx), ...paymentRoutes(ctx),
+    ...feedbackRoutes(ctx), ...serviceRoutes(ctx), ...contentRoutes(ctx), ...requestRoutes(ctx), ...visitRoutes(ctx),
+  ])
 
   const server = createServer((req, res) => {
     if (saver && req.method !== 'GET' && req.method !== 'OPTIONS') res.on('finish', saver.schedule)
