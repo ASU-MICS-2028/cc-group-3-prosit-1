@@ -91,3 +91,15 @@ variable "monthly_budget_critical_usd" {
   type        = number
   default     = 100
 }
+
+variable "auth_test_mode" {
+  type        = bool
+  description = "Return sign-in codes in API responses instead of texting them (AUTH_TEST_MODE). Demo only."
+  default     = false
+}
+
+variable "seed_demo_accounts" {
+  type        = bool
+  description = "Seed the public demo accounts from WALKTHROUGH.md (SEED_DEMO_ACCOUNTS). Never with real data."
+  default     = false
+}

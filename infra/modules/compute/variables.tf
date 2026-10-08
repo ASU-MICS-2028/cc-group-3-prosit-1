@@ -106,3 +106,43 @@ variable "log_retention_days" {
   description = "Retention for the app's CloudWatch log group."
   default     = 14
 }
+
+variable "jwt_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN of the API token-signing key ({ private_key_pem }). Passed as JWT_SECRET_ARN."
+  default     = ""
+}
+
+variable "votex_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN of the votex365 credentials ({ api_key, webhook_secret }). Passed as VOTEX_SECRET_ARN."
+  default     = ""
+}
+
+variable "admin_seed_secret_arn" {
+  type        = string
+  description = "Secrets Manager ARN of the first admin account ({ login_id, name, phone, password }). Passed as ADMIN_SEED_SECRET_ARN."
+  default     = ""
+}
+
+variable "pwa_origins" {
+  type        = string
+  description = "Comma-separated browser origins the API allows (CORS)."
+}
+
+variable "payment_return_url" {
+  type        = string
+  description = "Where votex365 sends the farmer's browser after checkout."
+}
+
+variable "auth_test_mode" {
+  type        = bool
+  description = "true returns sign-in codes in API responses instead of texting them. Demo only."
+  default     = false
+}
+
+variable "seed_demo_accounts" {
+  type        = bool
+  description = "true seeds the public demo accounts from WALKTHROUGH.md. Never with real data."
+  default     = false
+}
