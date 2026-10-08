@@ -75,6 +75,7 @@ module "compute" {
   jwt_secret_arn            = module.secrets.jwt_signing_key_secret_arn
   votex_secret_arn          = module.secrets.votex365_secret_arn
   admin_seed_secret_arn     = module.secrets.admin_seed_secret_arn
+  vapid_secret_arn          = module.secrets.vapid_secret_arn
   pwa_origins               = "https://${var.frontend_subdomain_prefix}.${var.frontend_apex_domain}"
   payment_return_url        = "https://${var.frontend_subdomain_prefix}.${var.frontend_apex_domain}/"
   auth_test_mode            = var.auth_test_mode

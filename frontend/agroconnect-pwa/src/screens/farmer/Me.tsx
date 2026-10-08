@@ -7,6 +7,7 @@ import { SignOutButton } from '../../components/SignOutButton'
 import { useT } from '../../i18n/context'
 import type { TranslationKey } from '../../i18n/translate'
 import { fetchMyProfile, isFarmerProfile } from '../../profile/profileApi'
+import { NotificationToggle } from '../../components/NotificationToggle'
 
 export function Me() {
   const { t } = useT()
@@ -66,6 +67,7 @@ export function Me() {
           <CountryPicker />
         </section>
 
+        <NotificationToggle />
         <SignOutButton />
       </main>
     </>

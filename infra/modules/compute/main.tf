@@ -44,6 +44,7 @@ data "aws_iam_policy_document" "app_secrets_read" {
       var.jwt_secret_arn,
       var.votex_secret_arn,
       var.admin_seed_secret_arn,
+      var.vapid_secret_arn,
     ])
   }
 }
@@ -163,6 +164,7 @@ locals {
       -e JWT_SECRET_ARN="${var.jwt_secret_arn}" \
       -e VOTEX_SECRET_ARN="${var.votex_secret_arn}" \
       -e ADMIN_SEED_SECRET_ARN="${var.admin_seed_secret_arn}" \
+      -e VAPID_SECRET_ARN="${var.vapid_secret_arn}" \
       -e PWA_ORIGINS="${var.pwa_origins}" \
       -e PAYMENT_RETURN_URL="${var.payment_return_url}" \
       -e AUTH_TEST_MODE="${var.auth_test_mode}" \

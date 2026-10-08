@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth.js'
 import { contentRoutes } from './routes/content.js'
 import { farmerRoutes } from './routes/farmers.js'
 import { paymentRoutes } from './routes/payments.js'
+import { pushRoutes } from './routes/push.js'
 import { serviceRoutes } from './routes/services.js'
 import { ussdRoutes } from './routes/ussd.js'
 
@@ -99,6 +100,7 @@ export function createApp(ctx: Ctx): Express {
   paymentRoutes(app, ctx)
   serviceRoutes(app, ctx)
   contentRoutes(app, ctx)
+  pushRoutes(app, ctx)
   ussdRoutes(app, ctx)
 
   app.use((_req, res) => void res.status(404).json({ error: 'not_found', message: 'Not found' }))

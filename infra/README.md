@@ -104,6 +104,9 @@ aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-vote
   --secret-string '{"api_key":"vxp_test_…","webhook_secret":"whsec_…"}'
 aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-admin-seed \
   --secret-string '{"login_id":"ADM-002","name":"…","phone":"+233…","password":"<12+ chars>"}'
+npx web-push generate-vapid-keys --json > /tmp/vapid.json   # Web Push keys, once
+aws secretsmanager put-secret-value --region $R --secret-id agroconnect-dev-vapid \
+  --secret-string "$(jq '{public_key: .publicKey, private_key: .privateKey, subject: "mailto:admin@agroconnect.space"}' /tmp/vapid.json)" && rm /tmp/vapid.json
 aws autoscaling start-instance-refresh --region $R --auto-scaling-group-name agroconnect-dev-asg \
   --preferences '{"MinHealthyPercentage":100,"MaxHealthyPercentage":200,"InstanceWarmup":180}'
 ```

@@ -8,6 +8,7 @@ import { orderBy, pageParams, totalOf } from '../pagination.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
 import { farmerView, getFarmer } from './farmers.js'
 import { paymentTools } from './payments.js'
+import { notifyUser } from '../push.js'
 
 const AGENT_STATUSES = ['pending_verification', 'pending', 'approved', 'rejected', 'suspended']
 const REPORTERS = ['admin', 'coordinator'] as const
@@ -98,6 +99,7 @@ export function adminRoutes(app: Express, ctx: Ctx): void {
           return rows[0] as UserRow
         })
         if (outcome instanceof HttpError) throw outcome
+        if (action === 'approve' && outcome.login_id) void notifyUser(ctx, outcome.id, 'agentApproved', { loginId: outcome.login_id })
         return [200, publicUser(outcome)]
       }),
     )

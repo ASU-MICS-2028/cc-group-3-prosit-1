@@ -5,6 +5,7 @@ import { HttpError, invalid, jsonBody, notFound, route } from '../http.js'
 import { isE164, isUuid, requireAuth, type Claims } from '../security.js'
 import { pageParams, totalOf } from '../pagination.js'
 import { accraDay, csvResponse, dateRange, inRange, type DayRange } from '../time.js'
+import { notifyUser } from '../push.js'
 
 const NETWORKS: Record<string, string[]> = { GHS: ['mtn', 'telecel', 'airteltigo'], KES: ['mpesa'], NGN: ['bank_transfer'] }
 const DIRECTIONS = ['collect', 'payout']
@@ -296,13 +297,17 @@ export function paymentRoutes(app: Express, ctx: Ctx): void {
       if (event === null) throw new HttpError(401, 'invalid_signature', 'Webhook signature or timestamp is not valid')
       if (event !== 'ignored') {
         // Final states never change again (votex365: paid is immutable).
-        await db.tx(SYSTEM, (q) =>
+        const { rows: settled } = await db.tx(SYSTEM, (q) =>
           q.query(
             `UPDATE payments SET status = $3, provider_ref = coalesce(provider_ref, $1)
-              WHERE provider = 'votex365' AND (provider_ref = $1 OR client_id::text = $2) AND status = 'pending'`,
+              WHERE provider = 'votex365' AND (provider_ref = $1 OR client_id::text = $2) AND status = 'pending'
+              RETURNING farmer_user_id, amount, currency`,
             [event.providerRef, event.reference, event.status],
           ),
         )
+        for (const p of settled) {
+          void notifyUser(ctx, p.farmer_user_id, event.status === 'successful' ? 'paymentSuccessful' : 'paymentFailed', { amount: `${p.currency} ${Number(p.amount).toFixed(2)}` }, '/?tab=wallet')
+        }
       }
       return [200, { received: true }]
     }),

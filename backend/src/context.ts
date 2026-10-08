@@ -1,6 +1,7 @@
 import type { Db, Queryable, Row } from './db.js'
 import type { CheckoutProvider, Sms, Storage } from './integrations.js'
 import type { Claims, Signer } from './security.js'
+import type { PushSender } from './push.js'
 
 export interface Settings {
   /** Sign-in codes come back in responses and no SMS is sent (AUTH_TEST_MODE). */
@@ -37,6 +38,8 @@ export interface Ctx {
   checkout: CheckoutProvider | null
   settings: Settings
   now: () => number
+  /** Web Push sender, or null/absent when VAPID keys are not configured (notifications off). */
+  push?: PushSender | null
   /** Today's forecast for USSD; defaults to Open-Meteo. Tests replace it. */
   weather?: (lat: number, lng: number) => Promise<{ min: number; max: number; rainChance: number } | null>
 }
