@@ -24,6 +24,71 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# S3 photo bucket access — scoped to the specific bucket by the storage module.
+resource "aws_iam_role_policy" "ec2_media_bucket" {
+  name   = "${var.name_prefix}-ec2-media-bucket"
+  role   = aws_iam_role.ec2.id
+  policy = var.media_bucket_policy_json
+}
+
+# Secrets Manager read for the DB master-user secret only.
+data "aws_iam_policy_document" "db_secret_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.db_master_user_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_db_secret" {
+  name   = "${var.name_prefix}-ec2-db-secret"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.db_secret_read.json
+}
+
+# Secrets Manager read for the Arkesel SMS credentials only.
+data "aws_iam_policy_document" "sms_secret_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.sms_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_sms_secret" {
+  name   = "${var.name_prefix}-ec2-sms-secret"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.sms_secret_read.json
+}
+
+# ---------- app logs → CloudWatch Logs ----------
+# The container ships stdout/stderr here via Docker's awslogs driver.
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/${var.name_prefix}/app"
+  retention_in_days = var.log_retention_days
+}
+
+data "aws_iam_policy_document" "log_write" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogStreams",
+    ]
+    resources = [
+      aws_cloudwatch_log_group.app.arn,
+      "${aws_cloudwatch_log_group.app.arn}:*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_logs" {
+  name   = "${var.name_prefix}-ec2-logs"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.log_write.json
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.name_prefix}-ec2-profile"
   role = aws_iam_role.ec2.name
@@ -65,8 +130,34 @@ locals {
       docker pull "$IMAGE" && break || sleep 15
     done
 
+    # Build DATABASE_URL from the Secrets-Manager-managed master credentials.
+    # Resolves to postgres://<user>:<pass>@<host>:<port>/<db>
+    DB_SECRET=$(aws secretsmanager get-secret-value --region "$REGION" --secret-id "${var.db_master_user_secret_arn}" --query SecretString --output text 2>/dev/null || echo "")
+    if [ -n "$DB_SECRET" ]; then
+      DB_USER=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['username'])")
+      DB_PASS=$(echo "$DB_SECRET" | python3 -c "import sys,json;print(json.load(sys.stdin)['password'])")
+      DB_URL="postgres://$DB_USER:$DB_PASS@${var.db_endpoint}/${var.db_name}"
+    else
+      DB_URL=""
+    fi
+
     docker rm -f app 2>/dev/null || true
-    docker run -d --restart=always --name app -p ${var.app_port}:${var.app_port} "$IMAGE"
+
+    # Instance id -> log stream name (IMDSv2).
+    TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+    INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+    docker run -d --restart=always --name app \
+      -p ${var.app_port}:${var.app_port} \
+      --log-driver=awslogs \
+      --log-opt awslogs-group="${aws_cloudwatch_log_group.app.name}" \
+      --log-opt awslogs-region="$REGION" \
+      --log-opt awslogs-stream="$INSTANCE_ID" \
+      -e DATABASE_URL="$DB_URL" \
+      -e PHOTO_BUCKET="${var.media_bucket_name}" \
+      -e SMS_SECRET_ARN="${var.sms_secret_arn}" \
+      -e AWS_REGION="$REGION" \
+      "$IMAGE"
   EOT
 }
 

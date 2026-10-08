@@ -21,7 +21,9 @@ docs/
 ├── cloud-infrastructure.md       # Terraform AWS af-south-1 IaC, VPC topology, fck-nat & ALB TLS
 ├── ci-cd-and-operations.md       # GitOps CI/CD (OIDC), ASG rolling refresh & team IAM governance
 └── assets/                       # Architecture diagrams & application UI screenshots
-    ├── architecture-v2.png       # Complete runtime & CI/CD architecture diagram
+    ├── architecture-v3.png       # Complete runtime & CI/CD architecture diagram (current)
+    ├── architecture-v3.drawio    # Editable draw.io source for architecture-v3.png
+    ├── architecture-v2.png       # Previous revision (Week 3)
     ├── architecture-v2.drawio    # Editable draw.io source for architecture-v2.png
     ├── architecture-simple.png   # Foundation MVP architecture diagram
     ├── pwa-offline-screen.jpeg   # Mobile UI in offline field mode
@@ -48,7 +50,7 @@ docs/
 
 ## High-Level Topology Snapshot
 
-![AgroConnect Architecture v2](./assets/architecture-v2.png)
+![AgroConnect Architecture v3](./assets/architecture-v3.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

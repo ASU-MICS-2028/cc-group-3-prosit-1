@@ -64,6 +64,15 @@ module "compute" {
   alb_arn_suffix          = module.alb.alb_arn_suffix
   target_group_arn_suffix = module.alb.target_group_arn_suffix
   ecr_repository_url      = module.ecr.repository_url
+
+  # Data-tier wiring (RDS + S3). Compute uses these to construct DATABASE_URL
+  # and PHOTO_BUCKET env vars at EC2 boot via user_data.
+  db_endpoint               = module.database.endpoint
+  db_name                   = module.database.db_name
+  db_master_user_secret_arn = module.database.master_user_secret_arn
+  media_bucket_name         = module.storage.bucket_name
+  media_bucket_policy_json  = module.storage.app_access_policy_json
+  sms_secret_arn            = module.secrets.arkesel_sms_secret_arn
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------
@@ -94,6 +103,29 @@ module "network" {
 # ---------- ecr (container registry) ----------
 module "ecr" {
   source      = "./modules/ecr"
+  name_prefix = local.name
+}
+
+# ---------- database (RDS Postgres in the isolated data subnets) ----------
+module "database" {
+  source = "./modules/database"
+
+  name_prefix           = local.name
+  data_subnet_ids       = module.network.data_subnet_ids
+  app_security_group_id = module.alb.app_security_group_id
+}
+
+# ---------- storage (S3 bucket for farmer + crop-check photos) ----------
+module "storage" {
+  source = "./modules/storage"
+
+  name_prefix = local.name
+}
+
+# ---------- secrets (application credentials; values set out-of-band) ----------
+module "secrets" {
+  source = "./modules/secrets"
+
   name_prefix = local.name
 }
 
@@ -130,4 +162,23 @@ module "frontend" {
   api_url                 = "https://${var.api_hostname}"
   custom_domain           = var.frontend_apex_domain
   custom_subdomain_prefix = var.frontend_subdomain_prefix
+}
+
+# ---------- observability (SNS topic + CloudWatch alarms + monthly budget) ----------
+# Alarms span every tier: ALB (unhealthy targets, target 5xx, latency),
+# RDS (memory, storage, CPU), and EC2 (fck-nat + ASG system status checks).
+# All publish to one SNS topic; the budget emails directly.
+module "observability" {
+  source = "./modules/observability"
+
+  name_prefix                 = local.name
+  alarm_email_addresses       = var.alarm_email_addresses
+  monthly_budget_warn_usd     = var.monthly_budget_warn_usd
+  monthly_budget_critical_usd = var.monthly_budget_critical_usd
+
+  alb_arn_suffix          = module.alb.alb_arn_suffix
+  target_group_arn_suffix = module.alb.target_group_arn_suffix
+  db_instance_identifier  = module.database.identifier
+  asg_name                = module.compute.asg_name
+  nat_instance_id         = module.nat.instance_id
 }

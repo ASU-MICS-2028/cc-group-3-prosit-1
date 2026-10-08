@@ -34,7 +34,7 @@ Avoid unnecessary managed cloud bloat. Deploy cost-effective alternatives (e.g.,
 
 The end-to-end architecture is depicted below:
 
-![AgroConnect Architecture v2](./assets/architecture-v2.png)
+![AgroConnect Architecture v3](./assets/architecture-v3.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐

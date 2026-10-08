@@ -58,3 +58,42 @@ output "frontend_dns_records_to_publish" {
 output "frontend_cert_validation_record" {
   value = module.frontend.certificate_verification_dns_record
 }
+
+output "db_endpoint" {
+  value = module.database.endpoint
+}
+
+output "db_name" {
+  value = module.database.db_name
+}
+
+output "db_master_user_secret_arn" {
+  description = "Secrets Manager ARN with JSON {username, password}. Rotated by RDS."
+  value       = module.database.master_user_secret_arn
+}
+
+output "media_bucket_name" {
+  value = module.storage.bucket_name
+}
+
+output "media_bucket_arn" {
+  value = module.storage.bucket_arn
+}
+
+output "alarm_topic_arn" {
+  description = "SNS topic for CloudWatch alarms. Add email/Slack subscriptions here."
+  value       = module.observability.alarm_topic_arn
+}
+
+output "observability_dashboard_url" {
+  value = module.observability.dashboard_url
+}
+
+output "sms_secret_arn" {
+  description = "Secrets Manager secret for Arkesel SMS. Set its value with aws secretsmanager put-secret-value."
+  value       = module.secrets.arkesel_sms_secret_arn
+}
+
+output "app_log_group_name" {
+  value = module.compute.app_log_group_name
+}
