@@ -440,5 +440,17 @@
   "content.adviceInvalid": "Choose a crop and write a title and the advice.",
   "content.published": "Published advice",
   "content.archive": "Remove",
-  "content.none": "Nothing published yet. Farmers see sample advice until you publish some."
+  "content.none": "Nothing published yet. Farmers see sample advice until you publish some.",
+  "more.requests": "Requests from farmers",
+  "requests.title": "Requests from farmers",
+  "requests.hint": "Farmers on basic phones ask for a visit by dialling the USSD code.",
+  "requests.tab.open": "To do",
+  "requests.tab.done": "Done",
+  "requests.none": "No requests here.",
+  "requests.unregistered": "Caller not registered yet",
+  "requests.kind.agent_visit": "Wants an agent visit",
+  "requests.channel.ussd": "USSD",
+  "requests.channel.app": "App",
+  "requests.markDone": "Mark as done",
+  "requests.doneBy": "Done by {name}"
 }

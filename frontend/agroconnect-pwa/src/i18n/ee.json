@@ -440,5 +440,17 @@
   "content.adviceInvalid": "Tia nuku eye nàŋlɔ tanya kple aɖaŋuɖoɖo la.",
   "content.published": "Aɖaŋuɖoɖo siwo woɖe ɖe go",
   "content.archive": "Ɖee ɖa",
-  "content.none": "Woɖe naneke ɖe go haɖe o. Agbledelawo kpɔa kpɔɖeŋu aɖaŋuɖoɖo va se ɖe esime nàɖe aɖewo ɖe go."
+  "content.none": "Woɖe naneke ɖe go haɖe o. Agbledelawo kpɔa kpɔɖeŋu aɖaŋuɖoɖo va se ɖe esime nàɖe aɖewo ɖe go.",
+  "more.requests": "Agbledelawo ƒe biabiawo",
+  "requests.title": "Agbledelawo ƒe biabiawo",
+  "requests.hint": "Agbledela siwo si fon tsɛ le yɔa USSD code la bia srãkpɔkpɔ.",
+  "requests.tab.open": "Esiwo wòle be woawɔ",
+  "requests.tab.done": "Wowɔe",
+  "requests.none": "Biabia aɖeke meli le afi sia o.",
+  "requests.unregistered": "Womeŋlɔ yɔla la ƒe ŋkɔ haɖe o",
+  "requests.kind.agent_visit": "Edi be agent nava srã ye",
+  "requests.channel.ussd": "USSD",
+  "requests.channel.app": "App",
+  "requests.markDone": "Fia be wowɔe",
+  "requests.doneBy": "{name} ye wɔe"
 }

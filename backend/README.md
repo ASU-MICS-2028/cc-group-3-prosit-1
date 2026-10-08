@@ -18,6 +18,7 @@ One Node.js 24 / Express 5 / TypeScript service that implements every contract t
 | [ADVICE](../frontend/agroconnect-pwa/docs/ADVICE-CONTRACT.md) | `/crop-checks`, `/crop-checks/me`, `/crop-checks/:id/{photo,advice}` |
 | [LISTINGS](../frontend/agroconnect-pwa/docs/LISTINGS-CONTRACT.md) | `/listings`, `/listings/:id/close` |
 | [CONTENT](../frontend/agroconnect-pwa/docs/CONTENT-CONTRACT.md) | `GET /market-prices`, `GET /advice`, `POST /admin/market-prices`, `POST /admin/advice`, `/admin/advice/:id/archive` |
+| [USSD](../frontend/agroconnect-pwa/docs/USSD-CONTRACT.md) | `POST /ussd` (Arkesel gateway), `GET /admin/requests`, `POST /admin/requests/:id/done` |
 
 The PWA's mock server (`frontend/agroconnect-pwa/mock-server/`) is the executable reference: its contract tests are ported into `test/` and run against this service.
 
@@ -47,6 +48,7 @@ The PWA's mock server (`frontend/agroconnect-pwa/mock-server/`) is the executabl
 | `VOTEX_SECRET_ARN` | votex365 `{ "api_key", "webhook_secret" }`. Unset: every payment is simulated |
 | `PAYMENT_RETURN_URL` | Where votex365 sends the farmer back after checkout |
 | `ADMIN_SEED_SECRET_ARN` | `{ "login_id", "name", "phone", "password" }` (12+ characters): the first admin, created if missing |
+| `USSD_USER_ID` | Arkesel's userID for our USSD code. Unset: `POST /ussd` answers 404 ([USSD-CONTRACT](../frontend/agroconnect-pwa/docs/USSD-CONTRACT.md)) |
 | `SEED_DEMO_ACCOUNTS` | `true` seeds the public demo accounts from `WALKTHROUGH.md`. Never with real data |
 
 ## Local development

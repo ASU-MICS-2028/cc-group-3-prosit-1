@@ -35,7 +35,7 @@ const app = createApp({
   sms: arkeselSms(config),
   storage: config.photoBucket ? s3Storage({ ...config, photoBucket: config.photoBucket }) : memoryStorage(),
   checkout: config.votexSecretArn ? votexProvider(config) : null,
-  settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins },
+  settings: { ...DEFAULT_SETTINGS, testMode: config.authTestMode, pwaOrigins: config.pwaOrigins, ussdUserId: config.ussdUserId },
   now: Date.now,
 })
 

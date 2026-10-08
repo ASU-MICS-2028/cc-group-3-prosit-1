@@ -440,5 +440,17 @@
   "content.adviceInvalid": "Yi nnɔbae na kyerɛw asɛmti ne afotuo no.",
   "content.published": "Afotuo a wɔde ato dwa",
   "content.archive": "Yi fi",
-  "content.none": "Wɔmmfaa biribiara nto dwa nnya. Akuafoɔ hunu nhwɛsoɔ afotuo kosi sɛ wobɛfa bi ato dwa."
+  "content.none": "Wɔmmfaa biribiara nto dwa nnya. Akuafoɔ hunu nhwɛsoɔ afotuo kosi sɛ wobɛfa bi ato dwa.",
+  "more.requests": "Akuafoɔ abisadeɛ",
+  "requests.title": "Akuafoɔ abisadeɛ",
+  "requests.hint": "Akuafoɔ a wɔwɔ fon kakraa frɛ USSD code no de bisa nsrahwɛ.",
+  "requests.tab.open": "Deɛ ɛsɛ sɛ wɔyɛ",
+  "requests.tab.done": "Wɔayɛ",
+  "requests.none": "Abisadeɛ biara nni ha.",
+  "requests.unregistered": "Wɔnkyerɛɛ ɔfrɛfoɔ no din nnya",
+  "requests.kind.agent_visit": "Ɔpɛ sɛ agent bɛsra no",
+  "requests.channel.ussd": "USSD",
+  "requests.channel.app": "App",
+  "requests.markDone": "Kyerɛ sɛ wɔayɛ",
+  "requests.doneBy": "{name} na ɔyɛeɛ"
 }
