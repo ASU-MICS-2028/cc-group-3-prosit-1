@@ -75,7 +75,7 @@ variable "frontend_subdomain_prefix" {
 }
 
 variable "alarm_email_addresses" {
-  description = "Emails subscribed to the CloudWatch alarm SNS topic. Each receives an SNS confirmation email and must click the link before alarms arrive."
+  description = "Emails subscribed to the CloudWatch alarm SNS topic and the AWS Budgets notifications. Set these in terraform.tfvars (gitignored); each recipient must confirm the SNS email before alarms arrive."
   type        = list(string)
   default     = []
 }
