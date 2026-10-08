@@ -155,3 +155,22 @@ module "frontend" {
   custom_domain           = var.frontend_apex_domain
   custom_subdomain_prefix = var.frontend_subdomain_prefix
 }
+
+# ---------- observability (SNS topic + CloudWatch alarms + monthly budget) ----------
+# Alarms span every tier: ALB (unhealthy targets, target 5xx, latency),
+# RDS (memory, storage, CPU), and EC2 (fck-nat + ASG system status checks).
+# All publish to one SNS topic; the budget emails directly.
+module "observability" {
+  source = "./modules/observability"
+
+  name_prefix                 = local.name
+  alarm_email_addresses       = var.alarm_email_addresses
+  monthly_budget_warn_usd     = var.monthly_budget_warn_usd
+  monthly_budget_critical_usd = var.monthly_budget_critical_usd
+
+  alb_arn_suffix          = module.alb.alb_arn_suffix
+  target_group_arn_suffix = module.alb.target_group_arn_suffix
+  db_instance_identifier  = module.database.identifier
+  asg_name                = module.compute.asg_name
+  nat_instance_id         = module.nat.instance_id
+}

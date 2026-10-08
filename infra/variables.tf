@@ -73,3 +73,21 @@ variable "frontend_subdomain_prefix" {
   type    = string
   default = "app"
 }
+
+variable "alarm_email_addresses" {
+  description = "Emails subscribed to the CloudWatch alarm SNS topic. Each receives an SNS confirmation email and must click the link before alarms arrive."
+  type        = list(string)
+  default     = []
+}
+
+variable "monthly_budget_warn_usd" {
+  description = "Forecasted monthly spend above this triggers a warning budget notification."
+  type        = number
+  default     = 50
+}
+
+variable "monthly_budget_critical_usd" {
+  description = "Actual month-to-date spend above this triggers a critical budget notification (also the budget limit)."
+  type        = number
+  default     = 100
+}

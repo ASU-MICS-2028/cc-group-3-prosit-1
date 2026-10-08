@@ -79,3 +79,8 @@ output "media_bucket_name" {
 output "media_bucket_arn" {
   value = module.storage.bucket_arn
 }
+
+output "alarm_topic_arn" {
+  description = "SNS topic for CloudWatch alarms. Add email/Slack subscriptions here."
+  value       = module.observability.alarm_topic_arn
+}

@@ -29,6 +29,11 @@ output "security_group_id" {
   value = aws_security_group.db.id
 }
 
+output "identifier" {
+  description = "RDS DBInstanceIdentifier — used for CloudWatch metric dimensions"
+  value       = aws_db_instance.main.identifier
+}
+
 output "arn" {
   value = aws_db_instance.main.arn
 }
