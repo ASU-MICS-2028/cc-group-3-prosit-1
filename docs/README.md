@@ -12,7 +12,7 @@ This documentation dossier covers the entire system lifecycle—from empirical c
 docs/
 ├── README.md                     # Documentation Index & Hub (this page)
 ├── system-overview.md            # High-level architecture, business context & Well-Architected alignment
-├── architecture-decisions.md     # Architectural Decision Records (ADR-001 through ADR-012)
+├── architecture-decisions.md     # Architectural Decision Records (ADR-001 through ADR-013)
 ├── learnings.md                  # Engineering journal — discoveries & corrections for reflection
 ├── ai-tools-usage.md             # AI tools usage disclosure, Ashesi policy compliance & audit table
 ├── empirical-research.md         # Network latency benchmarks & cloud provider comparison
@@ -38,7 +38,7 @@ docs/
 | Document | Focus Area | Key Highlights |
 |---|---|---|
 | [**1. System Overview**](./system-overview.md) | Architectural Vision | Context in Ghana rural agriculture, high-level topology, Well-Architected Framework 6-pillar analysis |
-| [**2. Architecture Decisions (ADRs)**](./architecture-decisions.md) | Formal Decisions | ADR-001 through ADR-012 (Amplify hosting, language scope, Node.js runtime, Background Sync & Web Locks) |
+| [**2. Architecture Decisions (ADRs)**](./architecture-decisions.md) | Formal Decisions | ADR-001 through ADR-013 (Amplify hosting, language scope, Node.js runtime, Background Sync & Web Locks, one backend for every contract) |
 | [**2b. Engineering Learnings**](./learnings.md) | Reflection Journal | Discoveries during implementation (API gaps, routing-layer mental models). Material for lab reflection + viva. |
 | [**2c. AI Tools Disclosure**](./ai-tools-usage.md) | Academic Integrity | Ashesi University AI policy compliance, tool categories, prompting workflows & verification audit |
 | [**3. Empirical Research**](./empirical-research.md) | Cloud Benchmarks | Network latency testing from Ghana (AWS vs Azure vs GCP) & provider service comparison |

@@ -18,6 +18,7 @@ This document formalizes the key architectural decisions made for **AgroConnect 
 * [ADR-010: App Languages Limited to English, Twi and Ewe](#adr-010-app-languages-limited-to-english-twi-and-ewe)
 * [ADR-011: Backend Runtime Migration to Node.js and TypeScript](#adr-011-backend-runtime-migration-to-nodejs-and-typescript)
 * [ADR-012: Service Worker Background Sync with Web Locks Concurrency](#adr-012-service-worker-background-sync-with-web-locks-concurrency)
+* [ADR-013: One Backend Service for Every Contract, on Postgres](#adr-013-one-backend-service-for-every-contract-on-postgres)
 
 ---
 
@@ -79,14 +80,14 @@ Accepted (superseded in part: scaling policy updated by ADR-008; runtime migrate
 Field registrations fluctuate dramatically between quiet off-peak periods and intense agricultural subsidy distribution windows (e.g., Ministry of Food and Agriculture campaigns), where request volume jumps tenfold (50 &rarr; 500 req/s). The application backend must scale dynamically without session locking or operational overhead.
 
 ### Decision
-1. **Stateless Framework:** Build the `farmer-profile-service` using **FastAPI** (Python 3.12).
+1. **Stateless Framework:** Build the `farmer-profile-service` using **FastAPI** (Python 3.12). *Superseded by [ADR-011](#adr-011-backend-runtime-migration-to-nodejs-and-typescript) (Node.js/TypeScript) and [ADR-013](#adr-013-one-backend-service-for-every-contract-on-postgres); the stateless design stands.*
 2. **Containerization:** Package the application into a Docker container image deployed via Amazon Elastic Container Registry (ECR).
 3. **Auto Scaling Group (ASG):** Run compute on EC2 instances (`t3.micro`) inside an ASG spanning two Availability Zones (`af-south-1a`, `af-south-1b`), configured with `min = 1, desired = 2, max = 2`.
 4. **Health Probing:** The Application Load Balancer (ALB) continuously checks `GET /health` on port 8000; failed instances are terminated and replaced automatically.
 
 ### Consequences
 * **Positive:** Completely stateless instances can be replaced or scaled in/out at any moment without dropping active user sessions.
-* **Negative:** Shared state must reside externally in the database (Week 4 RDS) rather than local memory.
+* **Negative:** Shared state must reside externally in the database (RDS Postgres, now in place) rather than local memory.
 
 ---
 
@@ -205,7 +206,7 @@ A target-tracking scaling policy was initially created via the AWS Console using
 
 ### Decision
 1. **Metric:** `ALBRequestCountPerTarget` (sum of HTTP requests per registered target per 1-minute period). Captured in Terraform under `module.compute.aws_autoscaling_policy.cpu_target` (name preserved for state continuity).
-2. **Target Value:** 500 requests per target per minute (~8 req/s per instance). Chosen because a `t3.micro` running Python/FastAPI comfortably sustains ~200 req/s; 8 req/s keeps per-instance utilization under 5% and leaves generous headroom for intermittent traffic bursts.
+2. **Target Value:** 500 requests per target per minute (~8 req/s per instance). Chosen because a `t3.micro` running the API (then Python/FastAPI, now Node.js) comfortably sustains ~200 req/s; 8 req/s keeps per-instance utilization under 5% and leaves generous headroom for intermittent traffic bursts.
 3. **ASG Capacity:** `min = 1`, `desired = 1`, `max = 3`. Scales out to 3 under sustained load, back to 1 when quiet. Keeps the normal-day cost at one instance (~$10/mo), with ceiling at three (~$30/mo).
 4. **Resource Label:** Built from `module.alb.alb_arn_suffix` and `module.alb.target_group_arn_suffix` so the policy stays tied to the correct ALB/TG pair even if either is replaced.
 
@@ -229,7 +230,7 @@ Two candidates were considered: **AWS Amplify Hosting** (managed Git-connected d
 A region constraint surfaced during Terraform apply: **AWS Amplify Hosting is not offered in `af-south-1` (Cape Town)**. The nearest supported regions are `eu-west-1` (Ireland), `eu-west-2` (London), and `eu-central-1` (Frankfurt).
 
 ### Decision
-1. **Hosting Platform:** AWS Amplify Hosting (not Amplify Gen 2 — pin to Hosting-only so the managed-backend features of Gen 2 don't conflict with the existing FastAPI/Node service).
+1. **Hosting Platform:** AWS Amplify Hosting (not Amplify Gen 2 — pin to Hosting-only so the managed-backend features of Gen 2 don't conflict with the existing Node.js API).
 2. **Region:** `eu-west-1` (Ireland). Closest supported region to Ghana among Amplify Hosting regions.
 3. **Build Pipeline:** `amplify.yml` committed at repo root; monorepo build spec with `appRoot: frontend/agroconnect-pwa`. Only the `main` branch deploys; preview URLs for other branches are disabled.
 4. **Custom Domain:** `app.agroconnect.space` via `aws_amplify_domain_association`, with the CNAME + ACM-validation records published at Hostinger (same pattern as ADR-006).
@@ -345,6 +346,36 @@ Conversely, if the browser supports background wakeups while the user simultaneo
   * Background Sync is not supported on WebKit/Safari (iOS), meaning iOS devices require foreground app execution to drain the queue.
   * Added complexity in service worker lifecycle and build tooling (`vite-plugin-pwa` injectManifest mode).
 * **Reversal:** If Background Sync proves problematic, `src/sw.ts` can drop the `sync` listener, and `vite-plugin-pwa` can revert to `generateSW`.
+
+---
+
+## ADR-013: One Backend Service for Every Contract, on Postgres
+
+### Status
+Accepted (8 Oct 2026)
+
+### Context
+The PWA was built against six contracts (farmers, auth, admin, payments, advice, listings) and a mock server that implements all of them with tests. The real backend implemented four routes with an in-memory map, so the hosted app could not get past its sign-in screen, and the backend lead was unavailable with the deadline close. RDS, the S3 media bucket and an SMS secret already existed in Terraform but were unused.
+
+The contracts imply an auth-service and several other services, but the infrastructure has one ECR repository, one Auto Scaling Group and one ALB target group.
+
+### Decision
+1. **One service, `agroconnect-api`,** implements every contract, in route modules per contract ([`backend/src/routes/`](../backend/src/routes)). The PWA's separate `VITE_*_URL` settings all fall back to `api.agroconnect.space`, so no frontend change is needed, and services can still be split later behind the same paths.
+2. **Port the mock, not rewrite from scratch.** The mock is the executable reference; its 89 contract tests are ported into `backend/test/` and run against the real service. Two differences were resolved in favour of the contracts (normalised timestamps; coordinator creation audited as `users.insert`).
+3. **Postgres does the integrity work.** Migrations in `backend/migrations/` run on boot under an advisory lock. Every offline-created row has `client_id UUID NOT NULL UNIQUE`; the service inserts and maps `23505` by constraint name. A trigger writes the audit log with the actor from `set_config('app.actor', $1, true)`.
+4. **Secrets by reference.** Instances get secret ARNs only; the app reads values with its instance role. The RDS password is fetched per connection (rotation-safe) and TLS to RDS is verified with the CA bundle in the image. This needed the IMDSv2 hop limit raised to 2 for the container.
+5. **Real integrations in test mode:** Arkesel SMS for sign-in codes; **votex365** hosted checkout (test keys) for cedi collections, with an HMAC-signed webhook. Payouts, NGN and KES, which votex365 cannot do, stay simulated as the payments contract allows. votex365 is temporary; Flutterwave or Paystack can replace it behind the same `CheckoutProvider` interface.
+6. **Tests without infrastructure:** the suite runs on PGlite (Postgres in WebAssembly) by default and on a real Postgres with `TEST_DATABASE_URL`; CI does both against Postgres 16 and boots the image.
+
+### Alternatives Considered
+* **Separate services per contract** (auth-service, payments-service, …): matches the contracts' wording, but needs more ECR repositories, target groups and listener rules for no benefit at this scale. Rejected for now.
+* **Run migrations from CI:** the database is only reachable from the app subnets, so CI would need a bastion or SSM tunnel. Migrating on boot needs neither.
+* **Keep payments fully simulated:** simpler, but proves nothing about a real provider integration. votex365 offered test keys immediately.
+
+### Consequences
+* **Positive:** the hosted PWA works end to end against real infrastructure; contract parity with the mock is proven by its own tests; no secret value appears in user data, Terraform state or the repository.
+* **Negative:** one service means one blast radius and one deploy for every area. The payment provider is a small local company, not a regional standard; live mode would need KYC and a provider change. Demo accounts with public passwords are enabled for the prosit (`SEED_DEMO_ACCOUNTS`) and must be turned off before real data.
+* **Reversal:** each route module depends only on the shared context, so one can be moved into its own service behind the same path.
 
 ---
 

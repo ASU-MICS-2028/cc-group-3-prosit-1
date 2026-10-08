@@ -31,7 +31,7 @@ frontend/
 └── agroconnect-pwa/              # Production Vite + React 19 application
     ├── public/                   # Static assets, manifests, icons & local fonts
     ├── docs/                     # Client-backend interface specifications
-    │   ├── API-CONTRACT.md       # PWA ↔ farmer-profile-service contract
+    │   ├── API-CONTRACT.md       # PWA ↔ API contract (farmers, photos, conventions)
     │   ├── AUTH-CONTRACT.md      # JWT authentication & session refresh spec
     │   └── ADMIN-CONTRACT.md     # Coordinator & administrative endpoints
     ├── mock-server/              # Mock API server for local end-to-end testing

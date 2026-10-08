@@ -16,14 +16,14 @@ Comprehensive system documentation is maintained inside the [`docs/`](./docs) fo
 |---|---|
 | [**Documentation Index**](./docs/README.md) | Navigation index, directory mapping, and high-level project summary |
 | [**1. System Overview**](./docs/system-overview.md) | Operational context, high-level topology & Well-Architected Framework alignment |
-| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-012 |
+| [**2. Architecture Decisions (ADRs)**](./docs/architecture-decisions.md) | Formal records: ADR-001 through ADR-013 |
 | [**2b. Engineering Learnings**](./docs/learnings.md) | Engineering journal — discoveries & mental models (Amplify API gaps, CloudFront routing) |
 | [**2c. AI Tools Disclosure**](./docs/ai-tools-usage.md) | Academic integrity disclosure per Ashesi AI policy: tool categories, prompts & verification |
 | [**3. Empirical Research & Benchmarks**](./docs/empirical-research.md) | Network latency testing from Ghana & cloud provider comparison matrix |
 | [**4. Client Tier (PWA)**](./docs/client-tier.md) | Offline-first architecture, Dexie IndexedDB, sync queue & hardware hooks |
-| [**5. API Tier**](./docs/api-tier.md) | Containerized Node.js/Express TypeScript `farmer-profile-service`, endpoints & health probes |
+| [**5. API Tier**](./docs/api-tier.md) | Node.js/Express TypeScript `agroconnect-api`: every PWA contract, Postgres, SMS, payments, health probes |
 | [**6. Data Tier**](./docs/data-tier.md) | PostgreSQL schema & migrations (`backend/migrations/`), audit trigger, S3 media |
-| [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform modular IaC (7 modules), `af-south-1` VPC, `fck-nat`, ALB TLS & ASG |
+| [**7. Cloud Infrastructure**](./docs/cloud-infrastructure.md) | Terraform modular IaC (11 modules), `af-south-1` VPC, `fck-nat`, ALB TLS & ASG |
 | [**8. CI/CD & Operations**](./docs/ci-cd-and-operations.md) | GitHub Actions OIDC deployment, ASG rolling refresh & team IAM governance |
 
 ---
@@ -56,7 +56,7 @@ The system is architected as an offline-first client syncing with a highly avail
 │           ├── Target-Tracking on ALBRequestCountPerTarget (500 req/min) │
 │           └── EC2 (t3.micro) + Docker running Express :8000 (Node/TS)   │
 │                                                                         │
-│   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)] (Week 4)        │
+│   [Private Data Subnets (10.20.21.0/24, 10.20.22.0/24)]                 │
 │     └── PostgreSQL / Amazon RDS (Isolated — no default internet route)  │
 └────────────────────────────────────▲────────────────────────────────────┘
                                      │
@@ -95,7 +95,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
 .
 ├── docs/                   # Detailed system documentation dossier
 ├── frontend/               # Offline-first Progressive Web App (PWA)
-├── backend/                # Containerized FastAPI farmer-profile-service
+├── backend/                # Node.js/TypeScript API for every PWA contract (Postgres, S3, SMS, payments)
 ├── db/                     # Relational schema & migration scripts
 ├── infra/                  # Modular Terraform IaC (af-south-1 & eu-west-1)
 ├── scripts/                # Administrative & IAM onboarding scripts
@@ -123,13 +123,10 @@ Each tier is decoupled and maintained in its respective subdirectory:
 * *Details & specifications:* See [`docs/client-tier.md`](./docs/client-tier.md) and [`frontend/README.md`](./frontend/README.md).
 
 ### 2. Application & API Tier ([`backend/`](./backend))
-* **Service:** `farmer-profile-service` implemented in **Node.js 24**, **Express 5**, and **TypeScript** (migrated from Python/FastAPI; see [ADR-011](./docs/architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript)).
-* **Containerization:** Packaged with multi-stage Alpine Docker ([`backend/Dockerfile`](./backend/Dockerfile)) running unprivileged as `USER node`, bound to port `8000`.
-* **API Endpoints:**
-  * `GET /` — Service metadata and endpoint discovery
-  * `GET /health` — Liveness probe queried every 15s by the AWS ALB
-  * `POST /farmers` — Idempotent profile registration
-  * `GET /farmers/:farmer_id` — Profile retrieval
+* **Service:** `agroconnect-api` in **Node.js 24**, **Express 5** and **TypeScript** ([ADR-011](./docs/architecture-decisions.md#adr-011-backend-runtime-migration-to-nodejs-and-typescript), [ADR-013](./docs/architecture-decisions.md#adr-013-one-backend-service-for-every-contract-on-postgres)). One service implements all six PWA contracts: farmer registration and photos, sign-in for all four roles (SMS codes via Arkesel, RS256 tokens), the admin dashboard and audit log, payments (votex365 checkout in test mode), crop checks and produce listings.
+* **Data:** Postgres 16 on RDS, migrated on boot; idempotency through `client_id` unique constraints; an audit trigger records every change with the acting user.
+* **Containerization:** Multi-stage Alpine Docker ([`backend/Dockerfile`](./backend/Dockerfile)) running unprivileged as `USER node` on port `8000`; secrets are read at runtime by ARN, never baked into user data.
+* **Tests:** the mock server's contract tests run against the real API on Postgres (108 tests, PGlite and Postgres 16 in CI).
 * *Details & run instructions:* See [`docs/api-tier.md`](./docs/api-tier.md) and [`backend/README.md`](./backend/README.md).
 
 ### 3. Database Tier ([`db/`](./db))
@@ -181,7 +178,7 @@ Each tier is decoupled and maintained in its respective subdirectory:
 |---|---|
 | **Operational Excellence** | Infrastructure 100% codified across 11 Terraform modules (`infra/modules/`) with native S3 state locking. Immutable container deployments through ECR and ASG rolling refreshes with concurrency retry protection. Docker `awslogs` container log streaming to CloudWatch Logs. Unified CloudWatch operational dashboard (`agroconnect-dev-operational`) and automated SNS email alarm dispatches. |
 | **Security** | Multi-tier security groups (`ALB -> App -> Data`). Private subnets with zero public IPs for app and database tiers. No open SSH ports (SSM Session Manager only). GitHub Actions authenticates via short-lived OIDC tokens. Database credentials and third-party SMS tokens secured in AWS Secrets Manager. IAM team members protected by mandatory MFA. Auto-managed TLS certificates on ALB and Amplify via ACM. |
-| **Reliability** | Multi-AZ deployment across `af-south-1a` and `af-south-1b`. Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Automated RDS snapshots and S3 bucket versioning. |
+| **Reliability** | ALB and app instances across `af-south-1a` and `af-south-1b` (RDS single-AZ for the lab). Application Load Balancer health checks with automatic ASG replacement. Target-tracking scaling on `ALBRequestCountPerTarget` (500 req/min/target). Global CloudFront edge asset delivery for the PWA. Zero-touch client outbox drainage via W3C Background Sync and Web Locks preventing duplicate submissions. Automated RDS snapshots and S3 bucket versioning. |
 | **Performance Efficiency** | Region selected via empirical latency testing (`af-south-1` @ ~74 ms median RTT). Burstable EC2 `t3.micro` instances accommodating registration bursts. Static PWA cached at CloudFront edge; client-side IndexedDB caching and photo compression reducing payload overhead by >95%. |
 | **Cost Optimization** | Usage of `fck-nat` (`t4g.nano`) reducing NAT egress costs by ~90%. Right-sized compute with free-tier `t3.micro` credits. ASG configured with min 1 / max 3 capacity. Static hosting on AWS Amplify. \$10/month AWS Budgets guardrail with 80% forecast warning and 100% actual spend alert to SNS. |
 | **Sustainability** | Elimination of redundant network transfers via offline-first batch syncing. Dynamic instance scaling during off-peak hours. Adoption of ARM64 Graviton instances for NAT (`t4g.nano`) and RDS (`db.t4g.micro`), reducing power consumption and emissions. |

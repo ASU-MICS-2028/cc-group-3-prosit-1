@@ -30,7 +30,7 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Data tier subnets — isolated. No default route. Week 4 RDS lands here.
+# Data tier subnets — isolated. No default route. RDS lives here.
 resource "aws_subnet" "data" {
   count             = length(var.data_subnet_cidrs)
   vpc_id            = aws_vpc.main.id
