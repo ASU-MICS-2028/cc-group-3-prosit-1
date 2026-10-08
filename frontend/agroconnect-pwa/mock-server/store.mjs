@@ -51,6 +51,7 @@ export function snapshotOf(store) {
     listings: [...store.listings.values()],
     marketPrices: store.marketPrices,
     adviceCards: store.adviceCards,
+    visits: store.visits,
     audit: store.audit,
     counters: store.counters,
   }
@@ -67,6 +68,7 @@ function restoreInto(store, snapshot) {
   for (const listing of snapshot.listings ?? []) store.listings.set(listing.id, listing)
   store.marketPrices = snapshot.marketPrices ?? []
   store.adviceCards = snapshot.adviceCards ?? []
+  store.visits = snapshot.visits ?? []
   store.audit = snapshot.audit ?? []
   Object.assign(store.counters, snapshot.counters)
 }
