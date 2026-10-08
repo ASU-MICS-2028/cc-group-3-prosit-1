@@ -23,6 +23,7 @@ env:
   AWS_REGION: af-south-1
   ECR_REPO: agroconnect-dev-backend
   ASG_NAME: agroconnect-dev-asg
+  IMAGE_TAG_PARAM: /agroconnect-dev/app-image-tag
 
 jobs:
   deploy:
@@ -52,6 +53,17 @@ jobs:
           docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
           docker push "$IMAGE:latest"
           docker push "$IMAGE:${{ github.sha }}"
+
+      # Instances pull the immutable :<sha>, not :latest, so a rollback is just
+      # pointing the parameter at an earlier SHA and refreshing (see infra/README).
+      - name: Pin deployed image tag (SSM)
+        run: |
+          aws ssm put-parameter \
+            --name "$IMAGE_TAG_PARAM" \
+            --value "${{ github.sha }}" \
+            --type String \
+            --overwrite
+          echo "Pinned $IMAGE_TAG_PARAM = ${{ github.sha }}"
 
       - name: Roll ASG and wait for the refresh to finish
         run: |

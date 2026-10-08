@@ -79,6 +79,8 @@ module "compute" {
   payment_return_url        = "https://${var.frontend_subdomain_prefix}.${var.frontend_apex_domain}/"
   auth_test_mode            = var.auth_test_mode
   seed_demo_accounts        = var.seed_demo_accounts
+  image_tag_param_name      = module.cicd.image_tag_param_name
+  image_tag_param_arn       = module.cicd.image_tag_param_arn
 }
 
 # ---------- nat (fck-nat instance for private-tier egress) ----------

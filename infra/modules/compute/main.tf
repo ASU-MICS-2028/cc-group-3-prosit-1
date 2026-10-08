@@ -82,6 +82,21 @@ resource "aws_iam_role_policy" "ec2_logs" {
   policy = data.aws_iam_policy_document.log_write.json
 }
 
+# Read the image tag CI pins (used to pick which image to run on boot).
+data "aws_iam_policy_document" "image_tag_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = [var.image_tag_param_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ec2_image_tag" {
+  name   = "${var.name_prefix}-ec2-image-tag"
+  role   = aws_iam_role.ec2.id
+  policy = data.aws_iam_policy_document.image_tag_read.json
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.name_prefix}-ec2-profile"
   role = aws_iam_role.ec2.name
@@ -114,7 +129,11 @@ locals {
 
     REGION="${var.region}"
     REPO="${var.ecr_repository_url}"
-    IMAGE="$REPO:latest"
+
+    # Image tag comes from SSM, so a rollback is: put an earlier SHA + refresh.
+    TAG=$(aws ssm get-parameter --name "${var.image_tag_param_name}" --region "$REGION" --query Parameter.Value --output text 2>/dev/null || true)
+    [ -z "$TAG" ] && TAG=latest
+    IMAGE="$REPO:$TAG"
 
     aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REPO"
 

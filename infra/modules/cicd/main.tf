@@ -67,10 +67,31 @@ data "aws_iam_policy_document" "gha_deploy" {
     ]
     resources = ["*"]
   }
+  statement {
+    # CI pins the deployed image tag here; a rollback rewrites it.
+    actions   = ["ssm:PutParameter"]
+    resources = [aws_ssm_parameter.app_image_tag.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "gha_deploy" {
   name   = "${var.name_prefix}-gha-deploy"
   role   = aws_iam_role.gha_deploy.id
   policy = data.aws_iam_policy_document.gha_deploy.json
+}
+
+# The single source of truth for which image the app instances pull. Normally
+# pinned to a git SHA by CI; roll back by setting an earlier SHA and starting an
+# instance refresh (see infra/README.md).
+resource "aws_ssm_parameter" "app_image_tag" {
+  name        = "/${var.name_prefix}/app-image-tag"
+  description = "Image tag (git SHA) the app instances pull. Rollback = set an earlier SHA + refresh the ASG."
+  type        = "String"
+  value       = var.initial_image_tag
+
+  # CI (and manual rollbacks) rewrite this after creation; don't fight them on
+  # later applies. Terraform only seeds the first value.
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
